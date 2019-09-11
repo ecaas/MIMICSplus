@@ -13,7 +13,7 @@
 
 module mycmim
   use paramMod
-  use dispmodule !External module to pretty print matrices (mainly for testing purposes)
+  !use dispmodule !External module to pretty print matrices (mainly for testing purposes)
   use fluxMod
   use initMod
   use writeMod
