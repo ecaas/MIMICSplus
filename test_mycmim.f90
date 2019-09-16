@@ -13,7 +13,7 @@
 
 module mycmim
   use paramMod
-  !use dispmodule !External module to pretty print matrices (mainly for testing purposes)
+  use dispmodule !External module to pretty print matrices (mainly for testing purposes)
   use fluxMod
   use initMod
   use writeMod
@@ -38,7 +38,7 @@ module mycmim
       integer                        :: nlevdecomp           ! number of vertical layers
 
       integer                        :: nsteps               ! number of time steps to iterate over
-      real(r8)                       :: dt=1/(24.0)          ! 1 hour = 1/24 days (size of time step)
+      real(r8)                       :: dt=1!/(24.0)          ! 1 hour = 1/24 days (size of time step)
       real(r8)                       :: time                 ! t*dt
 
       integer                        :: counter=0              ! used for determining when to output results
@@ -99,8 +99,8 @@ module mycmim
           call som_fluxes(j, pool_matrix,nlevdecomp)
           call litter_fluxes(j, pool_matrix,nlevdecomp)
 
-          !TODO: This writing to file should be made much more efficient, and to binary files, not text files..
-          if (counter == 24) then
+          ! !TODO: This writing to file should be made much more efficient, and to binary files, not text files..
+          !if (counter == 24) then
             write(unit=3,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
             time,',',j,',',LITtoSAP(1),',',LITtoSAP(2),',',LITtoSAP(3),',',LITtoSAP(4)
             write(unit=4,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
@@ -112,7 +112,7 @@ module mycmim
             ,MYCtoSOM(4),',',MYCtoSOM(5),',',MYCtoSOM(6),',',MYCtoSOM(7),',',MYCtoSOM(8),',',MYCtoSOM(9)
             write(unit=9,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
             time,',',j,',',SOMtoSAP(1),',',SOMtoSAP(2),',',SOMtoSOM(1),',',SOMtoSOM(2)
-          end if !writing
+          !end if !writing
 
           do i = 1, pool_types !loop over all the pool types, i, in depth level j
 
@@ -189,21 +189,22 @@ module mycmim
             if (isVertical) then
               call alt_vertical_diffusion(j,i, tot_diff,upper,lower, pool_matrix, nlevdecomp)
               vert(j,i) = tot_diff
-              !Check if the diffusion term should act as a source or a sink in the analytical solution.
-                if (tot_diff < 0) then
-                  Loss = Loss + abs(tot_diff)
-                else
-                  Gain = Gain + abs(tot_diff)
-                end if
 
-                if (counter ==24) then
+              !Check if the diffusion term should act as a source or a sink in the analytical solution.
+                !if (tot_diff < 0) then
+                !  Loss = Loss + abs(tot_diff)
+                !else
+              !    Gain = Gain + abs(tot_diff)
+              !  end if
+
+                !if (counter ==24) then
                   write(unit=10,fmt='(F10.0,A2,I2,A2,I6,A2,F30.10,A2,F30.10,A2,F30.10)') &
                   time,',',j,',',i,',',vert(j,i),',', upper,',', lower
-                end if !writing
+                !end if !writing
             end if!isVertical
 
             !Analytical solution:
-            a_matrix(j, i) = Init(j,i)*exp(-time*Loss) + Gain*(1-exp(-time*Loss))/Loss
+            a_matrix(j, i) = Init(j,i)*exp(-time*Loss) + Gain*(1-exp(-time*Loss))/Loss + vert(j,i)*dt
 
           end do !i, pool_types
 
@@ -213,11 +214,11 @@ module mycmim
         end do !j, depth_level
 
         !Update pool sizes
-        !Assuming fluxes are given as carbon transport pr. day, and the time step t is 1 day --> multiply with dt=1 will get the units correct (I guess this is what is done in the  mimics R code..)
-        pool_matrix=pool_matrix + change_matrix*dt + tot_diff
+        pool_matrix=pool_matrix + change_matrix*dt + vert*dt
 
-        if (counter == 24) then
-          counter = 0
+        !call disp('pool_matrix = ', pool_matrix)
+        !if (counter == 24) then
+        !  counter = 0
           !Write results to file. TODO: incorporate this into the above j, i loops
           do j=1,nlevdecomp
             write(unit = 1, FMT='(F10.0,A2,I2)',advance='no') time,',', j
@@ -232,7 +233,7 @@ module mycmim
             write(2,*) ''
             write(15,*)''
           end do !write
-        end if!writing
+        !end if!writing
       end do !t
       call closeFiles(isVertical)
     end subroutine decomp

@@ -126,19 +126,21 @@ module fluxMod
       real(r8) :: pool_matrix(level_max, pool_types)
       real(r8),intent(out) :: upper_diffusion_flux, lower_diffusion_flux
       real(r8), intent(out) :: tot_diffusion_dummy ![gC/day]
-      !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling. TODO: Check if the signs make sense here
+      !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling. 
       if (depth == 1) then
         upper_diffusion_flux= 0.0
-        lower_diffusion_flux=-D(depth+1)*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
+        lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
       elseif (depth==level_max) then
-        upper_diffusion_flux=-D(depth)*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
+        upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
         lower_diffusion_flux= 0.0
       else
-        upper_diffusion_flux=-D(depth)*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
-        lower_diffusion_flux=-D(depth+1)*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
+        upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
+        lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
       end if
 
-      tot_diffusion_dummy=(-upper_diffusion_flux-lower_diffusion_flux)/delta_z(depth)
+      tot_diffusion_dummy=(upper_diffusion_flux-lower_diffusion_flux)/delta_z(depth)
   end subroutine alt_vertical_diffusion
+
+
 
 end module fluxMod
