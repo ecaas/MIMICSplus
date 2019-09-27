@@ -10,7 +10,7 @@
 !SOMp - Physically protected soil organic matter
 !SOMa - Available soil organic matter
 !SOMc - Chemically protected soil organic matter
-
+!TODO: Incorporate frozen soil behavior/variable T, Variable clay content(?)
 module mycmim
   use paramMod
   use dispmodule !External module to pretty print matrices (mainly for testing purposes)
@@ -38,7 +38,9 @@ module mycmim
       integer                        :: nlevdecomp           ! number of vertical layers
 
       integer                        :: nsteps               ! number of time steps to iterate over
-      real(r8)                       :: dt=1!/(24.0)          ! 1 hour = 1/24 days (size of time step)
+      integer,parameter             :: step_frac=1!*24.0!*60!*60
+
+      real(r8)                       :: dt= 1.0/step_frac          ! 1 sec = 1/(24*60*60) days (size of time step)
       real(r8)                       :: time                 ! t*dt
 
       integer                        :: counter=0              ! used for determining when to output results
@@ -52,7 +54,9 @@ module mycmim
       real(r8)                       :: change_matrix(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
       real(r8)                       :: a_matrix(nlevdecomp, pool_types)     ! For storing the analytical solution
       real(r8)                       :: Init(nlevdecomp, pool_types)         ! Initial C concentration, determined in initMod.f90
+      real(r8)                       :: pool_temporary(nlevdecomp,pool_types)                  !For storing the pool(t)+flux changes. These values are used to calculate the vertical transport.
       real(r8)                       :: vert(nlevdecomp, pool_types)
+
       !Set initial concentration values in pool_matrix:
       if (isVertical) then
         call initialize_vert(Init, pool_matrix, nlevdecomp)
@@ -100,7 +104,7 @@ module mycmim
           call litter_fluxes(j, pool_matrix,nlevdecomp)
 
           ! !TODO: This writing to file should be made much more efficient, and to binary files, not text files..
-          !if (counter == 24) then
+          if (counter == step_frac) then
             write(unit=3,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
             time,',',j,',',LITtoSAP(1),',',LITtoSAP(2),',',LITtoSAP(3),',',LITtoSAP(4)
             write(unit=4,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
@@ -112,7 +116,7 @@ module mycmim
             ,MYCtoSOM(4),',',MYCtoSOM(5),',',MYCtoSOM(6),',',MYCtoSOM(7),',',MYCtoSOM(8),',',MYCtoSOM(9)
             write(unit=9,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
             time,',',j,',',SOMtoSAP(1),',',SOMtoSAP(2),',',SOMtoSOM(1),',',SOMtoSOM(2)
-          !end if !writing
+          end if !writing
 
           do i = 1, pool_types !loop over all the pool types, i, in depth level j
 
@@ -135,15 +139,15 @@ module mycmim
               change_matrix(j,i) = LITtoSAP(1)*MGE(1) + LITtoSAP(3)*MGE(3) &
               + sum(MYCtoSAP(1:3)) + SOMtoSAP(1)*MGE(1) - sum(SAPtoSOM(1:3))
 
-              Gain = LITtoSAP(1)*MGE(1) + LITtoSAP(3)*MGE(3) + sum(MYCtoSAP(1:3))
+              Gain = LITtoSAP(1)*MGE(1) + LITtoSAP(3)*MGE(3) + sum(MYCtoSAP(1:3))+ SOMtoSAP(1)*MGE(1)
               Loss = sum(SAPtoSOM(1:3))/pool_matrix(j,i)
 
             elseif (i==4) then !SAPk
               change_matrix(j,i) = LITtoSAP(2)*MGE(2) + LITtoSAP(4)*MGE(4) &
                + sum(MYCtoSAP(4:6)) + SOMtoSAP(2)*MGE(2) - sum(SAPtoSOM(4:6))
 
-               Gain= LITtoSAP(3)*MGE(2) + LITtoSAP(4)*MGE(4) + sum(MYCtoSAP(4:6))
-               Loss=sum(SAPtoSOM(1:3))/pool_matrix(j,i)
+               Gain= LITtoSAP(2)*MGE(2) + LITtoSAP(4)*MGE(4) + sum(MYCtoSAP(4:6))+ SOMtoSAP(2)*MGE(2)
+               Loss=sum(SAPtoSOM(4:6))/pool_matrix(j,i)
 
             elseif (i==5) then !EcM
               change_matrix(j,i)=I_tot*f_ecm*f_myc_levels-MYCtoSAP(1)-MYCtoSAP(4)-MYCtoSOM(1)-MYCtoSOM(4)-MYCtoSOM(7)
@@ -174,7 +178,7 @@ module mycmim
                SOMtoSOM(1) + SOMtoSOM(2) - SOMtoSAP(1) - SOMtoSAP(2)
 
                Gain = SAPtoSOM(2) + SAPtoSOM(5) + sum(MYCtoSOM(4:6)) +  SOMtoSOM(1) + SOMtoSOM(2)
-               Loss = (SOMtoSAP(1)*MGE(1) + SOMtoSAP(2)*MGE(2))/pool_matrix(j,i)
+               Loss = (SOMtoSAP(1) + SOMtoSAP(2))/pool_matrix(j,i)
 
             elseif (i==10) then !SOMc
               change_matrix(j,i)=I_tot*f_som2*f_myc_levels + SAPtoSOM(3) + SAPtoSOM(6) + sum(MYCtoSOM(7:9))- SOMtoSOM(2)
@@ -186,39 +190,40 @@ module mycmim
               print*, 'Too many pool types expected, pool_types = ',pool_types
             end if !determine dC_i/dt
 
-            if (isVertical) then
-              call alt_vertical_diffusion(j,i, tot_diff,upper,lower, pool_matrix, nlevdecomp)
-              vert(j,i) = tot_diff
 
-              !Check if the diffusion term should act as a source or a sink in the analytical solution.
-                !if (tot_diff < 0) then
-                !  Loss = Loss + abs(tot_diff)
-                !else
-              !    Gain = Gain + abs(tot_diff)
-              !  end if
+            pool_temporary(j,i)=pool_matrix(j,i) + change_matrix(j,i)*dt
 
-                !if (counter ==24) then
-                  write(unit=10,fmt='(F10.0,A2,I2,A2,I6,A2,F30.10,A2,F30.10,A2,F30.10)') &
-                  time,',',j,',',i,',',vert(j,i),',', upper,',', lower
-                !end if !writing
-            end if!isVertical
-
-            !Analytical solution:
-            a_matrix(j, i) = Init(j,i)*exp(-time*Loss) + Gain*(1-exp(-time*Loss))/Loss + vert(j,i)*dt
-
+            if (pool_temporary(j,i) < 0.0) then
+              print*, 'Negative concentration value at t',t,'depth level',j,'pool number',i
+            end if
+            a_matrix(j,i) = Init(j,i)*exp(-time*Loss) + Gain*(1-exp(-time*Loss))/Loss !+ vert*dt
           end do !i, pool_types
 
-          !Calculate the heterotrophic respiration loss from depth level j:
+          !Calculate the heterotrophic respiration loss from depth level j in timestep t:
           HR(j) = LITtoSAP(1)*(1-MGE(1)) + LITtoSAP(2)*(1-MGE(2)) + LITtoSAP(3)*(1-MGE(3)) &
                         + LITtoSAP(4)*(1-MGE(4)) + SOMtoSAP(1)*(1-MGE(1)) + SOMtoSAP(2)*(1-MGE(2))
         end do !j, depth_level
 
+        if (isVertical) then
+          call vertical_diffusion(tot_diff,upper,lower, pool_temporary, nlevdecomp,vert,time, counter,dt)
+          pool_matrix =   pool_temporary+vert*dt
+          a_matrix=a_matrix+vert*dt
+        else
+          pool_matrix=pool_temporary
+        end if!isVertical
+
         !Update pool sizes
-        pool_matrix=pool_matrix + change_matrix*dt + vert*dt
+
+        !Check if the diffusion term should act as a source or a sink in the analytical solution.
+        ! if (tot_diff < 0) then
+        !   Loss = Loss + abs(tot_diff)
+        ! else
+        !   Gain = Gain + abs(tot_diff)
+        ! end if
 
         !call disp('pool_matrix = ', pool_matrix)
-        !if (counter == 24) then
-        !  counter = 0
+        if (counter == step_frac) then
+          counter = 0
           !Write results to file. TODO: incorporate this into the above j, i loops
           do j=1,nlevdecomp
             write(unit = 1, FMT='(F10.0,A2,I2)',advance='no') time,',', j
@@ -233,7 +238,7 @@ module mycmim
             write(2,*) ''
             write(15,*)''
           end do !write
-        !end if!writing
+        end if!writing
       end do !t
       call closeFiles(isVertical)
     end subroutine decomp
