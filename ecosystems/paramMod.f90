@@ -8,7 +8,7 @@ implicit none
 !Things that should be given as input to the decomposition model:
 real(kind=r8),parameter                       :: tsoi   = 8.9                   ![degC]
 real(kind=r8),parameter                       :: fclay  = 0.12                  ![-] fraction of clay in soil
-real(kind=r8),dimension(4)                    :: MGE = (/ 0.55,0.50,0.25,0.35 /)![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
+real(kind=r8),dimension(4)                    :: MGE = (/ 0.59,0.50,0.50,0.65 /)![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
                                                  !The rest is lost in respiration.
                                                  !/Litm-sapr, litm->sapk, lits->sapr, lits->sapk/. These should be determined carefully. pH/soil quality/N availability may be important
                                                  !Maybe also vary with time/depth..? See DOI:10.1016/j.soilbio.2018.09.036 and DOI: 10.1016/J.SOILBIO.2019.03.008
@@ -17,31 +17,30 @@ real(r8), dimension(2)                        :: veg_input                      
 !real(r8), dimension(2),parameter              :: IfracSOM = (/0.05,0.05/)     ![-]Fraction of vegetational input that goes directly to SOM pools
 !real(r8), parameter                           :: I_trees=0.2, I_eric=0.5, I_gras=0.3 ![gC/(m2 day)] vegetational input to mycorrhizal pools. TODO: Should vary with time and somehow combine I_trees and veg_input
 
-real(r8)                                      :: f_som1=0.025, f_som2=0.025
+real(r8)                                      :: f_som1=0.05, f_som2=0.05
 real(r8)                                      :: f_myc_levels=1, f_lit_1=1, f_lit_234=1
 
-
 real(kind=r8),dimension(6),parameter          :: k = (/0.05,0.5,0.005,0.05,0.5,0.005/)![1/day](EcM_sapr, ErM_sapr, AM_sapr,EcM_sapr, ErM_sapr, AM_sapr) decay constants, MYC to SAP pools
-real(kind=r8),dimension(3),parameter          :: k2 = (/0.0007,0.0007,0.00014/)! decay constants, MYC to SOM pools
+real(kind=r8),dimension(3),parameter          :: k2 = (/0.0007,0.0007,0.00014/)! [1/day] decay constants, MYC to SOM pools
 real, parameter                               :: Myc_SAPr=0.6, Myc_SAPk=1-Myc_SAPr    ![-]Fraction of the flux from mycorrhizal pools to SAPk pool. The rest is going to SAPr
 
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
 !TODO: Varying Kslope?
-integer, parameter                            :: MM_eqs = 13       !Number of Michaelis-Menten equations
-real(kind=r8),dimension(MM_eqs),parameter     :: Kslope  = (0.017) ![ln(mgC/cm3)/degC]
+integer, parameter                            :: MM_eqs = 4       !Number of Michaelis-Menten parameters
+real(kind=r8),dimension(MM_eqs),parameter     :: Kslope  = (/0.017, 0.027, 0.017, 0.027/) ![ln(mgC/cm3)/degC]
 real(kind=r8),dimension(MM_eqs)               :: Km = exp(Kslope*tsoi+3.19)*10![mgC/cm3]*10e3=[gC/m3]
 real(kind=r8),dimension(2),parameter          :: KO =(4)   ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
-real(kind=r8),parameter,dimension(MM_eqs)     :: Vmax = (/ 0.012, 0.002, 0.012, 0.003, 0.003, &
-                                                        0.002, 0.012, 0.002, 0.012, 0.003, 0.003, 0.002, 0.012/)*24/10![mgC/((mgSAP)h)]*24= [mgC/(mgSAP*day)]  For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+real(kind=r8),parameter,dimension(MM_eqs)     :: Vmax = (/ 0.012, 0.002, 0.012, 0.003/)*24/10![mgC/((mgSAP)h)]*24= [mgC/(mgSAP*day)]  For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
 !end MM parameters
 
 real(kind=r8)                                 :: desorb = 3e-4 * exp(-4*(sqrt(fclay)))*24 ![1/h]*24=[1/day]From Mimics, used for the transport from physically protected SOM to available SOM pool
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
-real(kind=r8), parameter                      :: fMET = 0.5 !Assume half of the input goes to LITm
-real(kind=r8),dimension(2), parameter         :: fPHYS = (/ 0.3 * exp(1.3*fCLAY), 0.2 * exp(0.8*fCLAY) /)
-real(kind=r8),dimension(2), parameter         :: fCHEM = (/ 0.1 * exp(-3.0*fMET), 0.3 * exp(-3*fMET) /)
-real(kind=r8),dimension(2), parameter         :: fAVAIL = 1-(fPHYS+fCHEM)
-real(kind=r8),dimension(2)                    :: tau = (/ 5.2e-4*exp(0.3*fMET), 2.4e-4*exp(0.1*fMET) /)*24 ![1/h]*24=[1/day]Mimics include a modification, tau_mod, not included here.
+
+real(kind=r8)                                 :: fMET  !Assume half of the input goes to LITm
+real(kind=r8),dimension(2)     :: fPHYS
+real(kind=r8),dimension(2)     :: fCHEM
+real(kind=r8),dimension(2)     :: fAVAIL
+real(kind=r8),dimension(2)      :: tau ![1/day]
 
 
 !Pools: NOTE: This needs to be updated if pools are added to/removed from the system.
@@ -63,7 +62,7 @@ real(r8),parameter    :: D = 0.0027*10e-4!(/0.0,0.0027,0.0027,0.0027,0.0/)*10e-4
 
 real(r8)                                      :: diffusive_source,diffusive_sink !For use in vertical_diffusion subroutine. Currently using alt_vertical diffusion subroutine
 real(r8)                                      :: net_diffusion(4,pool_types)
-
+real(r8),parameter                            :: depth = 0.56![m]
 !real(r8),target                               :: pool_matrix(1,pool_types)=0.0
 !real(r8)                                      :: change_matrix(1,pool_types)=0.0
 !real(r8)                                      :: a_noVert(1,pool_types)=0.0

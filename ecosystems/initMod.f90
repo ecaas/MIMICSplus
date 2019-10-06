@@ -6,7 +6,7 @@ contains
                                                    !/LITm LITs SAPr SAPk EcM ErM AM SOMp SOMa SOMc/
     real(r8),intent(out) :: initial(1, pool_types)
     real(r8), intent(inout) :: pools(1,pool_types)
-    initial(1,:) = 5
+    initial(1,:) = (/50,50,5,5,5,5,5,5,5,5/)
     pools = initial
   end subroutine initialize_onelayer
 

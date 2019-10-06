@@ -45,7 +45,7 @@ module fluxMod
     !print*, 'EcM', EcM
 
     !TODO No idea if the Michalis Menten equations is the right thing to use here..
-    !       !03.09.19: Prob. not bc. the mycorrhiza is not a substrate?
+    !       !03.09.19: Probably. not bc. the mycorrhiza is not a substrate?
     ! !From Mycorrhiza pools to SOMp
     ! MYCtoSOM(1)=SOMp*Vmax(5)*EcM/(Km(5)+EcM)
     ! MYCtoSOM(2)=SOMp*Vmax(6)*ErM/(Km(6)+ErM)
@@ -59,17 +59,17 @@ module fluxMod
     ! MYCtoSOM(7)=SOMc*Vmax(11)*EcM/(Km(11)+EcM)
     ! MYCtoSOM(8)=SOMc*Vmax(12)*ErM/(Km(12)+ErM)
     ! MYCtoSOM(9)=SOMc*Vmax(13)*AM/(Km(13)+AM)
-    MYCtoSOM(1)=EcM*k2(1)*0.40
-    MYCtoSOM(2)=EcM*k2(1)*0.40
-    MYCtoSOM(3)=EcM*k2(1)*0.2
+    MYCtoSOM(1)=EcM*k2(1)*0.40!somp
+    MYCtoSOM(2)=EcM*k2(1)*0.40!soma
+    MYCtoSOM(3)=EcM*k2(1)*0.2!somc
 
-    MYCtoSOM(4)=ErM*k2(2)*0.1
-    MYCtoSOM(5)=ErM*k2(2)*0.5
-    MYCtoSOM(6)=ErM*k2(2)*0.4
+    MYCtoSOM(4)=ErM*k2(2)*0.2
+    MYCtoSOM(5)=ErM*k2(2)*0.6
+    MYCtoSOM(6)=ErM*k2(2)*0.2
 
-    MYCtoSOM(7)=AM*k2(3)*0.3
-    MYCtoSOM(8)=AM*k2(3)*0.4
-    MYCtoSOM(9)=AM*k2(3)*0.3
+    MYCtoSOM(7)=AM*k2(3)*0.1
+    MYCtoSOM(8)=AM*k2(3)*0.8
+    MYCtoSOM(9)=AM*k2(3)*0.1
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools.
     !NOTE: correspond to eq A4,A8 in Wieder 2015
     SAPtoSOM(1)=SAPr*tau(1)*fPHYS(1)
@@ -81,8 +81,9 @@ module fluxMod
     SAPtoSOM(6)=SAPk*tau(2)*fCHEM(2)
 
     !Based on the equations from SOMa to microbial pools in mimics. On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
-    SOMtoSAP(2)=SAPk*Vmax(4)*SOMa/(Km(3)+SOMa)
     SOMtoSAP(1)=SAPr*Vmax(3)*SOMa/(Km(3)+SOMa)
+    SOMtoSAP(2)=SAPk*Vmax(4)*SOMa/(Km(4)+SOMa)
+
 
     !Between SOM pools
     !Desorption of SOMp to SOMa, from Mimics model, eq A9

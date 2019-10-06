@@ -8,9 +8,13 @@ program test_script
   use mycmim
   !use mycmimOneLayer
   implicit none
+  integer :: i
+  integer  :: N =20*365*24 !Total number of timesteps
+  character(len=12), dimension(3) :: str = (/'Heath ', 'Meadow', 'Shrub '/)
+  !str = [character(len=) :: 'Heath', 'Meadow', 'Shrub' ]
 
-  integer  :: N =50*365!*60 !Total number of timesteps
-
-  call decomp(nsteps=N, run_name='Heath2', isVertical = .False., nlevdecomp = 1, ecosystem = 'Heath')
-
+  do i = 1,3
+    print*, str(i)
+    call decomp(nsteps=N, run_name=trim(str(i))//"5", isVertical = .False., nlevdecomp = 1, ecosystem = trim(str(i)))
+  end do
 end program test_script

@@ -39,9 +39,9 @@ module mycmim
       integer                        :: nlevdecomp           ! number of vertical layers
 
       integer                        :: nsteps               ! number of time steps to iterate over
-      integer,parameter             :: step_frac=1!*24.0!*60!*60
+      integer,parameter              :: step_frac=24!*60
 
-      real(r8)                       :: dt= 1.0/step_frac          ! 1 sec = 1/(24*60*60) days (size of time step)
+      real(r8)                       :: dt= 1.0/step_frac         ! 1 sec = 1/(24*60*60) days (size of time step)
       real(r8)                       :: time                 ! t*dt
 
       integer                        :: counter=0              ! used for determining when to output results
@@ -62,22 +62,31 @@ module mycmim
       real(r8), dimension(3)         :: myc_input !vector giving the input from vegetation to mycorrhiza pools
       real(r8)                       :: I_tot     !Total input from vegetation to litter pools
 
-      if (ecosystem == 'Shrub') then
-        GEP       = 0.491*24                 ![gC/(m2*day)] Gross ecosystem productivity
-        myc_input = (/0.50,0.25,0.25/)*GEP   !For shrub, most to EcM
-        I_tot     = 4.656                    ![gC/m2/day]
-      elseif (ecosystem == 'Heath') then
-        GEP       = 0.281*24
-        myc_input = (/0.25,0.50,0.25/)*GEP   !For Heath, most to ErM
-        I_tot     = 1.656                   ![gC/m2/day]
+      if (ecosystem == 'Heath') then
+        GEP       = 0.281*24                          ![gC/(m2*day)] Gross ecosystem productivity
+        myc_input = (/0.20,0.60,0.20/)*GEP*0.4/depth  !For Heath, most to ErM ![gC/m3/day]
+        fMET      = 0.5
       elseif (ecosystem == 'Meadow') then
-        GEP       = 0.385*24
-        myc_input = (/0.25,0.25,0.50/)*GEP   !For Heath, most to AM
-        I_tot     = 2.592                   ![gC/m2/day]
+        GEP       = 0.385*24                         ![gC/(m2*day)] Gross ecosystem productivity
+        myc_input = (/0.1,0.1,0.80/)*GEP*0.4/depth   !For meadow, most to AM ![gC/m3/day]
+        fMET      = 0.5
+      elseif (ecosystem == 'Shrub') then
+        GEP       = 0.491*24                 ![gC/(m2*day)] Gross ecosystem productivity
+        myc_input = (/0.80,0.10,0.10/)*GEP*0.4/depth  ![gC/m3/day] For shrub, most to EcM. 0.4 bc. 0.5 goes to litter and 0.1 directly to SOM (fsom1 og fsom2)
+        fMET      = 0.3
       else
         print*, 'Invalid ecosystem name', ecosystem
         stop
       end if
+      I_tot = GEP*0.5/depth
+
+      fPHYS = (/ 0.3 * exp(1.3*fCLAY), 0.2 * exp(0.8*fCLAY) /)
+      fCHEM = (/ 0.1 * exp(-3.0*fMET), 0.3 * exp(-3*fMET) /)
+      fAVAIL = 1-(fPHYS+fCHEM)
+      tau = (/ 5.2e-4*exp(0.3*fMET), 2.4e-4*exp(0.1*fMET) /)*24 ![1/h]*24=[1/day]Mimics include a modification, tau_mod, not included here.
+
+      print*, tau
+      print*, fPHYS, fAVAIL, fCHEM
 
       !Set initial concentration values in pool_matrix:
       if (isVertical) then
@@ -117,7 +126,7 @@ module mycmim
               veg_input=(/fMET*0.25, fMET*0.25/)*I_tot
             end if !j=1
           else
-            veg_input=(/0.475, 0.475/)*I_tot
+            veg_input=(/fMET, 1-fMET/)*(I_tot)/0.56 !average depth = 0.56 m -> input in gC/m³*day
           end if !isVertical
 
           !Calculate fluxes between pools in level j:
@@ -172,40 +181,40 @@ module mycmim
                Loss=sum(SAPtoSOM(4:6))/pool_matrix(j,i)
 
             elseif (i==5) then !EcM
-              change_matrix(j,i)=myc_input(1)-MYCtoSAP(1)-MYCtoSAP(4)-MYCtoSOM(1)-MYCtoSOM(4)-MYCtoSOM(7)
+              change_matrix(j,i)=myc_input(1)-MYCtoSAP(1)-MYCtoSAP(4)-sum(MYCtoSOM(1:3))
 
               Gain = myc_input(1)
-              Loss = (MYCtoSAP(1)+MYCtoSAP(4)+MYCtoSOM(1)+MYCtoSOM(4)+MYCtoSOM(7))/pool_matrix(j,i)
+              Loss = (MYCtoSAP(1)+MYCtoSAP(4)+sum(MYCtoSOM(1:3)))/pool_matrix(j,i)
 
             elseif (i==6) then !ErM
-              change_matrix(j,i)=myc_input(2)-MYCtoSAP(2)-MYCtoSAP(5)-MYCtoSOM(2)-MYCtoSOM(5)-MYCtoSOM(8)
+              change_matrix(j,i)=myc_input(2)-MYCtoSAP(2)-MYCtoSAP(5)-sum(MYCtoSOM(4:6))
 
               Gain = myc_input(2)
-              Loss = (MYCtoSAP(2)+MYCtoSAP(5)+MYCtoSOM(2)+MYCtoSOM(5)+MYCtoSOM(8))/pool_matrix(j,i)
+              Loss = (MYCtoSAP(2)+MYCtoSAP(5)+sum(MYCtoSOM(4:6)))/pool_matrix(j,i)
 
             elseif (i==7) then !AM
-              change_matrix(j,i)=myc_input(3)-MYCtoSAP(3)-MYCtoSAP(6)-MYCtoSOM(3)-MYCtoSOM(6)-MYCtoSOM(9)
+              change_matrix(j,i)=myc_input(3)-MYCtoSAP(3)-MYCtoSAP(6)-sum(MYCtoSOM(7:9))
 
               Gain = myc_input(3)
-              Loss = (MYCtoSAP(3)+MYCtoSAP(6)+MYCtoSOM(3)+MYCtoSOM(6)+MYCtoSOM(9))/pool_matrix(j,i)
+              Loss = (MYCtoSAP(3)+MYCtoSAP(6)+sum(MYCtoSOM(7:9)))/pool_matrix(j,i)
 
             elseif (i==8) then !SOMp
-              change_matrix(j,i)=I_tot*f_som1*f_myc_levels + SAPtoSOM(1) + SAPtoSOM(4) + sum(MYCtoSOM(1:3))-SOMtoSOM(1)
+              change_matrix(j,i)=  I_tot*f_som1*f_myc_levels+ SAPtoSOM(1) + SAPtoSOM(4) + MYCtoSOM(1) + MYCtoSOM(4) + MYCtoSOM(7)-SOMtoSOM(1)
               !Use the same partitioning between the depth levels as for mycorrhiza (f_myc_levels)
-              Gain = I_tot*f_som1*f_myc_levels + SAPtoSOM(1) + SAPtoSOM(4) + sum(MYCtoSOM(1:3))
+              Gain = I_tot*f_som1*f_myc_levels + SAPtoSOM(1) + SAPtoSOM(4) + MYCtoSOM(1) + MYCtoSOM(4) + MYCtoSOM(7)
               Loss = SOMtoSOM(1)/pool_matrix(j,i)
 
             elseif (i==9) then !SOMa
-              change_matrix(j,i)=SAPtoSOM(2) + SAPtoSOM(5) + sum(MYCtoSOM(4:6)) + &
+              change_matrix(j,i)=SAPtoSOM(2) + SAPtoSOM(5) +  MYCtoSOM(2) + MYCtoSOM(5) + MYCtoSOM(8) + &
                SOMtoSOM(1) + SOMtoSOM(2) - SOMtoSAP(1) - SOMtoSAP(2)
 
-               Gain = SAPtoSOM(2) + SAPtoSOM(5) + sum(MYCtoSOM(4:6)) +  SOMtoSOM(1) + SOMtoSOM(2)
+               Gain = SAPtoSOM(2) + SAPtoSOM(5) +  MYCtoSOM(2) + MYCtoSOM(5) + MYCtoSOM(8) +  SOMtoSOM(1) + SOMtoSOM(2)
                Loss = (SOMtoSAP(1) + SOMtoSAP(2))/pool_matrix(j,i)
 
             elseif (i==10) then !SOMc
-              change_matrix(j,i)=I_tot*f_som2*f_myc_levels + SAPtoSOM(3) + SAPtoSOM(6) + sum(MYCtoSOM(7:9))- SOMtoSOM(2)
+              change_matrix(j,i)=I_tot*f_som2*f_myc_levels+SAPtoSOM(3) + SAPtoSOM(6) + MYCtoSOM(3) + MYCtoSOM(6) + MYCtoSOM(9)- SOMtoSOM(2)
 
-              Gain = I_tot*f_som2*f_myc_levels + SAPtoSOM(3) + SAPtoSOM(6) + sum(MYCtoSOM(7:9))
+              Gain = I_tot*f_som2*f_myc_levels + SAPtoSOM(3) + SAPtoSOM(6) + MYCtoSOM(3) + MYCtoSOM(6) + MYCtoSOM(9)
               Loss = SOMtoSOM(2)/pool_matrix(j,i)
 
             else
@@ -218,12 +227,13 @@ module mycmim
             if (pool_temporary(j,i) < 0.0) then
               print*, 'Negative concentration value at t',t,'depth level',j,'pool number',i
             end if
+
             a_matrix(j,i) = Init(j,i)*exp(-time*Loss) + Gain*(1-exp(-time*Loss))/Loss !+ vert*dt
           end do !i, pool_types
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t:
-          HR(j) = LITtoSAP(1)*(1-MGE(1)) + LITtoSAP(2)*(1-MGE(2)) + LITtoSAP(3)*(1-MGE(3)) &
-                        + LITtoSAP(4)*(1-MGE(4)) + SOMtoSAP(1)*(1-MGE(1)) + SOMtoSAP(2)*(1-MGE(2))
+          HR(j) =( LITtoSAP(1)*(1-MGE(1)) + LITtoSAP(2)*(1-MGE(2)) + LITtoSAP(3)*(1-MGE(3)) &
+                        + LITtoSAP(4)*(1-MGE(4)) + SOMtoSAP(1)*(1-MGE(1)) + SOMtoSAP(2)*(1-MGE(2)))*dt
         end do !j, depth_level
 
         if (isVertical) then
