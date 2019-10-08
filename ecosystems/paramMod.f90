@@ -8,7 +8,7 @@ implicit none
 !Things that should be given as input to the decomposition model:
 real(kind=r8),parameter                       :: tsoi   = 8.9                   ![degC]
 real(kind=r8),parameter                       :: fclay  = 0.12                  ![-] fraction of clay in soil
-real(kind=r8),dimension(4)                    :: MGE = (/ 0.59,0.50,0.50,0.65 /)![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
+real(kind=r8),dimension(4)                    :: MGE = (/ 0.55,0.75,0.15,0.15 /)![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
                                                  !The rest is lost in respiration.
                                                  !/Litm-sapr, litm->sapk, lits->sapr, lits->sapk/. These should be determined carefully. pH/soil quality/N availability may be important
                                                  !Maybe also vary with time/depth..? See DOI:10.1016/j.soilbio.2018.09.036 and DOI: 10.1016/J.SOILBIO.2019.03.008
@@ -20,8 +20,8 @@ real(r8), dimension(2)                        :: veg_input                      
 real(r8)                                      :: f_som1=0.05, f_som2=0.05
 real(r8)                                      :: f_myc_levels=1, f_lit_1=1, f_lit_234=1
 
-real(kind=r8),dimension(6),parameter          :: k = (/0.05,0.5,0.005,0.05,0.5,0.005/)![1/day](EcM_sapr, ErM_sapr, AM_sapr,EcM_sapr, ErM_sapr, AM_sapr) decay constants, MYC to SAP pools
-real(kind=r8),dimension(3),parameter          :: k2 = (/0.0007,0.0007,0.00014/)! [1/day] decay constants, MYC to SOM pools
+real(kind=r8),dimension(6)          :: k![1/day](EcM_sapr, ErM_sapr, AM_sapr,EcM_sapr, ErM_sapr, AM_sapr) decay constants, MYC to SAP pools
+real(kind=r8),dimension(3)         :: k2! [1/day] decay constants, MYC to SOM pools
 real, parameter                               :: Myc_SAPr=0.6, Myc_SAPk=1-Myc_SAPr    ![-]Fraction of the flux from mycorrhizal pools to SAPk pool. The rest is going to SAPr
 
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)

@@ -30,7 +30,7 @@ module mycmim
 !|nlevdecomp __________________________________________|
 
   contains
-    subroutine decomp(nsteps, run_name, isVertical, nlevdecomp, ecosystem) !This subroutine calculates the balance equation dC/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on to
+    subroutine decomp(nsteps, run_name, isVertical, nlevdecomp, ecosystem,step_frac) !This subroutine calculates the balance equation dC/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on to
       !the next time step. It also calculates an analytical solution to the problem.
 
       logical                        :: isVertical           ! True if we use vertical soil layers.
@@ -39,7 +39,7 @@ module mycmim
       integer                        :: nlevdecomp           ! number of vertical layers
 
       integer                        :: nsteps               ! number of time steps to iterate over
-      integer,parameter              :: step_frac=24!*60
+      integer,parameter              :: step_frac!*60
 
       real(r8)                       :: dt= 1.0/step_frac         ! 1 sec = 1/(24*60*60) days (size of time step)
       real(r8)                       :: time                 ! t*dt
@@ -64,16 +64,22 @@ module mycmim
 
       if (ecosystem == 'Heath') then
         GEP       = 0.281*24                          ![gC/(m2*day)] Gross ecosystem productivity
-        myc_input = (/0.20,0.60,0.20/)*GEP*0.4/depth  !For Heath, most to ErM ![gC/m3/day]
-        fMET      = 0.5
+        myc_input = (/0.20,0.60,0.20/)*GEP*0.5/depth  !For Heath, most to ErM ![gC/m3/day]
+        fMET      = 0.6
+        k = (/0.05,0.05,0.005,0.05,0.05,0.005/)
+        k2 = (/0.0007,0.0007,0.00014/)
       elseif (ecosystem == 'Meadow') then
         GEP       = 0.385*24                         ![gC/(m2*day)] Gross ecosystem productivity
-        myc_input = (/0.1,0.1,0.80/)*GEP*0.4/depth   !For meadow, most to AM ![gC/m3/day]
+        myc_input = (/0.1,0.1,0.80/)*GEP*0.5/depth   !For meadow, most to AM ![gC/m3/day]
         fMET      = 0.5
+        k = (/0.05,0.05,0.005,0.05,0.05,0.005/)
+        k2 = (/0.0007,0.0007,0.00014/)
       elseif (ecosystem == 'Shrub') then
         GEP       = 0.491*24                 ![gC/(m2*day)] Gross ecosystem productivity
-        myc_input = (/0.80,0.10,0.10/)*GEP*0.4/depth  ![gC/m3/day] For shrub, most to EcM. 0.4 bc. 0.5 goes to litter and 0.1 directly to SOM (fsom1 og fsom2)
-        fMET      = 0.3
+        myc_input = (/0.80,0.10,0.10/)*GEP*0.5/depth  ![gC/m3/day] For shrub, most to EcM. 0.4 bc. 0.5 goes to litter and 0.1 directly to SOM (fsom1 og fsom2)
+        fMET      = 0.001
+        k = (/0.05,0.05,0.005,0.05,0.05,0.005/)*10
+        k2 = (/0.0007,0.0007,0.00014/)*10
       else
         print*, 'Invalid ecosystem name', ecosystem
         stop
@@ -84,9 +90,6 @@ module mycmim
       fCHEM = (/ 0.1 * exp(-3.0*fMET), 0.3 * exp(-3*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
       tau = (/ 5.2e-4*exp(0.3*fMET), 2.4e-4*exp(0.1*fMET) /)*24 ![1/h]*24=[1/day]Mimics include a modification, tau_mod, not included here.
-
-      print*, tau
-      print*, fPHYS, fAVAIL, fCHEM
 
       !Set initial concentration values in pool_matrix:
       if (isVertical) then
@@ -272,6 +275,9 @@ module mycmim
           end do !write
         end if!writing
       end do !t
+      print*, I_tot*f_som2*f_myc_levels
+      print*, veg_input
+      print*, myc_input
       call closeFiles(isVertical)
     end subroutine decomp
 end module mycmim
