@@ -10,6 +10,7 @@
 !SOMp - Physically protected soil organic matter
 !SOMa - Available soil organic matter
 !SOMc - Chemically protected soil organic matter
+
 !TODO: Incorporate frozen soil behavior/variable T, Variable clay content(?)
 module mycmim
   use paramMod
@@ -18,78 +19,97 @@ module mycmim
   use initMod
   use writeMod
   implicit none
-  !integer, parameter                            :: nlevdecomp!Number of soil depth layers (ndecomp_cascade_transitions=7,ndecomp_pools=10)
-
-
-!Shape of the pool_matrix/change_matrix
-!|       LITm LITs SAPr SAPk EcM ErM AM SOMp SOMa SOMc |
-!|level1   1   2    3    4    5   6   7   8    9   10  |
-!|level2                                               |
-!| .                                                   |
-!| .                                                   |
-!|nlevdecomp __________________________________________|
 
   contains
-    subroutine decomp(nsteps, run_name, isVertical, nlevdecomp, ecosystem,step_frac) !This subroutine calculates the balance equation dC/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on to
-      !the next time step. It also calculates an analytical solution to the problem.
+    subroutine decomp(nsteps, run_name, isVertical, nlevdecomp, ecosystem,step_frac) !Calculates the balance equation dC/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
+                                                                                     !It also calculates an analytical solution to the problem.
+      integer                        :: nsteps                               ! number of time steps to iterate over
+      character (len=*)              :: run_name                             ! used for naming outputfiles
+      logical                        :: isVertical                           ! True if we use vertical soil layers.
+      integer                        :: nlevdecomp                           ! number of vertical layers
+      character (len=*)              :: ecosystem                            ! 'Shrub', 'Heath' or 'Meadow' (For comparison with Sorensen et al)
+      integer                        :: step_frac                            ! determines the size of the time step
 
-      logical                        :: isVertical           ! True if we use vertical soil layers.
-      character (len=*)              :: run_name             ! used for naming outputfiles
-      character (len=*)              :: ecosystem             ! 'Shrub', 'Heath' or 'Meadow'
-      integer                        :: nlevdecomp           ! number of vertical layers
-
-      integer                        :: nsteps               ! number of time steps to iterate over
-      integer,parameter              :: step_frac!*60
-
-      real(r8)                       :: dt= 1.0/step_frac         ! 1 sec = 1/(24*60*60) days (size of time step)
-      real(r8)                       :: time                 ! t*dt
-
-      integer                        :: counter=0              ! used for determining when to output results
-      integer                        :: j,i,t                ! for iterations
-
-      real(r8)                       :: Loss, Gain           ! Source and sink term for solving the analytical solution to the dC/dt=Gain-Loss*concentration equation.
-      real(r8)                       :: tot_diff,upper,lower ! For the call to alt_vertical_diffusion
-
-      real(r8),dimension(nlevdecomp) :: HR                   ! For storing the C amount that is lost to respiration
       real(r8)                       :: pool_matrix(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m3]
       real(r8)                       :: change_matrix(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
       real(r8)                       :: a_matrix(nlevdecomp, pool_types)     ! For storing the analytical solution
+      real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C amount that is lost to respiration
       real(r8)                       :: Init(nlevdecomp, pool_types)         ! Initial C concentration, determined in initMod.f90
-      real(r8)                       :: pool_temporary(nlevdecomp,pool_types)                  !For storing the pool(t)+flux changes. These values are used to calculate the vertical transport.
-      real(r8)                       :: vert(nlevdecomp, pool_types)
+      real(r8)                       :: pool_temporary(nlevdecomp,pool_types)! When isVertical is True, pool_temporary = pool_matrix + change_matrix*dt is used to calculate the vertical transport
+                                                                             !The new value after the time step is then pool_matrix = pool_temporary + vertical change.
 
-      real(kind=r8)                  :: GEP       ![gC/(m2*day)] Gross ecosystem productivity
-      real(r8), dimension(3)         :: myc_input !vector giving the input from vegetation to mycorrhiza pools
-      real(r8)                       :: I_tot     !Total input from vegetation to litter pools
+                                                                             !Shape of the pool_matrix/change_matrix
+                                                                             !|       LITm LITs SAPr SAPk EcM ErM AM SOMp SOMa SOMc |
+                                                                             !|level1   1   2    3    4    5   6   7   8    9   10  |
+                                                                             !|level2                                               |
+                                                                             !| .                                                   |
+                                                                             !| .                                                   |
+                                                                             !|nlevdecomp __________________________________________|
 
+
+      real(r8)                       :: dt                                   ! size of time step
+      real(r8)                       :: time                                 ! t*dt
+      real(r8)                       :: Loss, Gain                           ! Source and sink term for solving the analytical solution to the dC/dt=Gain-Loss*concentration equation.
+      real(r8)                       :: tot_diff,upper,lower                 ! For the call to alt_vertical_diffusion
+      real(r8)                       :: vert(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrix
+      real(kind=r8)                  :: GEP                                  ![gC/(m2 h)] Gross ecosystem productivity
+
+      real(r8), dimension(2)         :: lit_input                            ![gC/(m3 h)] Fraction of litter input to LITm and LITs, respectively
+      real(r8), dimension(3)         :: myc_input                            ![gC/(m3 h)] vector giving the input from vegetation to mycorrhiza pools
+      real(r8), dimension(2)         :: som_input                            ![gC/(m3 h)]
+      real(r8)                       :: I_tot                                ![gC/(m3 h)]Total input to the system
+      integer                        :: ycounter, year
+      integer                        :: counter=0                            ! used for determining when to output results
+      integer                        :: j,i,t                                ! for iterations
+
+      !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
+      MGE     = (/ 0.55,0.75,0.25,0.35 /)
+
+      Kmod    = (/0.125d0, 0.50d0, 0.25d0*pscalar, 0.5d0, 0.25d0, 0.167d0*pscalar/)!LITm, LITs, SOMa entering SAPr, LITm, LITs, SOMa entering sapk
+      Vmod    = (/10.0,  2.0, 10.0, 3.0, 3.0, 2.0/)                          !LITm, LITs, SOMa entering SAPr, LITm, LITs, SOMa entering sapk
+      Km      = exp(Kslope*tsoi+3.19)*10*Kmod/30       ![mgC/cm3]*10e3=[gC/m3]
+      Vmax    = exp(0.063*tsoi + 5.47)*8e-6*Vmod/30    ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+      print*, Km, Vmax
+      k2 = (/7.0,7.0,1.4/)*10e-4        ![1/h] Decay constants
+      k = (/5.0,5.0,0.5/)*10e-5 ![1/h] Decay constants
+
+      dt= 1.0/step_frac
+ !NOTE: Must change if isVertical is True!!
+                        !NOTE: If vertical myc_input must also be changed, because different amounts go in different layers.
       if (ecosystem == 'Heath') then
-        GEP       = 0.281*24                          ![gC/(m2*day)] Gross ecosystem productivity
-        myc_input = (/0.20,0.60,0.20/)*GEP*0.5/depth  !For Heath, most to ErM ![gC/m3/day]
-        fMET      = 0.6
-        k = (/0.05,0.05,0.005,0.05,0.05,0.005/)
-        k2 = (/0.0007,0.0007,0.00014/)
+        GEP       = 0.281*1.5
+        I_tot = GEP/depth !NOTE: Must change if isVertical is True!!
+                                      ![gC/(m2*h)] Gross ecosystem productivity
+
+        myc_input = (/0.10,0.80,0.10/)*I_tot*0.4       ![gC/(m3*h)] For Heath, most to ErM
+        fMET      = 0.5                                !Fraction of input to litter that goes to the metabolic litter pool
       elseif (ecosystem == 'Meadow') then
-        GEP       = 0.385*24                         ![gC/(m2*day)] Gross ecosystem productivity
-        myc_input = (/0.1,0.1,0.80/)*GEP*0.5/depth   !For meadow, most to AM ![gC/m3/day]
+
+        GEP       = 0.385
+        I_tot = GEP/depth !NOTE: Must change if isVertical is True!!
+
+        k2 = (/7.0,7.0,1.4/)*10e-6
+        myc_input = (/0.1,0.1,0.80/)*I_tot*0.4         ![gC/(m3*h)] For meadow, most to AM
         fMET      = 0.5
-        k = (/0.05,0.05,0.005,0.05,0.05,0.005/)
-        k2 = (/0.0007,0.0007,0.00014/)
       elseif (ecosystem == 'Shrub') then
-        GEP       = 0.491*24                 ![gC/(m2*day)] Gross ecosystem productivity
-        myc_input = (/0.80,0.10,0.10/)*GEP*0.5/depth  ![gC/m3/day] For shrub, most to EcM. 0.4 bc. 0.5 goes to litter and 0.1 directly to SOM (fsom1 og fsom2)
-        fMET      = 0.001
-        k = (/0.05,0.05,0.005,0.05,0.05,0.005/)*10
-        k2 = (/0.0007,0.0007,0.00014/)*10
+
+        GEP       = 0.491
+        I_tot = GEP/depth !NOTE: Must change if isVertical is True!!
+
+        myc_input = (/0.80,0.10,0.10/)*I_tot*0.4       ![gC/(m3*h)] For shrub, most to EcM.
+        fMET      = 0.2
       else
         print*, 'Invalid ecosystem name', ecosystem
         stop
       end if
-      I_tot = GEP*0.5/depth
 
+      !Assigning values. Fracions of SAPr, SAPk that goes to different SOM pools
       fPHYS = (/ 0.3 * exp(1.3*fCLAY), 0.2 * exp(0.8*fCLAY) /)
       fCHEM = (/ 0.1 * exp(-3.0*fMET), 0.3 * exp(-3*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
-      tau = (/ 5.2e-4*exp(0.3*fMET), 2.4e-4*exp(0.1*fMET) /)*24 ![1/h]*24=[1/day]Mimics include a modification, tau_mod, not included here.
+      !print*, fPHYS, fCHEM, fAVAIL
+      !print*, fPHYS+fCHEM+fAVAIL
+      tau = (/ 5.2e-4*exp(0.3*fMET), 2.4e-4*exp(0.1*fMET)/)![1/h] Microbial turnover rate (SAP to SOM), SAPr, SAPk
 
       !Set initial concentration values in pool_matrix:
       if (isVertical) then
@@ -101,7 +121,7 @@ module mycmim
       !open and prepare files to store results
       call openOutputFile(run_name, isVertical)
 
-      !The first line in is the initial condition
+      !The first line in the output files is the initial condition
       do j=1,nlevdecomp
         write(unit = 1, FMT='(F10.0,A2,I2)',advance='no') 0.0,',', j
         write(unit = 15, FMT='(F10.0,A2,I2)',advance='no') 0.0,',', j
@@ -115,21 +135,59 @@ module mycmim
         write(2,*) ''
         write(15,*)''
       end do !write
+      ycounter = 0
+      year = 1
+      print*, nsteps
       !----------------------------------------------------------------------------------------------------------------
-      do t =1,nsteps
+      do t =1,nsteps !Starting time iterations
         time = t*dt
-        counter =counter +1
+        counter =counter + 1
+        ycounter = ycounter + 1
+        !print*, year, ycounter/24
+        if (ycounter == 365*24) then
+          year = year + 1
+          ycounter = 0
+        end if
+
+
+        !If-test used to modify something after half of the total run time
+         !if (t == nsteps/2) then
+           ! print*, tau
+           ! print*, 'CHANGED TAU'
+           ! tau = (/ 5.2e-4*exp(0.3*fMET), 2.4e-4*exp(0.1*fMET)/)*1.5 ![1/h] Microbial turnover rate (SAP to SOM), SAPr, SAPk
+           ! print*, tau
+           ! print*, MGE
+           ! print*, 'Changed MGE!'
+           ! MGE     = (/ 0.25,0.35,0.55,0.75 /)
+          !  ! print*, MGE
+         !   print*, Km,Vmax
+         !   Kmod    = Kmod/15!LITm, LITs, SOMa entering SAPr, LITm, LITs, SOMa entering sapk
+         !   Vmod    = Vmod/15    !LITm, LITs, SOMa entering SAPr, LITm, LITs, SOMa entering sapk
+         !   Km      = exp(Kslope*tsoi+3.19)*10*Kmod  ![mgC/cm3]*10e3=[gC/m3]
+         !   Vmax    = exp(0.063*tsoi + 5.47)*8e-6*Vmod ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+         !   print*, Km,Vmax
+         ! end if !Change
 
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
 
           if (isVertical) then
             if (j==1) then !The litter input is higher in the first depth level then the rest.
-              veg_input=(/fMET*0.25, fMET*0.25/)*I_tot
+              lit_input=(/fMET*0.25, fMET*0.25/)*I_tot*0.5
+              !som_input = ()
             else
-              veg_input=(/fMET*0.25, fMET*0.25/)*I_tot
+              lit_input=(/fMET*0.25, fMET*0.25/)*I_tot*0.5 !TODO Change this so it is not always the same
+              !som_input()
             end if !j=1
           else
-            veg_input=(/fMET, 1-fMET/)*(I_tot)/0.56 !average depth = 0.56 m -> input in gC/m³*day
+            som_input= (/f_som1,f_som2/)*I_tot*0.1
+            !print*, time, 335*24 + (year-1)*365*24 -244*24 - (year-1)*365*24
+
+            if (time > 244*24 + (year-1)*365*24 .and. time < 335*24 + (year-1)*365*24) then
+              !print*, time, 335*24 + year*365*24 - 244*24 - year*365*24
+              lit_input=(/fMET, 1-fMET/)*I_tot*0.5 ! input in gC/m³*day
+            else
+              lit_input = 0
+            end if
           end if !isVertical
 
           !Calculate fluxes between pools in level j:
@@ -153,20 +211,19 @@ module mycmim
           end if !writing
 
           do i = 1, pool_types !loop over all the pool types, i, in depth level j
-
             !This if-loop calculates dC/dt for the different carbon pools.NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
             !The Gain and Loss variables are used to calculate the analytical solution to dC/dt=Gain - Loss*C, a_matrix(j,i)
             !NOTE: The "change_matrix" values correspond to the equations A11-A17 in Wieder 2015
             if (i==1) then !LITm
-              change_matrix(j,i) = veg_input(1)-sum(LITtoSAP(1:2))
+              change_matrix(j,i) = lit_input(1)-sum(LITtoSAP(1:2))
 
-              Gain = veg_input(1)
+              Gain = lit_input(1)
               Loss=sum(LITtoSAP(1:2))/pool_matrix(j, i)
 
             elseif (i==2) then !LITs
-              change_matrix(j,i) =  veg_input(2) -sum(LITtoSAP(3:4))
+              change_matrix(j,i) =  lit_input(2) -sum(LITtoSAP(3:4))
 
-              Gain = veg_input(2)
+              Gain = lit_input(2)
               Loss=sum(LITtoSAP(3:4))/pool_matrix(j, i)
 
             elseif (i==3) then !SAPr
@@ -202,9 +259,9 @@ module mycmim
               Loss = (MYCtoSAP(3)+MYCtoSAP(6)+sum(MYCtoSOM(7:9)))/pool_matrix(j,i)
 
             elseif (i==8) then !SOMp
-              change_matrix(j,i)=  I_tot*f_som1*f_myc_levels+ SAPtoSOM(1) + SAPtoSOM(4) + MYCtoSOM(1) + MYCtoSOM(4) + MYCtoSOM(7)-SOMtoSOM(1)
+              change_matrix(j,i)=  som_input(1)*f_myc_levels+ SAPtoSOM(1) + SAPtoSOM(4) + MYCtoSOM(1) + MYCtoSOM(4) + MYCtoSOM(7)-SOMtoSOM(1)
               !Use the same partitioning between the depth levels as for mycorrhiza (f_myc_levels)
-              Gain = I_tot*f_som1*f_myc_levels + SAPtoSOM(1) + SAPtoSOM(4) + MYCtoSOM(1) + MYCtoSOM(4) + MYCtoSOM(7)
+              Gain = som_input(1)*f_myc_levels + SAPtoSOM(1) + SAPtoSOM(4) + MYCtoSOM(1) + MYCtoSOM(4) + MYCtoSOM(7)
               Loss = SOMtoSOM(1)/pool_matrix(j,i)
 
             elseif (i==9) then !SOMa
@@ -215,18 +272,19 @@ module mycmim
                Loss = (SOMtoSAP(1) + SOMtoSAP(2))/pool_matrix(j,i)
 
             elseif (i==10) then !SOMc
-              change_matrix(j,i)=I_tot*f_som2*f_myc_levels+SAPtoSOM(3) + SAPtoSOM(6) + MYCtoSOM(3) + MYCtoSOM(6) + MYCtoSOM(9)- SOMtoSOM(2)
+              change_matrix(j,i)=som_input(1)+SAPtoSOM(3) + SAPtoSOM(6) + MYCtoSOM(3) + MYCtoSOM(6) + MYCtoSOM(9)- SOMtoSOM(2)
 
-              Gain = I_tot*f_som2*f_myc_levels + SAPtoSOM(3) + SAPtoSOM(6) + MYCtoSOM(3) + MYCtoSOM(6) + MYCtoSOM(9)
+              Gain = som_input(1) + SAPtoSOM(3) + SAPtoSOM(6) + MYCtoSOM(3) + MYCtoSOM(6) + MYCtoSOM(9)
               Loss = SOMtoSOM(2)/pool_matrix(j,i)
 
             else
               print*, 'Too many pool types expected, pool_types = ',pool_types
             end if !determine dC_i/dt
 
-
+            !Store these values as temporary so that they can be used in the diffusion subroutine
             pool_temporary(j,i)=pool_matrix(j,i) + change_matrix(j,i)*dt
 
+            !control check
             if (pool_temporary(j,i) < 0.0) then
               print*, 'Negative concentration value at t',t,'depth level',j,'pool number',i
             end if
@@ -247,16 +305,6 @@ module mycmim
           pool_matrix=pool_temporary
         end if!isVertical
 
-        !Update pool sizes
-
-        !Check if the diffusion term should act as a source or a sink in the analytical solution.
-        ! if (tot_diff < 0) then
-        !   Loss = Loss + abs(tot_diff)
-        ! else
-        !   Gain = Gain + abs(tot_diff)
-        ! end if
-
-        !call disp('pool_matrix = ', pool_matrix)
         if (counter == step_frac) then
           counter = 0
           !Write results to file. TODO: incorporate this into the above j, i loops
@@ -275,9 +323,7 @@ module mycmim
           end do !write
         end if!writing
       end do !t
-      print*, I_tot*f_som2*f_myc_levels
-      print*, veg_input
-      print*, myc_input
+
       call closeFiles(isVertical)
     end subroutine decomp
 end module mycmim

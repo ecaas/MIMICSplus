@@ -20,7 +20,7 @@ module writeMod
       write(unit=4, fmt=*) 'time, depth_level,SAPrSOMp,SAPrSOMa,SAPrSOMc,SAPkSOMp,SAPkSOMa,SAPkSOMc'
       write(unit=7, fmt=*) 'time, depth_level,EcM_SAPr,EcM_SAPk,ErM_SAPr,ErM_SAPk,AM_SAPr,AM_SAPk'
       write(unit=8, fmt=*) 'time,depth_level,EcM_SOMp, EcMSOMa,EcMSOMc, ErMSOMp,ErMSOMa,ErMSOMc,AMSOMp,AMSOMa,AMSOMc'
-      Write(unit=9, fmt=*) 'time,depth_level,SOMaSAPr,SOMaSAPr,SOMpSOMa,SOMcSOMa'!header
+      Write(unit=9, fmt=*) 'time,depth_level,SOMaSAPr,SOMaSAPk,SOMpSOMa,SOMcSOMa'!header
 
 
       if (isVertical) then

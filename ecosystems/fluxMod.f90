@@ -17,12 +17,14 @@ module fluxMod
     LITm => pool_matrix(depth, 1)
     LITs => pool_matrix(depth, 2)
 
-    !From LITm to sap
+    !From LIT to sapr
     LITtoSAP(1)=SAPr*Vmax(1)*LITm/(Km(1)+LITm)
-    LITtoSAP(2)=SAPk*Vmax(2)*LITm/(Km(2)+LITm)
-    !From LITs to SAP
-    LITtoSAP(3)=SAPr*Vmax(3)*LITs/(Km(3)+LITs)
-    LITtoSAP(4)=SAPk*Vmax(4)*LITs/(Km(4)+LITs)
+    LITtoSAP(3)=SAPr*Vmax(2)*LITs/(Km(2)+LITs)
+
+    !From LIT to sapk
+    LITtoSAP(2)=SAPk*Vmax(4)*LITm/(Km(4)+LITm)
+    LITtoSAP(4)=SAPk*Vmax(5)*LITs/(Km(5)+LITs)
+
     !NOTE: These correspond to eq. A1,A5,A2,A6 in Wieder 2015
     !TODO Maybe declare one name for each flux for better readability (compared to LITtoSAP etc arrays...)
     nullify(SAPr, SAPk, LITm,LITs)
@@ -72,6 +74,7 @@ module fluxMod
     MYCtoSOM(9)=AM*k2(3)*0.1
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools.
     !NOTE: correspond to eq A4,A8 in Wieder 2015
+
     SAPtoSOM(1)=SAPr*tau(1)*fPHYS(1)
     SAPtoSOM(2)=SAPr*tau(1)*fAVAIL(1)
     SAPtoSOM(3)=SAPr*tau(1)*fCHEM(1) !No arrow on illustration by Haavard and Ella
@@ -82,7 +85,7 @@ module fluxMod
 
     !Based on the equations from SOMa to microbial pools in mimics. On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
     SOMtoSAP(1)=SAPr*Vmax(3)*SOMa/(Km(3)+SOMa)
-    SOMtoSAP(2)=SAPk*Vmax(4)*SOMa/(Km(4)+SOMa)
+    SOMtoSAP(2)=SAPk*Vmax(6)*SOMa/(Km(6)+SOMa)
 
 
     !Between SOM pools
@@ -93,7 +96,7 @@ module fluxMod
     !From equations for decomposing structural litter in mimics,eq. A10
     !KO modifies Km which is used in the litter->SAP equations.
     SOMtoSOM(2)    = (( SAPr * Vmax(2) * SOMc / (KO(1)*Km(2) + SOMc)) + &
-                   (SAPk* Vmax(4) * SOMc / (KO(2)*Km(4) + SOMc)))
+                   (SAPk* Vmax(5) * SOMc / (KO(2)*Km(5) + SOMc)))
 
     nullify( SOMp,SOMa,SOMc,EcM,ErM,AM, SAPr,SAPk)
   end subroutine som_fluxes
@@ -111,13 +114,13 @@ module fluxMod
 
     !From Mycorrhizal pools to saprotroph pools
     !Mycorrhizal pool*fraction to SAP*fraction to SAP_r*decay constant for mycorrhizal pool. TODO: Maybe reconsider these equations..
-    MYCtoSAP(1)=EcM*0.3*Myc_SAPr*k(1)
-    MYCtoSAP(2)=ErM*0.1*Myc_SAPr*k(2)
-    MYCtoSAP(3)=AM*0.3*Myc_SAPr*k(3)
+    MYCtoSAP(1)=EcM*Myc_SAPr*k(1)
+    MYCtoSAP(2)=ErM*Myc_SAPr*k(2)
+    MYCtoSAP(3)=AM*Myc_SAPr*k(3)
 
-    MYCtoSAP(4)=EcM*0.3*Myc_SAPk*k(4)
-    MYCtoSAP(5)=ErM*0.1*Myc_SAPk*k(5)
-    MYCtoSAP(6)=AM*0.3*Myc_SAPk*k(6)
+    MYCtoSAP(4)=EcM*Myc_SAPk*k(1)
+    MYCtoSAP(5)=ErM*Myc_SAPk*k(2)
+    MYCtoSAP(6)=AM*Myc_SAPk*k(3)
 
     nullify(EcM,ErM,AM)
   end subroutine microbial_fluxes
