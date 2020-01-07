@@ -11,23 +11,23 @@ module fluxMod
     integer :: depth,level_max !depth level
     real(r8),target :: pool_matrix(level_max, pool_types)
     !Creating these pointers improve readability of the flux equations. TODO: Do you really need the matrix?
-    real(r8), pointer :: SAPr, SAPk, LITm, LITs
-    SAPr => pool_matrix(depth, 3)
-    SAPk => pool_matrix(depth, 4)
+    real(r8), pointer :: SAP, LITm, LITs
+    SAP => pool_matrix(depth, 3)
+    !SAPk => pool_matrix(depth, 4)
     LITm => pool_matrix(depth, 1)
     LITs => pool_matrix(depth, 2)
 
-    !From LIT to sapr
-    LITtoSAP(1)=SAPr*Vmax(1)*LITm/(Km(1)+LITm)
-    LITtoSAP(3)=SAPr*Vmax(2)*LITs/(Km(2)+LITs)
+    !From LIT to SAP
+    LITtoSAP(1)=SAP*Vmax(1)*LITm/(Km(1)+LITm)
+    LITtoSAP(3)=SAP*Vmax(2)*LITs/(Km(2)+LITs)
 
     !From LIT to sapk
-    LITtoSAP(2)=SAPk*Vmax(4)*LITm/(Km(4)+LITm)
-    LITtoSAP(4)=SAPk*Vmax(5)*LITs/(Km(5)+LITs)
+    !LITtoSAP(2)=SAPk*Vmax(4)*LITm/(Km(4)+LITm)
+    !LITtoSAP(4)=SAPk*Vmax(5)*LITs/(Km(5)+LITs)
 
     !NOTE: These correspond to eq. A1,A5,A2,A6 in Wieder 2015
     !TODO Maybe declare one name for each flux for better readability (compared to LITtoSAP etc arrays...)
-    nullify(SAPr, SAPk, LITm,LITs)
+    nullify(SAP, LITm,LITs)
   end subroutine litter_fluxes
 
   subroutine som_fluxes(depth,pool_matrix,level_max) !This subroutine calculates the fluxes in and out of the SOM pools.
@@ -35,9 +35,9 @@ module fluxMod
     integer :: depth,level_max !depth level
     real(r8),target :: pool_matrix(level_max, pool_types)
     !Creating these pointers improve readability of the flux equations.
-    real(r8), pointer :: SOMp,SOMa,SOMc,EcM,ErM,AM, SAPr,SAPk
-    SAPr => pool_matrix(depth, 3)
-    SAPk => pool_matrix(depth, 4)
+    real(r8), pointer :: SOMp,SOMa,SOMc,EcM,ErM,AM, SAP
+    SAP => pool_matrix(depth, 3)
+    !SAPk => pool_matrix(depth, 4)
     EcM =>  pool_matrix(depth, 5)
     ErM =>  pool_matrix(depth, 6)
     AM =>   pool_matrix(depth, 7)
@@ -75,17 +75,17 @@ module fluxMod
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools.
     !NOTE: correspond to eq A4,A8 in Wieder 2015
 
-    SAPtoSOM(1)=SAPr*tau(1)*fPHYS(1)
-    SAPtoSOM(2)=SAPr*tau(1)*fAVAIL(1)
-    SAPtoSOM(3)=SAPr*tau(1)*fCHEM(1) !No arrow on illustration by Haavard and Ella
+    SAPtoSOM(1)=SAP*tau(1)*fPHYS(1)
+    SAPtoSOM(2)=SAP*tau(1)*fAVAIL(1)
+    SAPtoSOM(3)=SAP*tau(1)*fCHEM(1) !No arrow on illustration by Haavard and Ella
 
-    SAPtoSOM(4)=SAPk*tau(2)*fPHYS(2)
-    SAPtoSOM(5)=SAPk*tau(2)*fAVAIL(2)
-    SAPtoSOM(6)=SAPk*tau(2)*fCHEM(2)
+    !SAPtoSOM(4)=SAPk*tau(2)*fPHYS(2)
+    !SAPtoSOM(5)=SAPk*tau(2)*fAVAIL(2)
+    !SAPtoSOM(6)=SAPk*tau(2)*fCHEM(2)
 
     !Based on the equations from SOMa to microbial pools in mimics. On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
-    SOMtoSAP(1)=SAPr*Vmax(3)*SOMa/(Km(3)+SOMa)
-    SOMtoSAP(2)=SAPk*Vmax(6)*SOMa/(Km(6)+SOMa)
+    SOMtoSAP(1)=SAP*Vmax(3)*SOMa/(Km(3)+SOMa)
+    !SOMtoSAP(2)=SAPk*Vmax(6)*SOMa/(Km(6)+SOMa)
 
 
     !Between SOM pools
@@ -95,13 +95,13 @@ module fluxMod
     !---Oxidation from SOMc to SOMa
     !From equations for decomposing structural litter in mimics,eq. A10
     !KO modifies Km which is used in the litter->SAP equations.
-    SOMtoSOM(2)    = (( SAPr * Vmax(2) * SOMc / (KO(1)*Km(2) + SOMc)) + &
-                   (SAPk* Vmax(5) * SOMc / (KO(2)*Km(5) + SOMc)))
+    SOMtoSOM(2)    = (( SAP * Vmax(2) * SOMc / (KO(1)*Km(2) + SOMc)))! + &
+                   !(SAPk* Vmax(5) * SOMc / (KO(2)*Km(5) + SOMc)))
 
-    nullify( SOMp,SOMa,SOMc,EcM,ErM,AM, SAPr,SAPk)
+    nullify( SOMp,SOMa,SOMc,EcM,ErM,AM, SAP)
   end subroutine som_fluxes
 
-  subroutine microbial_fluxes(depth,pool_matrix,level_max) !This subroutine calculates the fluxes between the microbial pools (Mycorrhiza and saprotrophs).
+  subroutine microbial_fluxes(depth,pool_matrix,level_max) !This subroutine calculates the fluxes between the microbial pools (Mycorrhiza and SAPotrophs).
 
     integer :: depth,level_max !depth level
     real(r8),target :: pool_matrix(level_max, pool_types)
@@ -112,15 +112,15 @@ module fluxMod
     ErM => pool_matrix(depth, 6)
     AM => pool_matrix(depth, 7)
 
-    !From Mycorrhizal pools to saprotroph pools
+    !From Mycorrhizal pools to SAPotroph pools
     !Mycorrhizal pool*fraction to SAP*fraction to SAP_r*decay constant for mycorrhizal pool. TODO: Maybe reconsider these equations..
-    MYCtoSAP(1)=EcM*Myc_SAPr*k(1)
-    MYCtoSAP(2)=ErM*Myc_SAPr*k(2)
-    MYCtoSAP(3)=AM*Myc_SAPr*k(3)
+    MYCtoSAP(1)=EcM*Myc_SAP*k(1)
+    MYCtoSAP(2)=ErM*Myc_SAP*k(2)
+    MYCtoSAP(3)=AM*Myc_SAP*k(3)
 
-    MYCtoSAP(4)=EcM*Myc_SAPk*k(1)
-    MYCtoSAP(5)=ErM*Myc_SAPk*k(2)
-    MYCtoSAP(6)=AM*Myc_SAPk*k(3)
+    !MYCtoSAP(4)=EcM*Myc_SAPk*k(1)
+    !MYCtoSAP(5)=ErM*Myc_SAPk*k(2)
+    !MYCtoSAP(6)=AM*Myc_SAPk*k(3)
 
     nullify(EcM,ErM,AM)
   end subroutine microbial_fluxes

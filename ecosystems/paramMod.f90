@@ -6,9 +6,9 @@ implicit none
 !Define variables
 
 
-real(kind=r8),parameter                      :: tsoi                      ![degC]
+real(kind=r8)                :: tsoi                      ![degC]
 real(kind=r8),parameter                      :: fCLAY  = 0.12                  ![-] fraction of clay in soil
-real(kind=r8),dimension(4),save              ::  MGE![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
+real(kind=r8),dimension(6),save              ::  MGE![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
                                                                                 !The rest is lost in respiration.
                                                                                 !/Litm-sapr, litm->sapk, lits->sapr, lits->sapk/. These should be determined carefully. pH/soil quality/N availability may be important
                                                                                 !Maybe also vary with time/depth..? See DOI:10.1016/j.soilbio.2018.09.036 and DOI: 10.1016/J.SOILBIO.2019.03.008
@@ -25,16 +25,17 @@ real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = (/0.017, 0.027, 0.017,
 real(r8),parameter                           :: pscalar = 1.0/(2*exp(-2.0*dsqrt(fclay)))
 real(kind=r8),dimension(MM_eqs)              :: Kmod!LITm, LITs, SOMa entering SAPr, LITm, LITs, SOMa entering sapk
 real(kind=r8),dimension(MM_eqs)              :: Km   ![mgC/cm3]*10e3=[gC/m3]
-real(kind=r8),dimension(2),parameter         :: KO      = 4                        ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
+real(kind=r8),dimension(2),parameter         :: KO      =  10  !4                      ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
 real(kind=r8),dimension(MM_eqs)              :: Vmod     !LITm, LITs, SOMa entering SAPr, LITm, LITs, SOMa entering sapk
 real(kind=r8),dimension(MM_eqs)              :: Vmax ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
 !end MM parameters
+
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
 real(kind=r8)                                :: fMET                           ![-]
 real(kind=r8),dimension(2)                   :: fPHYS,fCHEM,fAVAIL             ![-]
 real(kind=r8),dimension(2)                   :: tau                            ![1/h]
-real(kind=r8)                                :: desorb = 3e-4 * exp(-4*(sqrt(fclay)))*2 ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
+real(kind=r8)                                :: desorb = 3e-4 * exp(-4*(sqrt(fclay)))!1.5e-5 * exp(-1.5*(fclay)) ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Pools: NOTE: This needs to be updated if pools are added to/removed from the system.
 integer, parameter                           :: num_soilc = 1                  !Number of soil columns modeled. Only use one column here, but TODO code should be working for several columns as well (add loop)
@@ -67,6 +68,10 @@ real(kind=r8),dimension(2)                   :: SOMtoSOM                       !
 !End fluxes between pools
 
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
-
+character (len=4), dimension(10):: variables = (/  "LITm", "LITs", "SAPr", "SAPk", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
+character (len=10), dimension(10):: change_variables = (/  "changeLITm", "changeLITs", "changeSAPr", "changeSAPk", "changeEcM ", "changeErM ", "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
+character (len=*), dimension(23), parameter ::  name_fluxes = (/"LITmSAPr","LITmSAPk","LITsSAPr","LITsSAPk","EcMSAPr ","EcMSAPk ","ErMSAPr ","ErMSAPk ", &
+      "AMSAPr  ","AMSAPk  ","EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ","ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  " &
+      ,"AMSOMc  ","SOMaSAPr","SOMaSAPk","SOMpSOMa","SOMcSOMa"/)
 
 end module paramMod

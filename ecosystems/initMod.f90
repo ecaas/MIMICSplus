@@ -2,6 +2,7 @@ module initMod
   use paramMod
   implicit none
 contains
+
   subroutine initialize_onelayer(initial,pools) !This subroutine sets the initial carbon values in the pool matrix (Carbon content in each pool in every depth level)
                                                    !/LITm LITs SAPr SAPk EcM ErM AM SOMp SOMa SOMc/
     real(r8),intent(out) :: initial(1, pool_types)
