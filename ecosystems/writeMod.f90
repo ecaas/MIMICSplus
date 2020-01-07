@@ -1,8 +1,73 @@
 module writeMod
   use paramMod
+  use netcdf
   implicit none
 
   contains
+
+    subroutine check(status)
+      integer, intent ( in) :: status
+
+      if(status /= nf90_noerr) then
+        print *, trim(nf90_strerror(status))
+        stop 2
+      end if
+    end subroutine check
+
+    subroutine create_netcdf(run_name)
+      character (len = *) :: run_name
+      integer, parameter :: NDIMS = 4 !gridcell, column, levsoi
+      integer, parameter :: gridcell = 1, column = 1, levsoi = 1 !TODO change levsoi to match input to decomp subroutine!
+      integer :: ncid, varid, dimids(NDIMS)
+      integer :: grid_dimid, col_dimid, t_dimid, lev_dimid
+      !integer :: data_out(NY, NX)
+      !integer :: chunks(2)
+      !integer :: deflate_level
+      integer :: x, y,v
+
+      call check(nf90_create(trim(run_name)//".nc", NF90_HDF5, ncid))
+
+      call check(nf90_def_dim(ncid, "time", nf90_unlimited, t_dimid))
+      call check(nf90_def_dim(ncid, "gridcell", gridcell, grid_dimid))
+      call check(nf90_def_dim(ncid, "column", column, col_dimid))
+      call check(nf90_def_dim(ncid, "levsoi", levsoi, lev_dimid))
+      do v = 1, size(variables)
+        call check(nf90_def_var(ncid, trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, "change"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
+      end do
+      do v = 1, size(name_fluxes)
+        call check(nf90_def_var(ncid, trim(name_fluxes(v)), NF90_double, (/t_dimid, lev_dimid /), varid))
+      end do
+      call check(nf90_enddef(ncid))
+      call check( nf90_close(ncid) )
+    end subroutine create_netcdf
+
+    subroutine fill_netcdf(run_name, soil_levels, time, pool_matrix, change_matrix)
+      character (len=*) :: run_name
+      integer :: soil_levels, time, i , j, ncid, varid, varidchange
+      real(r8)                       :: pool_matrix(soil_levels,pool_types)   ! For storing C pool sizes [gC/m3]
+      real(r8)                       :: change_matrix(soil_levels,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
+
+      call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
+
+      do j=1,soil_levels
+        do i = 1,pool_types
+          call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
+          call check(nf90_put_var(ncid, varid, pool_matrix(j,i), start = (/ time, j /)))
+          call check(nf90_inq_varid(ncid, trim(change_variables(i)), varidchange))
+          call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ time, j /)))
+        end do
+      end do
+
+      call check(nf90_close(ncid))
+    end subroutine fill_netcdf
+
+    ! subroutine fluxes_netcdf()
+    !   do i = 1, size(name_fluxes)
+    !     call check(nf90_inq_varid(ncid, trim(name_fluxes(i)), varid))
+    !     call check(nf90_put_var(ncid, varid, ))
+    !   end do
+    ! end subroutine fluxes_netcdf
 
     subroutine openOutputFile(name_ad, isVertical)
       character (len=*) :: name_ad
@@ -35,7 +100,6 @@ module writeMod
       write(unit=1, fmt=*) 'time, depth_level, LITm,  LITs,  SAPr,  SAPk, EcM, ErM, AM,  SOMp,  SOMa,  SOMc'!header
       write(unit=15, fmt=*) 'time, depth_level, LITm,  LITs,  SAPr,  SAPk, EcM, ErM, AM,  SOMp,  SOMa,  SOMc'!header
       write(unit=2, fmt=*) 'time, depth_level, HR, LITm,  LITs,  SAPr,  SAPk, EcM, ErM, AM,  SOMp,  SOMa,  SOMc'!header
-
     end subroutine openOutputFile
 
     subroutine closeFiles(isVertical)

@@ -60,16 +60,16 @@ module fluxMod
     ! MYCtoSOM(8)=SOMc*Vmax(12)*ErM/(Km(12)+ErM)
     ! MYCtoSOM(9)=SOMc*Vmax(13)*AM/(Km(13)+AM)
     MYCtoSOM(1)=EcM*k2(1)*0.25
-    MYCtoSOM(2)=EcM*k2(1)*0.5
+    MYCtoSOM(2)=EcM*k2(1)*0.50
     MYCtoSOM(3)=EcM*k2(1)*0.25
 
     MYCtoSOM(4)=ErM*k2(2)*0.25
     MYCtoSOM(5)=ErM*k2(2)*0.65
     MYCtoSOM(6)=ErM*k2(2)*0.1
 
-    MYCtoSOM(7)=AM*k2(3)*0.3
-    MYCtoSOM(8)=AM*k2(3)*0.5
-    MYCtoSOM(9)=AM*k2(3)*0.2
+    MYCtoSOM(7)=AM*k2(3)*0.30
+    MYCtoSOM(8)=AM*k2(3)*0.50
+    MYCtoSOM(9)=AM*k2(3)*0.20
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools.
     !NOTE: correspond to eq A4,A8 in Wieder 2015
     SAPtoSOM(1)=SAPr*tau(1)*fPHYS(1)
@@ -122,11 +122,12 @@ module fluxMod
   end subroutine microbial_fluxes
 
   subroutine alt_vertical_diffusion(depth, pool,tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,level_max) !This subroutine calculates the vertical transport of carbon through the soil layers.
-      integer :: depth, pool,level_max
-      real(r8) :: pool_matrix(level_max, pool_types)
-      real(r8),intent(out) :: upper_diffusion_flux, lower_diffusion_flux
+      integer               :: depth, pool,level_max
+      real(r8)              :: pool_matrix(level_max, pool_types)
+      real(r8),intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
       real(r8), intent(out) :: tot_diffusion_dummy ![gC/day]
-      !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling. 
+
+      !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
       if (depth == 1) then
         upper_diffusion_flux= 0.0
         lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
@@ -141,6 +142,42 @@ module fluxMod
       tot_diffusion_dummy=(upper_diffusion_flux-lower_diffusion_flux)/delta_z(depth)
   end subroutine alt_vertical_diffusion
 
+  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,level_max,vert,t,counter,step_frac) !This subroutine calculates the vertical transport of carbon through the soil layers.
+
+      integer               :: level_max, depth, pool,counter
+      real(r8)              :: pool_matrix(level_max, pool_types)
+      real(r8),intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
+      real(r8), intent(out) :: tot_diffusion_dummy ![gC/day]
+      real(r8),intent(out)  :: vert(level_max, pool_types)
+      real(r8)              :: t !t*dt in main routine
+      real(r8)              :: sum_day=0.0
+      real(r8)              :: step_frac
+      !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
+      do depth = 1,level_max
+        do pool =1, pool_types
+          if (depth == 1) then
+            upper_diffusion_flux= 0.0
+            lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
+          elseif (depth==level_max) then
+            upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
+            lower_diffusion_flux= 0.0
+          else
+            upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
+            lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
+          end if
+          tot_diffusion_dummy=(upper_diffusion_flux-lower_diffusion_flux)/delta_z(depth)
+          vert(depth,pool) = tot_diffusion_dummy
+          sum_day=sum_day+tot_diffusion_dummy
+          if (counter == step_frac) then
+            write(unit=10,fmt='(F10.0,A2,I2,A2,I6,A2,F30.10,A2,F30.10,A2,F30.10)') &
+            t,',',depth,',',pool,',',tot_diffusion_dummy,',', upper_diffusion_flux,',', lower_diffusion_flux
+            sum_day=0.0
+          end if !writing
+        end do !pool
+      end do !depth
+
+
+  end subroutine vertical_diffusion
 
 
 end module fluxMod
