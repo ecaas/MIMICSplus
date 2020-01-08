@@ -6,7 +6,7 @@ implicit none
 !Define variables
 
 
-real(kind=r8)                :: tsoi                      ![degC]
+real(kind=r8)                                :: tsoi                      ![degC]
 real(kind=r8),parameter                      :: fCLAY  = 0.12                  ![-] fraction of clay in soil
 real(kind=r8),dimension(6),save              ::  MGE![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
                                                                                 !The rest is lost in respiration.
@@ -40,7 +40,7 @@ real(kind=r8)                                :: desorb = 3e-4 * exp(-4*(sqrt(fcl
 !Pools: NOTE: This needs to be updated if pools are added to/removed from the system.
 integer, parameter                           :: num_soilc = 1                  !Number of soil columns modeled. Only use one column here, but TODO code should be working for several columns as well (add loop)
 integer, parameter                           :: no_of_litter_pools = 2         !Metabolic and structural
-integer, parameter                           :: no_of_sap_pools = 2            !saprotrophs r and k
+integer, parameter                           :: no_of_sap_pools = 1            !NOTE changed from two pools to one pool!
 integer, parameter                           :: no_of_myc_pools = 3            !Mycorrhiza: Ecto, ericoid & arbuscular
 integer, parameter                           :: no_of_som_pools = 3            !Physically protected, chemically protected, available carbon
 integer, parameter                           :: pool_types = no_of_litter_pools + no_of_myc_pools + &
@@ -58,20 +58,14 @@ real(r8)                                     :: net_diffusion(4,pool_types)
 !end depth & vertical transport
 
 !Fluxes between pools:
-!TODO: change hardcoded dimensions
-real(kind=r8),dimension(4)                   :: LITtoSAP                       ! (Lit_m->SAP_r, LIT_m->saP_k, LIT_s->SAP_r, LIT_s->SAP_k)
-real(kind=r8),dimension(6)                   :: SAPtoSOM                       ! SAP_r to phys, avail, chem, SAP_k to phys, avail, chem
-real(kind=r8),dimension(6)                   :: MYCtoSAP                       ! Ecm to SAP_r, SAPk, ErM to SAP_r, SAP_k, AM to SAP_r,SAP_k
-real(kind=r8),dimension(9)                   :: MYCtoSOM                       ! Ecm to SOM_p, SOM_a, SOM_c, ErM to SOM_p, SOM_a, SOM_c, AM to SOM_p, SOM_a, SOM_c
-real(kind=r8),dimension(2)                   :: SOMtoSAP                       ! SOM_a -> SAP_r, SAP_k
-real(kind=r8),dimension(2)                   :: SOMtoSOM                       ! SOM_p->SOM_a, SOM_c->SOM_a
+real(r8) :: LITmSAP, LITsSAP, EcMSAP, ErMSAP, AMSAP, EcMSOMp, EcMSOMa, EcMSOMc, ErMSOMp, ErMSOMa, ErMSOMc, AMSOMp, AMSOMa, AMSOMc, SOMaSAP, SOMpSOMa, SOMcSOMa
 !End fluxes between pools
 
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
-character (len=4), dimension(10):: variables = (/  "LITm", "LITs", "SAPr", "SAPk", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
-character (len=10), dimension(10):: change_variables = (/  "changeLITm", "changeLITs", "changeSAPr", "changeSAPk", "changeEcM ", "changeErM ", "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
-character (len=*), dimension(23), parameter ::  name_fluxes = (/"LITmSAPr","LITmSAPk","LITsSAPr","LITsSAPk","EcMSAPr ","EcMSAPk ","ErMSAPr ","ErMSAPk ", &
-      "AMSAPr  ","AMSAPk  ","EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ","ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  " &
-      ,"AMSOMc  ","SOMaSAPr","SOMaSAPk","SOMpSOMa","SOMcSOMa"/)
+character (len=4), dimension(pool_types):: variables = (/  "LITm", "LITs", "SAP ", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
+character (len=10), dimension(pool_types):: change_variables = (/  "changeLITm", "changeLITs", "changeSAP", "changeEcM ", "changeErM ", "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
+character (len=*), dimension(17), parameter ::  name_fluxes = (/"LITmSAP ","LITsSAP ","EcMSAP  ","ErMSAP  ", &
+      "AMSAP   ","EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ","ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  " &
+      ,"AMSOMc  ","SOMaSAP ","SOMpSOMa","SOMcSOMa"/)
 
 end module paramMod

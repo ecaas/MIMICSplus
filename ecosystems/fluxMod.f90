@@ -18,8 +18,8 @@ module fluxMod
     LITs => pool_matrix(depth, 2)
 
     !From LIT to SAP
-    LITtoSAP(1)=SAP*Vmax(1)*LITm/(Km(1)+LITm)
-    LITtoSAP(3)=SAP*Vmax(2)*LITs/(Km(2)+LITs)
+    LITmSAP=SAP*Vmax(1)*LITm/(Km(1)+LITm)
+    LITsSAP=SAP*Vmax(2)*LITs/(Km(2)+LITs)
 
     !From LIT to sapk
     !LITtoSAP(2)=SAPk*Vmax(4)*LITm/(Km(4)+LITm)
@@ -61,41 +61,41 @@ module fluxMod
     ! MYCtoSOM(7)=SOMc*Vmax(11)*EcM/(Km(11)+EcM)
     ! MYCtoSOM(8)=SOMc*Vmax(12)*ErM/(Km(12)+ErM)
     ! MYCtoSOM(9)=SOMc*Vmax(13)*AM/(Km(13)+AM)
-    MYCtoSOM(1)=EcM*k2(1)*0.40!somp
-    MYCtoSOM(2)=EcM*k2(1)*0.40!soma
-    MYCtoSOM(3)=EcM*k2(1)*0.2!somc
+    EcMSOMp=EcM*k2(1)*0.40!somp
+    EcMSOMa=EcM*k2(1)*0.40!soma
+    EcMSOMc=EcM*k2(1)*0.2!somc
 
-    MYCtoSOM(4)=ErM*k2(2)*0.2
-    MYCtoSOM(5)=ErM*k2(2)*0.6
-    MYCtoSOM(6)=ErM*k2(2)*0.2
+    ErMSOMp=ErM*k2(2)*0.2
+    ErMSOMa=ErM*k2(2)*0.6
+    ErMSOMc=ErM*k2(2)*0.2
 
-    MYCtoSOM(7)=AM*k2(3)*0.1
-    MYCtoSOM(8)=AM*k2(3)*0.8
-    MYCtoSOM(9)=AM*k2(3)*0.1
+    AMSOMp=AM*k2(3)*0.1
+    AMSOMa=AM*k2(3)*0.8
+    AMSOMc=AM*k2(3)*0.1
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools.
     !NOTE: correspond to eq A4,A8 in Wieder 2015
 
-    SAPtoSOM(1)=SAP*tau(1)*fPHYS(1)
-    SAPtoSOM(2)=SAP*tau(1)*fAVAIL(1)
-    SAPtoSOM(3)=SAP*tau(1)*fCHEM(1) !No arrow on illustration by Haavard and Ella
+    SAPSOMp=SAP*tau(1)*fPHYS(1)
+    SAPSOMa=SAP*tau(1)*fAVAIL(1)
+    SAPSOMc=SAP*tau(1)*fCHEM(1) !No arrow on illustration by Haavard and Ella
 
     !SAPtoSOM(4)=SAPk*tau(2)*fPHYS(2)
     !SAPtoSOM(5)=SAPk*tau(2)*fAVAIL(2)
     !SAPtoSOM(6)=SAPk*tau(2)*fCHEM(2)
 
     !Based on the equations from SOMa to microbial pools in mimics. On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
-    SOMtoSAP(1)=SAP*Vmax(3)*SOMa/(Km(3)+SOMa)
+    SOMaSAP=SAP*Vmax(3)*SOMa/(Km(3)+SOMa)
     !SOMtoSAP(2)=SAPk*Vmax(6)*SOMa/(Km(6)+SOMa)
 
 
     !Between SOM pools
     !Desorption of SOMp to SOMa, from Mimics model, eq A9
-    SOMtoSOM(1)=SOMp*desorb
+    SOMpSOMa=SOMp*desorb
 
     !---Oxidation from SOMc to SOMa
     !From equations for decomposing structural litter in mimics,eq. A10
     !KO modifies Km which is used in the litter->SAP equations.
-    SOMtoSOM(2)    = (( SAP * Vmax(2) * SOMc / (KO(1)*Km(2) + SOMc)))! + &
+    SOMcSOMa    = (( SAP * Vmax(2) * SOMc / (KO(1)*Km(2) + SOMc)))! + &
                    !(SAPk* Vmax(5) * SOMc / (KO(2)*Km(5) + SOMc)))
 
     nullify( SOMp,SOMa,SOMc,EcM,ErM,AM, SAP)
@@ -114,9 +114,9 @@ module fluxMod
 
     !From Mycorrhizal pools to SAPotroph pools
     !Mycorrhizal pool*fraction to SAP*fraction to SAP_r*decay constant for mycorrhizal pool. TODO: Maybe reconsider these equations..
-    MYCtoSAP(1)=EcM*Myc_SAP*k(1)
-    MYCtoSAP(2)=ErM*Myc_SAP*k(2)
-    MYCtoSAP(3)=AM*Myc_SAP*k(3)
+    EcMSAP=EcM*Myc_SAP*k(1)
+    ErMSAP=ErM*Myc_SAP*k(2)
+    AMSAP=AM*Myc_SAP*k(3)
 
     !MYCtoSAP(4)=EcM*Myc_SAPk*k(1)
     !MYCtoSAP(5)=ErM*Myc_SAPk*k(2)

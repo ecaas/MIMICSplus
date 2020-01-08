@@ -39,17 +39,17 @@ module mycmim
                                                                              !The new value after the time step is then pool_matrix = pool_temporary + vertical change.
 
                                                                              !Shape of the pool_matrix/change_matrix
-                                                                             !|       LITm LITs SAPr SAPk EcM ErM AM SOMp SOMa SOMc |
-                                                                             !|level1   1   2    3    4    5   6   7   8    9   10  |
-                                                                             !|level2                                               |
-                                                                             !| .                                                   |
-                                                                             !| .                                                   |
-                                                                             !|nlevdecomp __________________________________________|
+                                                                             !|       LITm LITs SAP EcM ErM AM SOMp SOMa SOMc |
+                                                                             !|level1   1   2    3  4   5   6   7   8    9    |
+                                                                             !|level2                                         |
+                                                                             !| .                                             |
+                                                                             !| .                                             |
+                                                                             !|nlevdecomp ____________________________________|
 
 
       real(r8)                       :: dt                                   ! size of time step
       real(r8)                       :: time                                 ! t*dt
-      real(r8)                       :: Loss, Gain                           ! Source and sink term for solving the analytical solution to the dC/dt=Gain-Loss*concentration equation.
+      real(r8)                       :: Loss, Gain, Loss_term                           ! Source and sink term for solving the analytical solution to the dC/dt=Gain-Loss*concentration equation.
       real(r8)                       :: tot_diff,upper,lower                 ! For the call to alt_vertical_diffusion
       real(r8)                       :: vert(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrix
       real(kind=r8)                  :: GEP                                  ![gC/(m2 h)] Gross ecosystem productivity
@@ -65,8 +65,8 @@ module mycmim
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
       MGE     = (/ 0.55,0.75,0.25,0.35, 1.0, 1.0 /)
 
-      Kmod    = (/0.125d0, 0.50d0, 0.25d0*pscalar*10, 0.5d0, 0.25d0, 0.167d0*pscalar*10/)!LITm, LITs, SOMa entering SAPr, LITm, LITs, SOMa entering sapk
-      Vmod    = (/10.0,  2.0, 10.0, 3.0, 3.0, 2.0/)                          !LITm, LITs, SOMa entering SAPr, LITm, LITs, SOMa entering sapk
+      Kmod    = (/0.125d0, 0.50d0, 0.25d0*pscalar*10 /)!, 0.5d0, 0.25d0, 0.167d0*pscalar*10/)!LITm, LITs, SOMa entering SAP
+      Vmod    = (/10.0,  2.0, 10.0 /)! 3.0, 3.0, 2.0/)                          !LITm, LITs, SOMa entering SAP
 
       k2 = (/7.0,7.0,1.4/)*10e-4        ![1/h] Decay constants
       k = (/5.0,5.0,0.5/)*10e-5 ![1/h] Decay constants
@@ -101,13 +101,13 @@ module mycmim
         stop
       end if
 
-      !Assigning values. Fracions of SAPr, SAPk that goes to different SOM pools
-      fPHYS = (/ 0.3 * exp(1.3*fCLAY), 0.2 * exp(0.8*fCLAY) /)
-      fCHEM = (/ 0.1 * exp(-3.0*fMET), 0.3 * exp(-3*fMET) /)
+      !Assigning values. Fracions of SAP that goes to different SOM pools
+      fPHYS = (/ 0.3 * exp(1.3*fCLAY) /)!, 0.2 * exp(0.8*fCLAY) /)
+      fCHEM = (/ 0.1 * exp(-3.0*fMET) /) !, 0.3 * exp(-3*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
       !print*, fPHYS, fCHEM, fAVAIL
       !print*, fPHYS+fCHEM+fAVAIL
-      tau = (/ 5.2e-4*exp(0.3*fMET), 2.4e-4*exp(0.1*fMET)/)*10![1/h] Microbial turnover rate (SAP to SOM), SAPr, SAPk
+      tau = (/ 5.2e-4*exp(0.3*fMET) /)*10!, 2.4e-4*exp(0.1*fMET)/)*10![1/h] Microbial turnover rate (SAP to SOM), SAPr,
 
       !Set initial concentration values in pool_matrix:
       if (isVertical) then
@@ -197,23 +197,17 @@ module mycmim
              call check(nf90_put_var(ncid, varid, LITtoSAP(1), start = (/ t, j /)))
              call check(nf90_inq_varid(ncid, "LITsSAPr", varid))
              call check(nf90_put_var(ncid, varid, LITtoSAP(3), start = (/ t, j /)))
-             call check(nf90_inq_varid(ncid, "LITmSAPk", varid))
-             call check(nf90_put_var(ncid, varid, LITtoSAP(2), start = (/ t, j /)))
-             call check(nf90_inq_varid(ncid, "LITsSAPk", varid))
-             call check(nf90_put_var(ncid, varid, LITtoSAP(4), start = (/ t, j /)))
+
 
              call check(nf90_inq_varid(ncid, "EcMSAPr", varid))
              call check(nf90_put_var(ncid, varid, MYCtoSAP(1), start = (/ t, j /)))
-             call check(nf90_inq_varid(ncid, "EcMSAPk", varid))
-             call check(nf90_put_var(ncid, varid, MYCtoSAP(4), start = (/ t, j /)))
+
              call check(nf90_inq_varid(ncid, "ErMSAPr", varid))
              call check(nf90_put_var(ncid, varid, MYCtoSAP(2), start = (/ t, j /)))
-             call check(nf90_inq_varid(ncid, "ErMSAPk", varid))
-             call check(nf90_put_var(ncid, varid, MYCtoSAP(5), start = (/ t, j /)))
+
              call check(nf90_inq_varid(ncid, "AMSAPr", varid))
              call check(nf90_put_var(ncid, varid, MYCtoSAP(3), start = (/ t, j /)))
-             call check(nf90_inq_varid(ncid, "AMSAPk", varid))
-             call check(nf90_put_var(ncid, varid, MYCtoSAP(6), start = (/ t, j /)))
+
              call check(nf90_close(ncid))
           !   write(unit=3,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
           !   time,',',j,',',LITtoSAP(1),',',LITtoSAP(2),',',LITtoSAP(3),',',LITtoSAP(4)
@@ -233,72 +227,47 @@ module mycmim
             !The Gain and Loss variables are used to calculate the analytical solution to dC/dt=Gain - Loss*C, a_matrix(j,i)
             !NOTE: The "change_matrix" values correspond to the equations A11-A17 in Wieder 2015
             if (i==1) then !LITm
-              change_matrix(j,i) = lit_input(1)-sum(LITtoSAP(1:2))
-
               Gain = lit_input(1)
-              Loss=sum(LITtoSAP(1:2))/pool_matrix(j, i)
+              Loss = LITmSAP/pool_matrix(j, i)
 
             elseif (i==2) then !LITs
-              change_matrix(j,i) =  lit_input(2) -sum(LITtoSAP(3:4))
-
               Gain = lit_input(2)
-              Loss=sum(LITtoSAP(3:4))/pool_matrix(j, i)
+              Loss = LITsSAP/pool_matrix(j, i)
 
-            elseif (i==3) then !SAPr
-              change_matrix(j,i) = LITtoSAP(1)*MGE(1) + LITtoSAP(3)*MGE(3) &
-              + sum(MYCtoSAP(1:3))*MGE(5) + SOMtoSAP(1)*MGE(1) - sum(SAPtoSOM(1:3))
+            elseif (i==3) then !SAP
+              Gain = LITmSAP*MGE(1) + LITsSAP*MGE(3) &
+              + (EcMSAP + ErMSAP + AMSAP)*MGE(5) + SOMaSAP(1)*MGE(1)
+              Loss =  SAPSOMp + SAPSOMa + SAPSOMc
 
-              Gain = LITtoSAP(1)*MGE(1) + LITtoSAP(3)*MGE(3) + sum(MYCtoSAP(1:3))+ SOMtoSAP(1)*MGE(1)
-              Loss = sum(SAPtoSOM(1:3))/pool_matrix(j,i)
-
-            elseif (i==4) then !SAPk
-              change_matrix(j,i) = LITtoSAP(2)*MGE(2) + LITtoSAP(4)*MGE(4) &
-               + sum(MYCtoSAP(4:6))*MGE(6) + SOMtoSAP(2)*MGE(2) - sum(SAPtoSOM(4:6))
-
-               Gain= LITtoSAP(2)*MGE(2) + LITtoSAP(4)*MGE(4) + sum(MYCtoSAP(4:6))+ SOMtoSAP(2)*MGE(2)
-               Loss=sum(SAPtoSOM(4:6))/pool_matrix(j,i)
-
-            elseif (i==5) then !EcM
-              change_matrix(j,i)=myc_input(1)-MYCtoSAP(1)-MYCtoSAP(4)-sum(MYCtoSOM(1:3))
-
+            elseif (i==4) then !EcM
               Gain = myc_input(1)
-              Loss = (MYCtoSAP(1)+MYCtoSAP(4)+sum(MYCtoSOM(1:3)))/pool_matrix(j,i)
+              Loss = EcMSAP + EcMSOMp + EcMSOMa + EcMSOMc
 
-            elseif (i==6) then !ErM
-              change_matrix(j,i)=myc_input(2)-MYCtoSAP(2)-MYCtoSAP(5)-sum(MYCtoSOM(4:6))
-
+            elseif (i==5) then !ErM
               Gain = myc_input(2)
-              Loss = (MYCtoSAP(2)+MYCtoSAP(5)+sum(MYCtoSOM(4:6)))/pool_matrix(j,i)
+              Loss = ErMSAP + ErMSOMp + ErMSOMa + ErMSOMc
 
-            elseif (i==7) then !AM
-              change_matrix(j,i)=myc_input(3)-MYCtoSAP(3)-MYCtoSAP(6)-sum(MYCtoSOM(7:9))
-
+            elseif (i==6) then !AM
               Gain = myc_input(3)
-              Loss = (MYCtoSAP(3)+MYCtoSAP(6)+sum(MYCtoSOM(7:9)))/pool_matrix(j,i)
+              Loss = AMSAP + AMSOMp + AMSOMa + AMSOMc
 
-            elseif (i==8) then !SOMp
-              change_matrix(j,i)=  som_input(1)*f_myc_levels + SAPtoSOM(1) + SAPtoSOM(4) + MYCtoSOM(1) + MYCtoSOM(4) + MYCtoSOM(7)-SOMtoSOM(1)
+            elseif (i==7) then !SOMp
               !Use the same partitioning between the depth levels as for mycorrhiza (f_myc_levels)
-              Gain = som_input(1)*f_myc_levels + SAPtoSOM(1) + SAPtoSOM(4) + MYCtoSOM(1) + MYCtoSOM(4) + MYCtoSOM(7)
-              Loss = SOMtoSOM(1)/pool_matrix(j,i)
+              Gain = som_input(1)*f_myc_levels + SAPSOMp + EcMSOMp + ErMSOMp + AMSOMp
+              Loss = SOMpSOMa
 
-            elseif (i==9) then !SOMa
-              change_matrix(j,i)=SAPtoSOM(2) + SAPtoSOM(5) +  MYCtoSOM(2) + MYCtoSOM(5) + MYCtoSOM(8) + &
-               SOMtoSOM(1) + SOMtoSOM(2) - SOMtoSAP(1) - SOMtoSAP(2)
+            elseif (i==8) then !SOMa
+               Gain = SAPSOMa + EcMSOMa + ErMSOMa + AMSOMa +  SOMpSOMa + SOMcSOMa
+               Loss = SOMaSAP
 
-               Gain = SAPtoSOM(2) + SAPtoSOM(5) +  MYCtoSOM(2) + MYCtoSOM(5) + MYCtoSOM(8) +  SOMtoSOM(1) + SOMtoSOM(2)
-               Loss = (SOMtoSAP(1) + SOMtoSAP(2))/pool_matrix(j,i)
-
-            elseif (i==10) then !SOMc
-              change_matrix(j,i)=som_input(1)+SAPtoSOM(3) + SAPtoSOM(6) + MYCtoSOM(3) + MYCtoSOM(6) + MYCtoSOM(9)- SOMtoSOM(2)
-
-              Gain = som_input(1) + SAPtoSOM(3) + SAPtoSOM(6) + MYCtoSOM(3) + MYCtoSOM(6) + MYCtoSOM(9)
-              Loss = SOMtoSOM(2)/pool_matrix(j,i)
+            elseif (i==9) then !SOMc
+              Gain = som_input(1) + SAPSOMc + EcMSOMc + ErMSOMc + AMSOMc
+              Loss = SOMcSOMa
 
             else
               print*, 'Too many pool types expected, pool_types = ',pool_types
             end if !determine dC_i/dt
-
+            change_matrix = Gain - Loss
             !Store these values as temporary so that they can be used in the diffusion subroutine
             pool_temporary(j,i)=pool_matrix(j,i) + change_matrix(j,i)*dt
 
@@ -307,12 +276,13 @@ module mycmim
               print*, 'Negative concentration value at t',t,'depth level',j,'pool number',i, ':', pool_temporary(j,i)
             end if
 
+            !To calculate analytical solution:
+            Loss_term = Loss/pool_matrix(j,i)
             a_matrix(j,i) = Init(j,i)*exp(-time*Loss) + Gain*(1-exp(-time*Loss))/Loss !+ vert*dt
           end do !i, pool_types
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t:
-          HR(j) =( LITtoSAP(1)*(1-MGE(1)) + LITtoSAP(2)*(1-MGE(2)) + LITtoSAP(3)*(1-MGE(3)) &
-                        + LITtoSAP(4)*(1-MGE(4)) + SOMtoSAP(1)*(1-MGE(1)) + SOMtoSAP(2)*(1-MGE(2)))*dt
+          HR(j) =( LITmSAP*(1-MGE(1)) + LITsSAP*(1-MGE(2)) + LITtoSAP(3)*(1-MGE(3)) + SOMaSAP*(1-MGE(1)))*dt
         end do !j, depth_level
 
         if (isVertical) then

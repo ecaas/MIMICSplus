@@ -7,7 +7,7 @@ contains
                                                    !/LITm LITs SAPr SAPk EcM ErM AM SOMp SOMa SOMc/
     real(r8),intent(out) :: initial(1, pool_types)
     real(r8), intent(inout) :: pools(1,pool_types)
-    initial(1,:) = (/500,500,5,5,5,5,5,5,5,5/)
+    initial(1,:) = (/500,500,5,5,5,5,5,5,5/)
     pools = initial
   end subroutine initialize_onelayer
 
@@ -17,9 +17,9 @@ contains
     integer :: levels
     real(r8),intent(out) :: Init(levels, pool_types)
     real(r8), intent(inout) :: pools(levels, pool_types)
-    Init(1,:) = (/100,100,50,50,40,40,40,60,60,60/)
+    Init(1,:) = (/100,100,50,40,40,40,60,60,60/)
     Init(2,:) = 0.9*Init(1,:)
-    Init(3,:) = (/15,15,20,20,30,30,30,100,100,100/)
+    Init(3,:) = (/15,15,20,30,30,30,100,100,100/)
     Init(4,:) = 1.1*Init(3,:)
 
     pools=Init
