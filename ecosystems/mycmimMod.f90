@@ -65,8 +65,8 @@ module mycmim
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
       MGE     = (/ 0.55,0.75,0.25,0.35, 1.0, 1.0 /)
 
-      Kmod    = (/0.125d0, 0.50d0, 0.25d0*pscalar*10 /)!, 0.5d0, 0.25d0, 0.167d0*pscalar*10/)!LITm, LITs, SOMa entering SAP
-      Vmod    = (/10.0,  2.0, 10.0 /)! 3.0, 3.0, 2.0/)                          !LITm, LITs, SOMa entering SAP
+      Kmod    = (/0.125d0, 0.50d0, 0.167d0*pscalar*10 /)!, 0.5d0, 0.25d0, 0.167d0*pscalar*10/)!LITm, LITs, SOMa entering SAP
+      Vmod    = (/4.0,  5.0, 10.0 /)! 3.0, 3.0, 2.0/)                          !LITm, LITs, SOMa entering SAP
 
       k2 = (/7.0,7.0,1.4/)*10e-4        ![1/h] Decay constants
       k = (/5.0,5.0,0.5/)*10e-5 ![1/h] Decay constants
@@ -190,37 +190,37 @@ module mycmim
           call litter_fluxes(j, pool_matrix,nlevdecomp)
 
           ! !TODO: This writing to file should be made much more efficient, and to binary files, not text files..
-           !if (counter == 24) then
-             call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
-
-             call check(nf90_inq_varid(ncid, "LITmSAP", varid))
-             call check(nf90_put_var(ncid, varid, LITmSAP, start = (/ t, j /)))
-             call check(nf90_inq_varid(ncid, "LITsSAP", varid))
-             call check(nf90_put_var(ncid, varid, LITsSAP, start = (/ t, j /)))
-
-
-             call check(nf90_inq_varid(ncid, "EcMSAP", varid))
-             call check(nf90_put_var(ncid, varid, EcMSAP, start = (/ t, j /)))
-
-             call check(nf90_inq_varid(ncid, "ErMSAP", varid))
-             call check(nf90_put_var(ncid, varid, ErMSAP, start = (/ t, j /)))
-
-             call check(nf90_inq_varid(ncid, "AMSAP", varid))
-             call check(nf90_put_var(ncid, varid, AMSAP, start = (/ t, j /)))
-
-             call check(nf90_close(ncid))
-          !   write(unit=3,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          !   time,',',j,',',LITtoSAP(1),',',LITtoSAP(2),',',LITtoSAP(3),',',LITtoSAP(4)
-          !   write(unit=4,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          !   time,',',j,',',SAPtoSOM(1),',',SAPtoSOM(2),',',SAPtoSOM(3),',',SAPtoSOM(4),',',SAPtoSOM(5),',',SAPtoSOM(6)
-          !   write(unit=7,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          !   time,',',j,',',MYCtoSAP(1),',',MYCtoSAP(2),',',MYCtoSAP(3),',',MYCtoSAP(4),',',MYCtoSAP(5),',',MYCtoSAP(6)
-          !   write(unit=8,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          !   time,',',j,',',MYCtoSOM(1),',',MYCtoSOM(2),',',MYCtoSOM(3),',' &
-          !   ,MYCtoSOM(4),',',MYCtoSOM(5),',',MYCtoSOM(6),',',MYCtoSOM(7),',',MYCtoSOM(8),',',MYCtoSOM(9)
-          !   write(unit=9,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          !   time,',',j,',',SOMtoSAP(1),',',SOMtoSAP(2),',',SOMtoSOM(1),',',SOMtoSOM(2)
-           !end if !writing
+          !  if (counter == 24) then
+          !    call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
+          !
+          !    call check(nf90_inq_varid(ncid, "LITmSAP", varid))
+          !    call check(nf90_put_var(ncid, varid, LITmSAP, start = (/ t/24, j /)))
+          !    call check(nf90_inq_varid(ncid, "LITsSAP", varid))
+          !    call check(nf90_put_var(ncid, varid, LITsSAP, start = (/ t/24, j /)))
+          !
+          !
+          !    call check(nf90_inq_varid(ncid, "EcMSAP", varid))
+          !    call check(nf90_put_var(ncid, varid, EcMSAP, start = (/ t/24, j /)))
+          !
+          !    call check(nf90_inq_varid(ncid, "ErMSAP", varid))
+          !    call check(nf90_put_var(ncid, varid, ErMSAP, start = (/ t/24, j /)))
+          !
+          !    call check(nf90_inq_varid(ncid, "AMSAP", varid))
+          !    call check(nf90_put_var(ncid, varid, AMSAP, start = (/ t/24, j /)))
+          !
+          !    call check(nf90_close(ncid))
+          ! !   write(unit=3,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
+          ! !   time,',',j,',',LITtoSAP(1),',',LITtoSAP(2),',',LITtoSAP(3),',',LITtoSAP(4)
+          ! !   write(unit=4,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
+          ! !   time,',',j,',',SAPtoSOM(1),',',SAPtoSOM(2),',',SAPtoSOM(3),',',SAPtoSOM(4),',',SAPtoSOM(5),',',SAPtoSOM(6)
+          ! !   write(unit=7,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
+          ! !   time,',',j,',',MYCtoSAP(1),',',MYCtoSAP(2),',',MYCtoSAP(3),',',MYCtoSAP(4),',',MYCtoSAP(5),',',MYCtoSAP(6)
+          ! !   write(unit=8,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
+          ! !   time,',',j,',',MYCtoSOM(1),',',MYCtoSOM(2),',',MYCtoSOM(3),',' &
+          ! !   ,MYCtoSOM(4),',',MYCtoSOM(5),',',MYCtoSOM(6),',',MYCtoSOM(7),',',MYCtoSOM(8),',',MYCtoSOM(9)
+          ! !   write(unit=9,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
+          ! !   time,',',j,',',SOMtoSAP(1),',',SOMtoSAP(2),',',SOMtoSOM(1),',',SOMtoSOM(2)
+          !  end if !writing
 
           do i = 1, pool_types !loop over all the pool types, i, in depth level j
             !This if-loop calculates dC/dt for the different carbon pools.NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
@@ -267,13 +267,14 @@ module mycmim
             else
               print*, 'Too many pool types expected, pool_types = ',pool_types
             end if !determine dC_i/dt
-            change_matrix = Gain - Loss
+            change_matrix(j,i) = Gain - Loss
             !Store these values as temporary so that they can be used in the diffusion subroutine
             pool_temporary(j,i)=pool_matrix(j,i) + change_matrix(j,i)*dt
 
             !control check
             if (pool_temporary(j,i) < 0.0) then
               print*, 'Negative concentration value at t',t,'depth level',j,'pool number',i, ':', pool_temporary(j,i)
+              STOP
             end if
 
             !To calculate analytical solution:
@@ -293,10 +294,10 @@ module mycmim
           pool_matrix=pool_temporary
         end if!isVertical
 
-        !if (counter == 24) then
-        !  counter = 0
+        if (counter == 24) then
+          counter = 0
           call fill_netcdf(run_name, nlevdecomp, t, pool_matrix, change_matrix)
-        !end if!writing
+        end if!writing
 
       end do !t
 
