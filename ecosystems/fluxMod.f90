@@ -38,12 +38,12 @@ module fluxMod
     real(r8), pointer :: SOMp,SOMa,SOMc,EcM,ErM,AM, SAP
     SAP => pool_matrix(depth, 3)
     !SAPk => pool_matrix(depth, 4)
-    EcM =>  pool_matrix(depth, 5)
-    ErM =>  pool_matrix(depth, 6)
-    AM =>   pool_matrix(depth, 7)
-    SOMp => pool_matrix(depth, 8)
-    SOMa => pool_matrix(depth, 9)
-    SOMc => pool_matrix(depth, 10)
+    EcM =>  pool_matrix(depth, 4)
+    ErM =>  pool_matrix(depth, 5)
+    AM =>   pool_matrix(depth, 6)
+    SOMp => pool_matrix(depth, 7)
+    SOMa => pool_matrix(depth, 8)
+    SOMc => pool_matrix(depth, 9)
     !print*, 'EcM', EcM
 
     !TODO No idea if the Michalis Menten equations is the right thing to use here..
@@ -75,9 +75,9 @@ module fluxMod
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools.
     !NOTE: correspond to eq A4,A8 in Wieder 2015
 
-    SAPSOMp=SAP*tau(1)*fPHYS(1)
-    SAPSOMa=SAP*tau(1)*fAVAIL(1)
-    SAPSOMc=SAP*tau(1)*fCHEM(1) !No arrow on illustration by Haavard and Ella
+    SAPSOMp=SAP*tau*fPHYS
+    SAPSOMa=SAP*tau*fAVAIL
+    SAPSOMc=SAP*tau*fCHEM !No arrow on illustration by Haavard and Ella
 
     !SAPtoSOM(4)=SAPk*tau(2)*fPHYS(2)
     !SAPtoSOM(5)=SAPk*tau(2)*fAVAIL(2)
@@ -95,7 +95,7 @@ module fluxMod
     !---Oxidation from SOMc to SOMa
     !From equations for decomposing structural litter in mimics,eq. A10
     !KO modifies Km which is used in the litter->SAP equations.
-    SOMcSOMa    = (( SAP * Vmax(2) * SOMc / (KO(1)*Km(2) + SOMc)))! + &
+    SOMcSOMa    = (( SAP * Vmax(2) * SOMc / (KO*Km(2) + SOMc)))! + &
                    !(SAPk* Vmax(5) * SOMc / (KO(2)*Km(5) + SOMc)))
 
     nullify( SOMp,SOMa,SOMc,EcM,ErM,AM, SAP)
@@ -108,15 +108,15 @@ module fluxMod
 
     !Creating these pointers improve readability of the flux equations. TODO: Do you really need the matrix?
     real(r8), pointer :: EcM,ErM,AM
-    EcM => pool_matrix(depth, 5)
-    ErM => pool_matrix(depth, 6)
-    AM => pool_matrix(depth, 7)
+    EcM => pool_matrix(depth, 4)
+    ErM => pool_matrix(depth, 5)
+    AM => pool_matrix(depth, 6)
 
     !From Mycorrhizal pools to SAPotroph pools
     !Mycorrhizal pool*fraction to SAP*fraction to SAP_r*decay constant for mycorrhizal pool. TODO: Maybe reconsider these equations..
-    EcMSAP=EcM*Myc_SAP*k(1)
-    ErMSAP=ErM*Myc_SAP*k(2)
-    AMSAP=AM*Myc_SAP*k(3)
+    EcMSAP=EcM*k(1)
+    ErMSAP=ErM*k(2)
+    AMSAP=AM*k(3)
 
     !MYCtoSAP(4)=EcM*Myc_SAPk*k(1)
     !MYCtoSAP(5)=ErM*Myc_SAPk*k(2)

@@ -102,12 +102,12 @@ module mycmim
       end if
 
       !Assigning values. Fracions of SAP that goes to different SOM pools
-      fPHYS = (/ 0.3 * exp(1.3*fCLAY) /)!, 0.2 * exp(0.8*fCLAY) /)
-      fCHEM = (/ 0.1 * exp(-3.0*fMET) /) !, 0.3 * exp(-3*fMET) /)
+      fPHYS =  0.3 * exp(1.3*fCLAY)!, 0.2 * exp(0.8*fCLAY) /)
+      fCHEM =  0.1 * exp(-3.0*fMET)!, 0.3 * exp(-3*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
       !print*, fPHYS, fCHEM, fAVAIL
       !print*, fPHYS+fCHEM+fAVAIL
-      tau = (/ 5.2e-4*exp(0.3*fMET) /)*10!, 2.4e-4*exp(0.1*fMET)/)*10![1/h] Microbial turnover rate (SAP to SOM), SAPr,
+      tau = 5.2e-4*exp(0.3*fMET)*20!, 2.4e-4*exp(0.1*fMET)/)*10![1/h] Microbial turnover rate (SAP to SOM), SAPr,
 
       !Set initial concentration values in pool_matrix:
       if (isVertical) then
@@ -193,20 +193,20 @@ module mycmim
            !if (counter == 24) then
              call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
 
-             call check(nf90_inq_varid(ncid, "LITmSAPr", varid))
-             call check(nf90_put_var(ncid, varid, LITtoSAP(1), start = (/ t, j /)))
-             call check(nf90_inq_varid(ncid, "LITsSAPr", varid))
-             call check(nf90_put_var(ncid, varid, LITtoSAP(3), start = (/ t, j /)))
+             call check(nf90_inq_varid(ncid, "LITmSAP", varid))
+             call check(nf90_put_var(ncid, varid, LITmSAP, start = (/ t, j /)))
+             call check(nf90_inq_varid(ncid, "LITsSAP", varid))
+             call check(nf90_put_var(ncid, varid, LITsSAP, start = (/ t, j /)))
 
 
-             call check(nf90_inq_varid(ncid, "EcMSAPr", varid))
-             call check(nf90_put_var(ncid, varid, MYCtoSAP(1), start = (/ t, j /)))
+             call check(nf90_inq_varid(ncid, "EcMSAP", varid))
+             call check(nf90_put_var(ncid, varid, EcMSAP, start = (/ t, j /)))
 
-             call check(nf90_inq_varid(ncid, "ErMSAPr", varid))
-             call check(nf90_put_var(ncid, varid, MYCtoSAP(2), start = (/ t, j /)))
+             call check(nf90_inq_varid(ncid, "ErMSAP", varid))
+             call check(nf90_put_var(ncid, varid, ErMSAP, start = (/ t, j /)))
 
-             call check(nf90_inq_varid(ncid, "AMSAPr", varid))
-             call check(nf90_put_var(ncid, varid, MYCtoSAP(3), start = (/ t, j /)))
+             call check(nf90_inq_varid(ncid, "AMSAP", varid))
+             call check(nf90_put_var(ncid, varid, AMSAP, start = (/ t, j /)))
 
              call check(nf90_close(ncid))
           !   write(unit=3,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
@@ -236,7 +236,7 @@ module mycmim
 
             elseif (i==3) then !SAP
               Gain = LITmSAP*MGE(1) + LITsSAP*MGE(3) &
-              + (EcMSAP + ErMSAP + AMSAP)*MGE(5) + SOMaSAP(1)*MGE(1)
+              + (EcMSAP + ErMSAP + AMSAP)*MGE(5) + SOMaSAP*MGE(1)
               Loss =  SAPSOMp + SAPSOMa + SAPSOMc
 
             elseif (i==4) then !EcM
@@ -282,7 +282,7 @@ module mycmim
           end do !i, pool_types
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t:
-          HR(j) =( LITmSAP*(1-MGE(1)) + LITsSAP*(1-MGE(2)) + LITtoSAP(3)*(1-MGE(3)) + SOMaSAP*(1-MGE(1)))*dt
+          HR(j) =( LITmSAP*(1-MGE(1)) + LITsSAP*(1-MGE(2)) + SOMaSAP*(1-MGE(1)))*dt
         end do !j, depth_level
 
         if (isVertical) then
