@@ -10,7 +10,7 @@ module fluxMod
 
     integer :: depth,level_max !depth level
     real(r8),target :: pool_matrix(level_max, pool_types)
-    !Creating these pointers improve readability of the flux equations. TODO: Do you really need the matrix?
+    !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: SAP, LITm, LITs
     SAP => pool_matrix(depth, 3)
     !SAPk => pool_matrix(depth, 4)
@@ -66,12 +66,12 @@ module fluxMod
     EcMSOMc=EcM*k2(1)*0.2!somc
 
     ErMSOMp=ErM*k2(2)*0.2
-    ErMSOMa=ErM*k2(2)*0.6
-    ErMSOMc=ErM*k2(2)*0.2
+    ErMSOMa=ErM*k2(2)*0.4
+    ErMSOMc=ErM*k2(2)*0.3
 
-    AMSOMp=AM*k2(3)*0.1
-    AMSOMa=AM*k2(3)*0.8
-    AMSOMc=AM*k2(3)*0.1
+    AMSOMp=AM*k2(3)*0.3
+    AMSOMa=AM*k2(3)*0.3
+    AMSOMc=AM*k2(3)*0.4
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools.
     !NOTE: correspond to eq A4,A8 in Wieder 2015
 
@@ -106,7 +106,7 @@ module fluxMod
     integer :: depth,level_max !depth level
     real(r8),target :: pool_matrix(level_max, pool_types)
 
-    !Creating these pointers improve readability of the flux equations. TODO: Do you really need the matrix?
+    !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: EcM,ErM,AM
     EcM => pool_matrix(depth, 4)
     ErM => pool_matrix(depth, 5)

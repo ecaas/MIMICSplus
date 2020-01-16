@@ -2,8 +2,9 @@ module writeMod
   use paramMod
   use netcdf
   implicit none
-  integer :: ncid, varid
-  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid
+  integer :: ncid, varid, varidan
+  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid, MGE_dimid
+
 
   contains
 
@@ -28,11 +29,15 @@ module writeMod
       call check(nf90_def_dim(ncid, "gridcell", gridcell, grid_dimid))
       call check(nf90_def_dim(ncid, "column", column, col_dimid))
       call check(nf90_def_dim(ncid, "levsoi", levsoi, lev_dimid))
+      call check(nf90_def_dim(ncid, "NoMMKeqs", MM_eqs, mmk_dimid))
+      call check(nf90_def_dim(ncid, "NoMGEvalues", size(MGE), MGE_dimid))
 
       do v = 1, size(variables)
         call check(nf90_def_var(ncid, trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
         call check(nf90_def_var(ncid, "change"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, "an"//trim(variables(v)), NF90_DOUBLE, (/t_dimid, lev_dimid/), varid))
       end do
+      call check(nf90_def_var(ncid,"HR", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
 
       do v = 1, size(name_fluxes)
         call check(nf90_def_var(ncid, trim(name_fluxes(v)), NF90_double, (/t_dimid, lev_dimid /), varid))
@@ -44,34 +49,76 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_netcdf
 
-    subroutine fill_netcdf(run_name, soil_levels, time, pool_matrix, change_matrix)
+    subroutine fill_netcdf(run_name, soil_levels, time, pool_matrix, change_matrix, a_matrix, HR)
       character (len = *):: run_name
 
       integer :: soil_levels, time, i , j, varidchange
-      real(r8)                       :: pool_matrix(soil_levels,pool_types)   ! For storing C pool sizes [gC/m3]
-      real(r8)                       :: change_matrix(soil_levels,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
-
+      real(r8), intent(in)                      :: pool_matrix(soil_levels,pool_types)   ! For storing C pool sizes [gC/m3]
+      real(r8),intent(in)                       :: change_matrix(soil_levels,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
+      real(r8),intent(in)                       :: a_matrix(soil_levels,pool_types) ! For storing analytical solution
+      real(r8), dimension(1)         :: HR
       call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
 
       do j=1,soil_levels
+        call check(nf90_inq_varid(ncid, "HR", varid))
+        call check(nf90_put_var(ncid, varid, HR(j), start = (/time/48, j/)))
         do i = 1,pool_types
+
           call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
-          call check(nf90_put_var(ncid, varid, pool_matrix(j,i), start = (/ time/24, j /)))
+          call check(nf90_put_var(ncid, varid, pool_matrix(j,i), start = (/ time/48, j /)))
+
           call check(nf90_inq_varid(ncid, trim(change_variables(i)), varidchange))
-          call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ time/24, j /)))
+          call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ time/48, j /)))
+
+          call check(nf90_inq_varid(ncid, trim(an_variables(i)), varidan))
+          call check(nf90_put_var(ncid, varidan, a_matrix(j,i), start = (/ time/48, j /)))
         end do
       end do
 
       call check(nf90_close(ncid))
     end subroutine fill_netcdf
 
-   subroutine store_parameters()
+   subroutine store_parameters(run_name)
+     character (len = *):: run_name
+     integer :: tsoiID, clayID, desorbID, MgeID, kmID, vmID, fmetID, tauID, gepID, depthID, fphysID, fchemID, favailID
      call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
 
-     call check(nf90_def_var(ncid, "tsoi", NF90_double, tsoiid))
-   
+     call check(nf90_def_var(ncid, "tsoi", NF90_double, tsoiID))
+     call check(nf90_def_var(ncid, "f_clay", NF90_double, clayID))
+     call check(nf90_def_var(ncid, "desorb", NF90_double, desorbID))
+     call check(nf90_def_var(ncid, "MGE",NF90_double,MGE_dimid, mgeID))
+     call check(nf90_def_var(ncid, "Km",NF90_double,mmk_dimid, kmID))
+     call check(nf90_def_var(ncid, "Vmax", NF90_double,mmk_dimid,vmID))
+     call check(nf90_def_var(ncid, "GEP", NF90_double,gepID))
+     call check(nf90_def_var(ncid, "tau", NF90_double,tauID))
+     call check(nf90_def_var(ncid, "f_phys", NF90_double,fphysID))
+     call check(nf90_def_var(ncid, "f_avail", NF90_double,favailID))
+     call check(nf90_def_var(ncid, "f_chem", NF90_double,fchemID))
+     call check(nf90_def_var(ncid, "depth", NF90_double,depthID))
+     call check(nf90_def_var(ncid, "f_met", NF90_double,fmetID))
 
      call check(nf90_enddef(ncid))
+
+     call check(nf90_put_var(ncid, tsoiID, tsoi))
+     call check(nf90_put_var(ncid, clayID, fCLAY))
+     call check(nf90_put_var(ncid, desorbID, desorb))
+     call check(nf90_put_var(ncid, mgeID, MGE))
+     call check(nf90_put_var(ncid, gepID, GEP))
+     call check(nf90_put_var(ncid, fphysID, fPHYS))
+     call check(nf90_put_var(ncid, fchemID, fCHEM))
+     call check(nf90_put_var(ncid, favailID, fAVAIL))
+     call check(nf90_put_var(ncid, depthID, depth))
+     call check(nf90_put_var(ncid, fmetID, fMET))
+     call check(nf90_put_var(ncid, vmID, Vmax))
+     call check(nf90_put_var(ncid, kmID, Km))
+     call check(nf90_put_var(ncid, tauID, tau))
+
+
+
+
+
+
+
      call check(nf90_close(ncid))
    end subroutine store_parameters
 

@@ -9,11 +9,11 @@ program test_script
   !use mycmimOneLayer
   implicit none
   integer :: i
-
-  integer :: N=10*365*24!Total number of timesteps (years,days, hours)
-
+  !call store_parameters("Heath_newtest")
+  integer :: N=50*365*24!Total number of timesteps (years,days, hours)
+  !
   character(len=12), dimension(3) :: str = (/ 'Heath ','Meadow', 'Shrub '/)
-  call decomp(nsteps=N, run_name='Heath'//"_newtest", isVertical = .False., nlevdecomp = 1, ecosystem = 'Heath', step_frac=1)
+  call decomp(nsteps=N, run_name='Heath'//"_vmax_change", isVertical = .False., nlevdecomp = 1, ecosystem = 'Heath', step_frac=1)
 
     ! do i = 1,size(str)
     !   print*, str(i)

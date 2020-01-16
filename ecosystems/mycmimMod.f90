@@ -29,11 +29,11 @@ module mycmim
       integer                        :: nlevdecomp                           ! number of vertical layers
       character (len=*)              :: ecosystem                            ! 'Shrub', 'Heath' or 'Meadow' (For comparison with Sorensen et al)
       integer                        :: step_frac                            ! determines the size of the time step
+      real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C amount that is lost to respiration
 
       real(r8)                       :: pool_matrix(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m3]
-      real(r8)                       :: change_matrix(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
+      real(r8)                       :: change_matrix(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: a_matrix(nlevdecomp, pool_types)     ! For storing the analytical solution
-      real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C amount that is lost to respiration
       real(r8)                       :: Init(nlevdecomp, pool_types)         ! Initial C concentration, determined in initMod.f90
       real(r8)                       :: pool_temporary(nlevdecomp,pool_types)! When isVertical is True, pool_temporary = pool_matrix + change_matrix*dt is used to calculate the vertical transport
                                                                              !The new value after the time step is then pool_matrix = pool_temporary + vertical change.
@@ -52,7 +52,6 @@ module mycmim
       real(r8)                       :: Loss, Gain, Loss_term                           ! Source and sink term for solving the analytical solution to the dC/dt=Gain-Loss*concentration equation.
       real(r8)                       :: tot_diff,upper,lower                 ! For the call to alt_vertical_diffusion
       real(r8)                       :: vert(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrix
-      real(kind=r8)                  :: GEP                                  ![gC/(m2 h)] Gross ecosystem productivity
 
       real(r8), dimension(2)         :: lit_input                            ![gC/(m3 h)] Fraction of litter input to LITm and LITs, respectively
       real(r8), dimension(3)         :: myc_input                            ![gC/(m3 h)] vector giving the input from vegetation to mycorrhiza pools
@@ -63,24 +62,23 @@ module mycmim
       integer                        :: j,i,t                       ! for iterations
 
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
-      MGE     = (/ 0.55,0.75,0.25,0.35, 1.0, 1.0 /)
-
-      Kmod    = (/0.125d0, 0.50d0, 0.167d0*pscalar*10 /)!, 0.5d0, 0.25d0, 0.167d0*pscalar*10/)!LITm, LITs, SOMa entering SAP
-      Vmod    = (/4.0,  5.0, 10.0 /)! 3.0, 3.0, 2.0/)                          !LITm, LITs, SOMa entering SAP
-
+      MGE     = (/ 0.5,0.5,0.5,0.5, 0.5, 0.3/)
+      Kmod    = (/0.125d0, 0.50d0, 0.167d0*pscalar /)!, 0.5d0, 0.25d0, 0.167d0*pscalar*10/)!LITm, LITs, SOMa entering SAP
+      Vmod    = (/4.0,  4.0, 10.0 /)! 3.0, 3.0, 2.0/)                          !LITm, LITs, SOMa entering SAP
       k2 = (/7.0,7.0,1.4/)*10e-4        ![1/h] Decay constants
       k = (/5.0,5.0,0.5/)*10e-5 ![1/h] Decay constants
 
       dt= 1.0/step_frac
- !NOTE: Must change if isVertical is True!!
-                        !NOTE: If vertical myc_input must also be changed, because different amounts go in different layers.
+      !NOTE: Must change if isVertical is True!!
+      !NOTE: If vertical myc_input must also be changed, because different amounts go in different layers.
       if (ecosystem == 'Heath') then
         GEP       = 0.281
         I_tot = GEP/depth !NOTE: Must change if isVertical is True!!
                                       ![gC/(m2*h)] Gross ecosystem productivity
 
         myc_input = (/0.10,0.80,0.10/)*I_tot*0.4       ![gC/(m3*h)] For Heath, most to ErM
-        fMET      = 0.5                                !Fraction of input to litter that goes to the metabolic litter pool
+        fMET      = 0.5
+        print*, 'I_tot', I_tot                             !Fraction of input to litter that goes to the metabolic litter pool
       elseif (ecosystem == 'Meadow') then
 
         GEP       = 0.385
@@ -102,11 +100,9 @@ module mycmim
       end if
 
       !Assigning values. Fracions of SAP that goes to different SOM pools
-      fPHYS =  0.3 * exp(1.3*fCLAY)!, 0.2 * exp(0.8*fCLAY) /)
+      fPHYS =  0.3 * exp(fCLAY)!, 0.2 * exp(0.8*fCLAY) /)
       fCHEM =  0.1 * exp(-3.0*fMET)!, 0.3 * exp(-3*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
-      !print*, fPHYS, fCHEM, fAVAIL
-      !print*, fPHYS+fCHEM+fAVAIL
       tau = 5.2e-4*exp(0.3*fMET)*20!, 2.4e-4*exp(0.1*fMET)/)*10![1/h] Microbial turnover rate (SAP to SOM), SAPr,
 
       !Set initial concentration values in pool_matrix:
@@ -118,10 +114,9 @@ module mycmim
 
       !open and prepare files to store results
       call create_netcdf(run_name)
-
       ycounter = 0
       year = 1
-      print*, step_frac
+
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
         time = t*dt
@@ -190,25 +185,46 @@ module mycmim
           call litter_fluxes(j, pool_matrix,nlevdecomp)
 
           ! !TODO: This writing to file should be made much more efficient, and to binary files, not text files..
-          !  if (counter == 24) then
-          !    call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
-          !
-          !    call check(nf90_inq_varid(ncid, "LITmSAP", varid))
-          !    call check(nf90_put_var(ncid, varid, LITmSAP, start = (/ t/24, j /)))
-          !    call check(nf90_inq_varid(ncid, "LITsSAP", varid))
-          !    call check(nf90_put_var(ncid, varid, LITsSAP, start = (/ t/24, j /)))
-          !
-          !
-          !    call check(nf90_inq_varid(ncid, "EcMSAP", varid))
-          !    call check(nf90_put_var(ncid, varid, EcMSAP, start = (/ t/24, j /)))
-          !
-          !    call check(nf90_inq_varid(ncid, "ErMSAP", varid))
-          !    call check(nf90_put_var(ncid, varid, ErMSAP, start = (/ t/24, j /)))
-          !
-          !    call check(nf90_inq_varid(ncid, "AMSAP", varid))
-          !    call check(nf90_put_var(ncid, varid, AMSAP, start = (/ t/24, j /)))
-          !
-          !    call check(nf90_close(ncid))
+           if (counter == 48) then
+             call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
+
+             call check(nf90_inq_varid(ncid, "LITmSAP", varid))
+             call check(nf90_put_var(ncid, varid, LITmSAP, start = (/ t/48, j /)))
+             call check(nf90_inq_varid(ncid, "LITsSAP", varid))
+             call check(nf90_put_var(ncid, varid, LITsSAP, start = (/ t/48, j /)))
+
+
+             call check(nf90_inq_varid(ncid, "EcMSAP", varid))
+             call check(nf90_put_var(ncid, varid, EcMSAP, start = (/ t/48, j /)))
+
+             call check(nf90_inq_varid(ncid, "ErMSAP", varid))
+             call check(nf90_put_var(ncid, varid, ErMSAP, start = (/ t/48, j /)))
+
+             call check(nf90_inq_varid(ncid, "AMSAP", varid))
+             call check(nf90_put_var(ncid, varid, AMSAP, start = (/ t/48, j /)))
+
+             call check(nf90_inq_varid(ncid, "SOMpSOMa", varid))
+             call check(nf90_put_var(ncid, varid, SOMpSOMa, start = (/ t/48, j /)))
+
+             call check(nf90_inq_varid(ncid, "SOMcSOMa", varid))
+             call check(nf90_put_var(ncid, varid, SOMcSOMa, start = (/ t/48, j /)))
+
+             call check(nf90_inq_varid(ncid, "SAPSOMa", varid))
+             call check(nf90_put_var(ncid, varid, SAPSOMa, start = (/ t/48, j /)))
+
+             call check(nf90_inq_varid(ncid, "EcMSOMa", varid))
+             call check(nf90_put_var(ncid, varid, EcMSOMa, start = (/ t/48, j /)))
+
+             call check(nf90_inq_varid(ncid, "ErMSOMa", varid))
+             call check(nf90_put_var(ncid, varid, ErMSOMa, start = (/ t/48, j /)))
+
+             call check(nf90_inq_varid(ncid, "AMSOMa", varid))
+             call check(nf90_put_var(ncid, varid, AMSOMa, start = (/ t/48, j /)))
+
+             call check(nf90_inq_varid(ncid, "SOMaSAP", varid))
+             call check(nf90_put_var(ncid, varid, SOMaSAP, start = (/ t/48, j /)))
+             call check(nf90_close(ncid))
+
           ! !   write(unit=3,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
           ! !   time,',',j,',',LITtoSAP(1),',',LITtoSAP(2),',',LITtoSAP(3),',',LITtoSAP(4)
           ! !   write(unit=4,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
@@ -220,7 +236,7 @@ module mycmim
           ! !   ,MYCtoSOM(4),',',MYCtoSOM(5),',',MYCtoSOM(6),',',MYCtoSOM(7),',',MYCtoSOM(8),',',MYCtoSOM(9)
           ! !   write(unit=9,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
           ! !   time,',',j,',',SOMtoSAP(1),',',SOMtoSAP(2),',',SOMtoSOM(1),',',SOMtoSOM(2)
-          !  end if !writing
+          end if !writing
 
           do i = 1, pool_types !loop over all the pool types, i, in depth level j
             !This if-loop calculates dC/dt for the different carbon pools.NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
@@ -228,15 +244,15 @@ module mycmim
             !NOTE: The "change_matrix" values correspond to the equations A11-A17 in Wieder 2015
             if (i==1) then !LITm
               Gain = lit_input(1)
-              Loss = LITmSAP/pool_matrix(j, i)
+              Loss = LITmSAP
 
             elseif (i==2) then !LITs
               Gain = lit_input(2)
-              Loss = LITsSAP/pool_matrix(j, i)
+              Loss = LITsSAP
 
             elseif (i==3) then !SAP
-              Gain = LITmSAP*MGE(1) + LITsSAP*MGE(3) &
-              + (EcMSAP + ErMSAP + AMSAP)*MGE(5) + SOMaSAP*MGE(1)
+              Gain = LITmSAP*MGE(1) + LITsSAP*MGE(2) &
+              + EcMSAP*MGE(3) + ErMSAP*MGE(4) + AMSAP*MGE(5) + SOMaSAP*MGE(6)
               Loss =  SAPSOMp + SAPSOMa + SAPSOMc
 
             elseif (i==4) then !EcM
@@ -253,7 +269,7 @@ module mycmim
 
             elseif (i==7) then !SOMp
               !Use the same partitioning between the depth levels as for mycorrhiza (f_myc_levels)
-              Gain = som_input(1)*f_myc_levels + SAPSOMp + EcMSOMp + ErMSOMp + AMSOMp
+              Gain = som_input(1) + SAPSOMp + EcMSOMp + ErMSOMp + AMSOMp
               Loss = SOMpSOMa
 
             elseif (i==8) then !SOMa
@@ -261,7 +277,7 @@ module mycmim
                Loss = SOMaSAP
 
             elseif (i==9) then !SOMc
-              Gain = som_input(1) + SAPSOMc + EcMSOMc + ErMSOMc + AMSOMc
+              Gain = som_input(2) + SAPSOMc + EcMSOMc + ErMSOMc + AMSOMc
               Loss = SOMcSOMa
 
             else
@@ -279,11 +295,12 @@ module mycmim
 
             !To calculate analytical solution:
             Loss_term = Loss/pool_matrix(j,i)
-            a_matrix(j,i) = Init(j,i)*exp(-time*Loss) + Gain*(1-exp(-time*Loss))/Loss !+ vert*dt
+            a_matrix(j,i) = Init(j,i)*exp(-time*Loss_term) + Gain*(1-exp(-time*Loss_term))/Loss_term !+ vert*dt
+
           end do !i, pool_types
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t:
-          HR(j) =( LITmSAP*(1-MGE(1)) + LITsSAP*(1-MGE(2)) + SOMaSAP*(1-MGE(1)))*dt
+          HR(j) =( LITmSAP*(1-MGE(1)) + LITsSAP*(1-MGE(2)) + EcMSAP*(1-MGE(3)) + ErMSAP*(1-MGE(4)) + AMSAP*(1-MGE(5)) + SOMaSAP*(1-MGE(6)))*dt
         end do !j, depth_level
 
         if (isVertical) then
@@ -294,13 +311,18 @@ module mycmim
           pool_matrix=pool_temporary
         end if!isVertical
 
-        if (counter == 24) then
+        if (counter == 48) then
           counter = 0
-          call fill_netcdf(run_name, nlevdecomp, t, pool_matrix, change_matrix)
+          ! print*, a_matrix, 'outside'
+          ! print*, pool_matrix
+          call fill_netcdf(run_name, nlevdecomp, t, pool_matrix, change_matrix, a_matrix,HR)
         end if!writing
 
       end do !t
-
+      call store_parameters(run_name)
+      print*, 'som_input', som_input
+      print*, 'lit_input', lit_input
+      print*, 'myc_input', myc_input
       !call closeFiles(isVertical)
     end subroutine decomp
 end module mycmim

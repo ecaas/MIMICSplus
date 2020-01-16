@@ -8,11 +8,11 @@ implicit none
 
 real(kind=r8)                                :: tsoi                      ![degC]
 real(kind=r8),parameter                      :: fCLAY  = 0.12                  ![-] fraction of clay in soil
-real(kind=r8),dimension(6),save              ::  MGE![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
+real(kind=r8),dimension(6),save              :: MGE![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
                                                                                 !The rest is lost in respiration.
                                                                                 !/Litm-sapr, litm->sapk, lits->sapr, lits->sapk/. These should be determined carefully. pH/soil quality/N availability may be important
                                                                                 !Maybe also vary with time/depth..? See DOI:10.1016/j.soilbio.2018.09.036 and DOI: 10.1016/J.SOILBIO.2019.03.008
-real(r8)                                     :: f_som1=0.05, f_som2=0.05
+real(r8)                                     :: f_som1=0.5, f_som2=0.5
 real(r8)                                     :: f_myc_levels=1, f_lit_1=1, f_lit_234=1
 real(kind=r8),dimension(3)                   :: k                              ![1/day](EcM, ErM, AM) decay constants, MYC to SAP pools
 real(kind=r8),dimension(3)                   :: k2                             ! [1/day] decay constants, MYC to SOM pools
@@ -29,6 +29,8 @@ real(kind=r8),parameter                      :: KO      =  10  !4               
 real(kind=r8),dimension(MM_eqs)              :: Vmod     !LITm, LITs, SOMa entering SAPr, LITm, LITs, SOMa entering sapk
 real(kind=r8),dimension(MM_eqs)              :: Vmax ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
 !end MM parameters
+real(kind=r8)                  :: GEP                                  ![gC/(m2 h)] Gross ecosystem productivity
+
 
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
@@ -57,6 +59,8 @@ real(r8)                                     :: diffusive_source,diffusive_sink 
 real(r8)                                     :: net_diffusion(4,pool_types)
 !end depth & vertical transport
 
+
+
 !Fluxes between pools:
 real(r8) :: LITmSAP, LITsSAP, EcMSAP, ErMSAP, AMSAP, EcMSOMp, EcMSOMa, EcMSOMc, ErMSOMp, ErMSOMa, ErMSOMc, AMSOMp, AMSOMa, AMSOMc, SOMaSAP, SOMpSOMa, SOMcSOMa
 real(r8) :: SAPSOMa, SAPSOMp, SAPSOMc
@@ -65,6 +69,7 @@ real(r8) :: SAPSOMa, SAPSOMp, SAPSOMc
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
 character (len=4), dimension(pool_types):: variables = (/  "LITm", "LITs", "SAP ", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
 character (len=10), dimension(pool_types):: change_variables = (/  "changeLITm", "changeLITs", "changeSAP ", "changeEcM ", "changeErM ", "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
+character (len=*), dimension(pool_types),parameter:: an_variables = (/  "anLITm", "anLITs", "anSAP ", "anEcM ", "anErM ", "anAM  ", "anSOMp", "anSOMa", "anSOMc" /)
 character (len=*), dimension(20), parameter ::  name_fluxes = (/"LITmSAP ","LITsSAP ", "SAPSOMp ", "SAPSOMa ", "SAPSOMc ","EcMSAP  ","ErMSAP  ", &
       "AMSAP   ","EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ","ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  " &
       ,"AMSOMc  ","SOMaSAP ","SOMpSOMa","SOMcSOMa"/)
