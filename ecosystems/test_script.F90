@@ -8,15 +8,16 @@ program test_script
   use mycmim
   !use mycmimOneLayer
   implicit none
-  integer :: i
+  integer :: i,dset_id,ierr
   !call store_parameters("Heath_newtest")
-  integer :: N=50*365*24!Total number of timesteps (years,days, hours)
+  integer :: N=5*365*24!Total number of timesteps (years,days, hours)
   !
   character(len=12), dimension(3) :: str = (/ 'Heath ','Meadow', 'Shrub '/)
-  call decomp(nsteps=N, run_name='Heath'//"_vmax_change", isVertical = .False., nlevdecomp = 1, ecosystem = 'Heath', step_frac=1)
+  !call decomp(nsteps=N, run_name='Heath'//"_test", isVertical = .False., nlevdecomp = 1, ecosystem = 'Heath', step_frac=1)
 
-    ! do i = 1,size(str)
-    !   print*, str(i)
-    !   call decomp(nsteps=N, run_name=trim(str(i))//"_newtest", isVertical = .False., nlevdecomp = 1, ecosystem = trim(str(i)), step_frac=1)
-    ! end do
+
+  call decomp(nsteps=N, run_name=trim(str(1))//"_tautest", isVertical = .False., nlevdecomp = 1, ecosystem = trim(str(1)), step_frac=1)
+  !call decomp(nsteps=N, run_name=trim(str(2))//"_tautest", isVertical = .False., nlevdecomp = 1, ecosystem = trim(str(2)), step_frac=1)
+  !call decomp(nsteps=N, run_name=trim(str(3))//"_tautest", isVertical = .False., nlevdecomp = 1, ecosystem = trim(str(3)), step_frac=1)
+
 end program test_script

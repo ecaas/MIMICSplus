@@ -78,7 +78,6 @@ module mycmim
 
         myc_input = (/0.10,0.80,0.10/)*I_tot*0.4       ![gC/(m3*h)] For Heath, most to ErM
         fMET      = 0.5
-        print*, 'I_tot', I_tot                             !Fraction of input to litter that goes to the metabolic litter pool
       elseif (ecosystem == 'Meadow') then
 
         GEP       = 0.385
@@ -94,16 +93,18 @@ module mycmim
 
         myc_input = (/0.80,0.10,0.10/)*I_tot*0.4       ![gC/(m3*h)] For shrub, most to EcM.
         fMET      = 0.2
+                                     !Fraction of input to litter that goes to the metabolic litter pool
+
       else
         print*, 'Invalid ecosystem name', ecosystem
         stop
       end if
-
+      print*, 'I_tot', I_tot
       !Assigning values. Fracions of SAP that goes to different SOM pools
       fPHYS =  0.3 * exp(fCLAY)!, 0.2 * exp(0.8*fCLAY) /)
       fCHEM =  0.1 * exp(-3.0*fMET)!, 0.3 * exp(-3*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
-      tau = 5.2e-4*exp(0.3*fMET)*20!, 2.4e-4*exp(0.1*fMET)/)*10![1/h] Microbial turnover rate (SAP to SOM), SAPr,
+      tau = 5.2e-4*exp(0.3*fMET)!, 2.4e-4*exp(0.1*fMET)/)*10![1/h] Microbial turnover rate (SAP to SOM), SAPr,
 
       !Set initial concentration values in pool_matrix:
       if (isVertical) then
@@ -320,9 +321,9 @@ module mycmim
 
       end do !t
       call store_parameters(run_name)
-      print*, 'som_input', som_input
-      print*, 'lit_input', lit_input
-      print*, 'myc_input', myc_input
+      ! print*, 'som_input', som_input
+      ! print*, 'lit_input', lit_input
+      ! print*, 'myc_input', myc_input
       !call closeFiles(isVertical)
     end subroutine decomp
 end module mycmim

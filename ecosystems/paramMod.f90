@@ -14,8 +14,8 @@ real(kind=r8),dimension(6),save              :: MGE![mg/mg] Microbial growth eff
                                                                                 !Maybe also vary with time/depth..? See DOI:10.1016/j.soilbio.2018.09.036 and DOI: 10.1016/J.SOILBIO.2019.03.008
 real(r8)                                     :: f_som1=0.5, f_som2=0.5
 real(r8)                                     :: f_myc_levels=1, f_lit_1=1, f_lit_234=1
-real(kind=r8),dimension(3)                   :: k                              ![1/day](EcM, ErM, AM) decay constants, MYC to SAP pools
-real(kind=r8),dimension(3)                   :: k2                             ! [1/day] decay constants, MYC to SOM pools
+real(kind=r8),dimension(3)                   :: k                              ![1/h](EcM, ErM, AM) decay constants, MYC to SAP pool
+real(kind=r8),dimension(3)                   :: k2                             ! [1/h] decay constants, MYC to SOM pools
 !real(kind=r8), parameter                     :: Myc_SAPr=0.6, Myc_SAPk=1-Myc_SAPr![-]Fraction of the flux from mycorrhizal pools to SAPk pool. The rest is going to SAPr
 
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
