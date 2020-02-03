@@ -2,7 +2,7 @@ module writeMod
   use paramMod
   use netcdf
   implicit none
-  integer :: ncid, varid, varidan
+  ! varidan
   integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid, MGE_dimid
 
 
@@ -18,9 +18,9 @@ module writeMod
 
     subroutine create_netcdf(run_name)
       character (len = *):: run_name
-
+      integer :: ncid, varid
       integer, parameter :: NDIMS = 4 !gridcell, column, levsoi
-      integer, parameter :: gridcell = 1, column = 1, levsoi = 1 !TODO change levsoi to match input to decomp subroutine!
+      integer, parameter :: gridcell = 1, column = 1, levsoi = 4 !TODO change levsoi to match input to decomp subroutine!
       integer :: x,v
 
       call check(nf90_create(trim(run_name)//".nc", NF90_HDF5, ncid))
@@ -52,11 +52,11 @@ module writeMod
     subroutine fill_netcdf(run_name, soil_levels, time, pool_matrix, change_matrix, a_matrix, HR)
       character (len = *):: run_name
 
-      integer :: soil_levels, time, i , j, varidchange
+      integer :: soil_levels, time, i , j, varidchange,varid,ncid,varidan
       real(r8), intent(in)                      :: pool_matrix(soil_levels,pool_types)   ! For storing C pool sizes [gC/m3]
       real(r8),intent(in)                       :: change_matrix(soil_levels,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
       real(r8),intent(in)                       :: a_matrix(soil_levels,pool_types) ! For storing analytical solution
-      real(r8), dimension(1)         :: HR
+      real(r8), dimension(soil_levels)          :: HR
       call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
 
       do j=1,soil_levels
@@ -81,6 +81,7 @@ module writeMod
    subroutine store_parameters(run_name)
      character (len = *):: run_name
      integer :: tsoiID, clayID, desorbID, MgeID, kmID, vmID, fmetID, tauID, gepID, depthID, fphysID, fchemID, favailID
+     integer:: ncid
      call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
 
      call check(nf90_def_var(ncid, "tsoi", NF90_double, tsoiID))

@@ -60,6 +60,7 @@ module mycmim
       integer                        :: ycounter, year,ncid,varid
       integer                        :: counter=0                            ! used for determining when to output results
       integer                        :: j,i,t                       ! for iterations
+      integer,parameter                        ::t_init=0
 
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
       MGE     = (/ 0.5,0.5,0.5,0.5, 0.5, 0.3/)
@@ -69,19 +70,17 @@ module mycmim
       k = (/5.0,5.0,0.5/)*10e-5 ![1/h] Decay constants
 
       dt= 1.0/step_frac
-      !NOTE: Must change if isVertical is True!!
       !NOTE: If vertical myc_input must also be changed, because different amounts go in different layers.
       if (ecosystem == 'Heath') then
         GEP       = 0.281
-        I_tot = GEP/depth !NOTE: Must change if isVertical is True!!
-                                      ![gC/(m2*h)] Gross ecosystem productivity
+        I_tot = GEP   ![gC/(m2*h)] Gross ecosystem productivity
 
         myc_input = (/0.10,0.80,0.10/)*I_tot*0.4       ![gC/(m3*h)] For Heath, most to ErM
-        fMET      = 0.5
+        fMET      = 0.3
       elseif (ecosystem == 'Meadow') then
 
         GEP       = 0.385
-        I_tot = GEP/depth !NOTE: Must change if isVertical is True!!
+        I_tot = GEP
 
         k2 = (/7.0,7.0,1.4/)*10e-6
         myc_input = (/0.1,0.1,0.80/)*I_tot*0.4         ![gC/(m3*h)] For meadow, most to AM
@@ -89,7 +88,7 @@ module mycmim
       elseif (ecosystem == 'Shrub') then
 
         GEP       = 0.491
-        I_tot = GEP/depth !NOTE: Must change if isVertical is True!!
+        I_tot = GEP
 
         myc_input = (/0.80,0.10,0.10/)*I_tot*0.4       ![gC/(m3*h)] For shrub, most to EcM.
         fMET      = 0.2
@@ -114,7 +113,12 @@ module mycmim
       end if !isVertical
 
       !open and prepare files to store results
+      change_matrix=0
+      a_matrix =0
+      HR=0
       call create_netcdf(run_name)
+      !call fill_netcdf(run_name, nlevdecomp,t_init , pool_matrix, change_matrix, a_matrix, HR)
+
       ycounter = 0
       year = 1
 
@@ -128,7 +132,9 @@ module mycmim
           year = year + 1
           ycounter = 0
         end if
-
+        if (t == t_init) then
+          call fill_netcdf(run_name, nlevdecomp,t, pool_matrix, change_matrix, a_matrix, HR)
+        end if
 
         !If-test used to modify something after half of the total run time
          !if (t == nsteps/2) then
@@ -161,10 +167,10 @@ module mycmim
 
           if (isVertical) then
             if (j==1) then !The litter input is higher in the first depth level then the rest.
-              lit_input=(/fMET*0.25, fMET*0.25/)*I_tot*0.5
+              lit_input=(/fMET*0.25, (1-fMET)*0.25/)*I_tot*0.5
               !som_input = ()
             else
-              lit_input=(/fMET*0.25, fMET*0.25/)*I_tot*0.5 !TODO Change this so it is not always the same
+              lit_input=(/fMET*0.25, (1-fMET)*0.25/)*I_tot*0.5 !TODO Change this so it is not always the same
               !som_input()
             end if !j=1
           else
@@ -185,7 +191,6 @@ module mycmim
           call som_fluxes(j, pool_matrix,nlevdecomp)
           call litter_fluxes(j, pool_matrix,nlevdecomp)
 
-          ! !TODO: This writing to file should be made much more efficient, and to binary files, not text files..
            if (counter == 48) then
              call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
 
@@ -226,22 +231,11 @@ module mycmim
              call check(nf90_put_var(ncid, varid, SOMaSAP, start = (/ t/48, j /)))
              call check(nf90_close(ncid))
 
-          ! !   write(unit=3,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          ! !   time,',',j,',',LITtoSAP(1),',',LITtoSAP(2),',',LITtoSAP(3),',',LITtoSAP(4)
-          ! !   write(unit=4,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          ! !   time,',',j,',',SAPtoSOM(1),',',SAPtoSOM(2),',',SAPtoSOM(3),',',SAPtoSOM(4),',',SAPtoSOM(5),',',SAPtoSOM(6)
-          ! !   write(unit=7,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          ! !   time,',',j,',',MYCtoSAP(1),',',MYCtoSAP(2),',',MYCtoSAP(3),',',MYCtoSAP(4),',',MYCtoSAP(5),',',MYCtoSAP(6)
-          ! !   write(unit=8,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          ! !   time,',',j,',',MYCtoSOM(1),',',MYCtoSOM(2),',',MYCtoSOM(3),',' &
-          ! !   ,MYCtoSOM(4),',',MYCtoSOM(5),',',MYCtoSOM(6),',',MYCtoSOM(7),',',MYCtoSOM(8),',',MYCtoSOM(9)
-          ! !   write(unit=9,fmt='(F10.0,A2,I2,A2,F30.10,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          ! !   time,',',j,',',SOMtoSAP(1),',',SOMtoSAP(2),',',SOMtoSOM(1),',',SOMtoSOM(2)
           end if !writing
 
           do i = 1, pool_types !loop over all the pool types, i, in depth level j
             !This if-loop calculates dC/dt for the different carbon pools.NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
-            !The Gain and Loss variables are used to calculate the analytical solution to dC/dt=Gain - Loss*C, a_matrix(j,i)
+            !The Gain and Loss variables are also used to calculate the analytical solution to dC/dt=Gain - Loss*C, a_matrix(j,i)
             !NOTE: The "change_matrix" values correspond to the equations A11-A17 in Wieder 2015
             if (i==1) then !LITm
               Gain = lit_input(1)
@@ -314,16 +308,11 @@ module mycmim
 
         if (counter == 48) then
           counter = 0
-          ! print*, a_matrix, 'outside'
-          ! print*, pool_matrix
           call fill_netcdf(run_name, nlevdecomp, t, pool_matrix, change_matrix, a_matrix,HR)
         end if!writing
 
       end do !t
       call store_parameters(run_name)
-      ! print*, 'som_input', som_input
-      ! print*, 'lit_input', lit_input
-      ! print*, 'myc_input', myc_input
-      !call closeFiles(isVertical)
+
     end subroutine decomp
 end module mycmim
