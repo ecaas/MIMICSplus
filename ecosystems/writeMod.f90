@@ -3,7 +3,7 @@ module writeMod
   use netcdf
   implicit none
   ! varidan
-  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid, MGE_dimid
+  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid, MGE_dimid,fracid
 
 
   contains
@@ -20,10 +20,16 @@ module writeMod
       character (len = *):: run_name
       integer :: ncid, varid
       integer, parameter :: NDIMS = 4 !gridcell, column, levsoi
-      integer, parameter :: gridcell = 1, column = 1, levsoi = 4 !TODO change levsoi to match input to decomp subroutine!
+      integer, parameter :: gridcell = 1, column = 1, levsoi = nlevdecomp 
       integer :: x,v
 
-      call check(nf90_create(trim(run_name)//".nc", NF90_HDF5, ncid))
+      ! if (inquire(file = trim(run_name)//".nc", Exist = file_exists)) then
+      !   call check(nf90_create(trim(run_name)//".nc", NF90_CLOBBER,NF90_NETCDF4 ncid))
+      ! else
+      !   call check(nf90_create(trim(run_name)//".nc", NF90_CLOBBER, ncid))
+      ! end if
+      call check(nf90_create(trim(run_name)//".nc",NF90_NETCDF4,ncid))
+
 
       call check(nf90_def_dim(ncid, "time", nf90_unlimited, t_dimid))
       call check(nf90_def_dim(ncid, "gridcell", gridcell, grid_dimid))
@@ -31,6 +37,7 @@ module writeMod
       call check(nf90_def_dim(ncid, "levsoi", levsoi, lev_dimid))
       call check(nf90_def_dim(ncid, "NoMMKeqs", MM_eqs, mmk_dimid))
       call check(nf90_def_dim(ncid, "NoMGEvalues", size(MGE), MGE_dimid))
+      call check(nf90_def_dim(ncid,"SAPpools",size(fPHYS),fracid))
 
       do v = 1, size(variables)
         call check(nf90_def_var(ncid, trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
@@ -38,42 +45,57 @@ module writeMod
         call check(nf90_def_var(ncid, "an"//trim(variables(v)), NF90_DOUBLE, (/t_dimid, lev_dimid/), varid))
       end do
       call check(nf90_def_var(ncid,"HR", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
-
+      call check(nf90_def_var(ncid, "vert_change", NF90_DOUBLE, (/t_dimid, lev_dimid/), varid))
       do v = 1, size(name_fluxes)
         call check(nf90_def_var(ncid, trim(name_fluxes(v)), NF90_double, (/t_dimid, lev_dimid /), varid))
       end do
-
+      call check(nf90_def_var(ncid, "time", NF90_DOUBLE, (/t_dimid /), varid))
 
 
       call check(nf90_enddef(ncid))
       call check( nf90_close(ncid) )
     end subroutine create_netcdf
 
-    subroutine fill_netcdf(run_name, soil_levels, time, pool_matrix, change_matrix, a_matrix, HR)
+    subroutine fill_netcdf(run_name, soil_levels, time, pool_matrix, change_matrix, a_matrix, HR_sum, vert_sum, write_hour)
       character (len = *):: run_name
 
-      integer :: soil_levels, time, i , j, varidchange,varid,ncid,varidan
+      integer :: soil_levels, time, i , j, varidchange,varid,ncid,varidan, timestep,vertid,write_hour
       real(r8), intent(in)                      :: pool_matrix(soil_levels,pool_types)   ! For storing C pool sizes [gC/m3]
       real(r8),intent(in)                       :: change_matrix(soil_levels,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
       real(r8),intent(in)                       :: a_matrix(soil_levels,pool_types) ! For storing analytical solution
-      real(r8), dimension(soil_levels)          :: HR
+      real(r8), intent(in)                      :: vert_sum(soil_levels, pool_types)
+      real(r8), dimension(soil_levels)          :: HR,HR_sum
+
+
+      if (time == 1) then
+        !print*, "INSIDE"
+        timestep = 1
+      else
+        timestep = time/write_hour+1
+      end if
+    !  print*, HR_sum
       call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
 
+      call check(nf90_inq_varid(ncid, "time", varid))
+      call check(nf90_put_var(ncid, varid, time, start = (/ timestep /)))
       do j=1,soil_levels
         call check(nf90_inq_varid(ncid, "HR", varid))
-        call check(nf90_put_var(ncid, varid, HR(j), start = (/time/48, j/)))
+      !  print*,  HR_sum(j)
+        call check(nf90_put_var(ncid, varid, HR_sum(j), start = (/timestep, j/)))
+
         do i = 1,pool_types
-
+          !print*, "INSIDE again"
           call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
-          call check(nf90_put_var(ncid, varid, pool_matrix(j,i), start = (/ time/48, j /)))
-
+          call check(nf90_put_var(ncid, varid, pool_matrix(j,i), start = (/ timestep, j /)))
           call check(nf90_inq_varid(ncid, trim(change_variables(i)), varidchange))
-          call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ time/48, j /)))
-
+          call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ timestep, j /)))
           call check(nf90_inq_varid(ncid, trim(an_variables(i)), varidan))
-          call check(nf90_put_var(ncid, varidan, a_matrix(j,i), start = (/ time/48, j /)))
+          call check(nf90_put_var(ncid, varidan, a_matrix(j,i), start = (/ timestep, j /)))
+          call check(nf90_inq_varid(ncid, "vert_change", vertid))
+          call check(nf90_put_var(ncid, vertid, vert_sum(j,i), start = (/timestep,j/)))
         end do
       end do
+
 
       call check(nf90_close(ncid))
     end subroutine fill_netcdf
@@ -91,10 +113,11 @@ module writeMod
      call check(nf90_def_var(ncid, "Km",NF90_double,mmk_dimid, kmID))
      call check(nf90_def_var(ncid, "Vmax", NF90_double,mmk_dimid,vmID))
      call check(nf90_def_var(ncid, "GEP", NF90_double,gepID))
-     call check(nf90_def_var(ncid, "tau", NF90_double,tauID))
-     call check(nf90_def_var(ncid, "f_phys", NF90_double,fphysID))
-     call check(nf90_def_var(ncid, "f_avail", NF90_double,favailID))
-     call check(nf90_def_var(ncid, "f_chem", NF90_double,fchemID))
+     call check(nf90_def_var(ncid, "tau", NF90_double,fracid,tauID))
+
+     call check(nf90_def_var(ncid, "f_phys", NF90_double,fracid,fphysID))
+     call check(nf90_def_var(ncid, "f_avail", NF90_double,fracid,favailID))
+     call check(nf90_def_var(ncid, "f_chem", NF90_double,fracid,fchemID))
      call check(nf90_def_var(ncid, "depth", NF90_double,depthID))
      call check(nf90_def_var(ncid, "f_met", NF90_double,fmetID))
 
