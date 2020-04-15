@@ -16,11 +16,13 @@ contains
     integer :: levels
     real(r8),intent(out) :: Init(levels, pool_types)
     real(r8), intent(inout) :: pools(levels, pool_types)
-    Init(1,:) = (/100,100,50,40,20,30,10,20,5,10/)
-    Init(2,:) = Init(1,:)
-    Init(4,:) = (/10,15,20,10,30,30,30,100,100,100/)
-    Init(3,:) = Init(4,:)
+    Init(1,:) = (/100,100,50,50,40,40,40,60,60,60/)
+    Init(2,:) = 0.9*Init(1,:)
+    Init(3,:) = (/15,15,20,20,30,30,30,100,100,100/)
+    Init(4,:) = 1.1*Init(1,:)
+
     pools=Init
+
   end subroutine initialize_vert
 
 end module initMod

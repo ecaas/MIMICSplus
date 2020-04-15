@@ -52,11 +52,14 @@ integer, parameter                            :: no_of_myc_pools = 3        !Myc
 integer, parameter                            :: no_of_som_pools = 3        !Physically protected, chemically protected, available carbon
 integer, parameter                            :: pool_types = no_of_litter_pools + no_of_myc_pools + &
                                                  no_of_sap_pools + no_of_som_pools
-real(r8),dimension(4)                :: node_z = (/0.05,0.15,0.5,1.10/) ![m] Depth of center in each soil layer
+real(r8),dimension(4)                :: node_z = (/0.05,0.2,0.5,1.10/) ![m] Depth of center in each soil layer
 real(r8),dimension(4)                :: delta_z = (/0.1,0.2,0.4,0.8/)![m] Thickness of each soil layer NOTE: delta_z and node_z is used in the alt_vertical_diffusion routine
+!real(r8),dimension(4)                :: node_z = (/0.1,0.3,0.5,0.7/) ![m] Depth of center in each soil layer
+!real(r8),dimension(4)                :: delta_z = (/0.2,0.2,0.2,0.2/)![m] Thickness of each soil layer NOTE: delta_z and node_z is used in the alt_vertical_diffusion routine
+
 !real(r8),dimension(nlevdecomp)               :: node_z = (/0.01,0.04,0.09,0.16/) ![m] Depth of center in each soil layer. Same as the first 4 layers of default CLM5 with vertical resolution.
 !real(r8),dimension(nlevdecomp)               :: delta_z = (/0.02, 0.04, 0.06, 0.08/)![m] Thickness of each soil of the four top layers in default clm5.
-real(r8),parameter,dimension(4+1)    :: D = (/0.0,0.0027,0.0027,0.0027,0.0/)*10e-4 ![cm2/day]*10e-4m2/cm2 = [m2/day] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 0.0027cm2/day
+real(r8),parameter    :: D = 0.0027*10e-4!(/0.0,0.0027,0.0027,0.0027,0.0/)*10e-4 ![cm2/day]*10e-4m2/cm2 = [m2/day] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 0.0027cm2/day
 
 real(r8)                                      :: diffusive_source,diffusive_sink !For use in vertical_diffusion subroutine. Currently using alt_vertical diffusion subroutine
 real(r8)                                      :: net_diffusion(4,pool_types)

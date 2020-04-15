@@ -6,19 +6,26 @@ module writeMod
 
     subroutine openOutputFile(name_ad, isVertical)
       character (len=*) :: name_ad
+      character (len=34),parameter :: path='/home/ecaas/decomposition/output/'
       logical, intent(in) :: isVertical
-      open(unit=1,file = "pool_matrix_"//trim(name_ad)//".txt",   form="formatted", action="write", status='replace', iostat=ios)
-      open(unit=15,file = "a_matrix_"//trim(name_ad)//".txt",   form="formatted", action="write", status='replace', iostat=ios)
-      open(unit=2,file = "change_matrix_"//trim(name_ad)//".txt", form="formatted", action="write", status='replace', iostat=ios)
-      open(unit=3,file = "LITflux_"//trim(name_ad)//".txt", form="formatted", action="write", status='replace', iostat=ios)
-      open(unit=4,file = "SAPSOMflux_"//trim(name_ad)//".txt", form="formatted", action="write", status='replace', iostat=ios)
-      open(unit=7,file = "MYCSAPflux_"//trim(name_ad)//".txt", form="formatted", action="write", status='replace', iostat=ios)
-      open(unit=8,file = "MYCSOMflux_"//trim(name_ad)//".txt", form="formatted", action="write", status='replace', iostat=ios)
-      open(unit=9,file = "SOMflux_"//trim(name_ad)//".txt", form="formatted", action="write", status='replace', iostat=ios)
+      open(unit=1,file = trim(path)//trim(name_ad)//"_pool.txt",   form="formatted", action="write", status='replace', iostat=ios)
+      open(unit=15,file = trim(path)//trim(name_ad)//"_an.txt",   form="formatted", action="write", status='replace', iostat=ios)
+      open(unit=2,file = trim(path)//trim(name_ad)//"_change.txt", form="formatted", action="write", status='replace', iostat=ios)
+
 
       if (isVertical) then
-        open(unit=10,file = "vertical_"//trim(name_ad)//".txt", form="formatted", action="write", status='replace', iostat=ios)
+        open(unit=10,file = trim(path)//trim(name_ad)//"_vertical.txt", form="formatted", action="write", status='replace', iostat=ios)
         Write(unit=10, fmt=*) 'time,depth_level,pool_nr,net_vertical_transport, transport_upper, transport_lower'!header
+        open(unit=3,file = trim(path)//trim(name_ad)//"_LITflux.txt", form="formatted", action="write", status='replace', iostat=ios)
+        open(unit=4,file = trim(path)//trim(name_ad)//"_SAPSOMflux.txt", form="formatted", action="write", status='replace', iostat=ios)
+        open(unit=7,file = trim(path)//trim(name_ad)//"_MYCSAPflux.txt", form="formatted", action="write", status='replace', iostat=ios)
+        open(unit=8,file = trim(path)//trim(name_ad)//"_MYCSOMflux.txt", form="formatted", action="write", status='replace', iostat=ios)
+        open(unit=9,file = trim(path)//trim(name_ad)//"_SOMflux.txt", form="formatted", action="write", status='replace', iostat=ios)
+        write(unit=3, fmt=*) 'time, depth_level,LITmSAPr,LITmSAPk,LITsSAPr,LITsSAPk'
+        write(unit=4, fmt=*) 'time, depth_level,SAPrSOMp,SAPrSOMa,SAPrSOMc,SAPkSOMp,SAPkSOMa,SAPkSOMc'
+        write(unit=7, fmt=*) 'time, depth_level,EcM_SAPr,EcM_SAPk,ErM_SAPr,ErM_SAPk,AM_SAPr,AM_SAPk'
+        write(unit=8, fmt=*) 'time,depth_level,EcM_SOMp, EcMSOMa,EcMSOMc, ErMSOMp,ErMSOMa,ErMSOMc,AMSOMp,AMSOMa,AMSOMc'
+        Write(unit=9, fmt=*) 'time,depth_level,SOMaSAPr,SOMaSAPr,SOMpSOMa,SOMcSOMa'!header
       end if
 
       if( ios/=0) then
@@ -28,11 +35,7 @@ module writeMod
       write(unit=1, fmt=*) 'time, depth_level, LITm,  LITs,  SAPr,  SAPk, EcM, ErM, AM,  SOMp,  SOMa,  SOMc'!header
       write(unit=15, fmt=*) 'time, depth_level, LITm,  LITs,  SAPr,  SAPk, EcM, ErM, AM,  SOMp,  SOMa,  SOMc'!header
       write(unit=2, fmt=*) 'time, depth_level, HR, LITm,  LITs,  SAPr,  SAPk, EcM, ErM, AM,  SOMp,  SOMa,  SOMc'!header
-      write(unit=3, fmt=*) 'time, depth_level,LITmSAPr,LITmSAPk,LITsSAPr,LITsSAPk'
-      write(unit=4, fmt=*) 'time, depth_level,SAPrSOMp,SAPrSOMa,SAPrSOMc,SAPkSOMp,SAPkSOMa,SAPkSOMc'
-      write(unit=7, fmt=*) 'time, depth_level,EcM_SAPr,EcM_SAPk,ErM_SAPr,ErM_SAPk,AM_SAPr,AM_SAPk'
-      write(unit=8, fmt=*) 'time,depth_level,EcM_SOMp, EcMSOMa,EcMSOMc, ErMSOMp,ErMSOMa,ErMSOMc,AMSOMp,AMSOMa,AMSOMc'
-      Write(unit=9, fmt=*) 'time,depth_level,SOMaSAPr,SOMaSAPr,SOMpSOMa,SOMcSOMa'!header
+
     end subroutine openOutputFile
 
     subroutine closeFiles(isVertical)
