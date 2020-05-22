@@ -1,9 +1,10 @@
 module writeMod
   use paramMod
   use netcdf
+  use dispmodule
   implicit none
   ! varidan
-  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid, MGE_dimid,fracid
+  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid, MGE_dimid,fracid,i
 
 
   contains
@@ -19,8 +20,8 @@ module writeMod
     subroutine create_netcdf(run_name)
       character (len = *):: run_name
       integer :: ncid, varid
-      integer, parameter :: NDIMS = 4 !gridcell, column, levsoi
-      integer, parameter :: gridcell = 1, column = 1, levsoi = nlevdecomp 
+      integer, parameter :: NDIMS = 4 !gridcell, column, levsoi, time, nommeqs, nomgevalues,sappools
+      integer, parameter :: gridcell = 1, column = 1, levsoi = nlevdecomp
       integer :: x,v
 
       ! if (inquire(file = trim(run_name)//".nc", Exist = file_exists)) then
@@ -50,38 +51,41 @@ module writeMod
         call check(nf90_def_var(ncid, trim(name_fluxes(v)), NF90_double, (/t_dimid, lev_dimid /), varid))
       end do
       call check(nf90_def_var(ncid, "time", NF90_DOUBLE, (/t_dimid /), varid))
+      call check(nf90_def_var(ncid, "month", NF90_DOUBLE, (/t_dimid /), varid))
 
 
       call check(nf90_enddef(ncid))
       call check( nf90_close(ncid) )
     end subroutine create_netcdf
 
-    subroutine fill_netcdf(run_name, soil_levels, time, pool_matrix, change_matrix, a_matrix, HR_sum, vert_sum, write_hour)
+    subroutine fill_netcdf(run_name, soil_levels, time, pool_matrix, change_matrix, a_matrix, HR, vert_sum, write_hour,month)
       character (len = *):: run_name
 
       integer :: soil_levels, time, i , j, varidchange,varid,ncid,varidan, timestep,vertid,write_hour
-      real(r8), intent(in)                      :: pool_matrix(soil_levels,pool_types)   ! For storing C pool sizes [gC/m3]
-      real(r8),intent(in)                       :: change_matrix(soil_levels,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
-      real(r8),intent(in)                       :: a_matrix(soil_levels,pool_types) ! For storing analytical solution
-      real(r8), intent(in)                      :: vert_sum(soil_levels, pool_types)
-      real(r8), dimension(soil_levels)          :: HR,HR_sum
-
-
+      real(r8), intent(in)                       :: pool_matrix(soil_levels,pool_types)   ! For storing C pool sizes [gC/m3]
+      real(r8), intent(in)                       :: change_matrix(soil_levels,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
+      real(r8), intent(in)                       :: a_matrix(soil_levels,pool_types) ! For storing analytical solution
+      real(r8), intent(in)                       :: vert_sum(soil_levels, pool_types)
+      integer, intent(in)                       :: month
+      real(r8), dimension(soil_levels)           :: HR,HR_sum
       if (time == 1) then
         !print*, "INSIDE"
         timestep = 1
       else
         timestep = time/write_hour+1
       end if
-    !  print*, HR_sum
+      !  print*, HR_sum
       call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
 
       call check(nf90_inq_varid(ncid, "time", varid))
       call check(nf90_put_var(ncid, varid, time, start = (/ timestep /)))
+
+      call check(nf90_inq_varid(ncid, "month", varid))
+      call check(nf90_put_var(ncid, varid, month, start = (/ timestep /)))
       do j=1,soil_levels
         call check(nf90_inq_varid(ncid, "HR", varid))
       !  print*,  HR_sum(j)
-        call check(nf90_put_var(ncid, varid, HR_sum(j), start = (/timestep, j/)))
+        call check(nf90_put_var(ncid, varid, HR(j), start = (/timestep, j/)))
 
         do i = 1,pool_types
           !print*, "INSIDE again"
@@ -95,8 +99,6 @@ module writeMod
           call check(nf90_put_var(ncid, vertid, vert_sum(j,i), start = (/timestep,j/)))
         end do
       end do
-
-
       call check(nf90_close(ncid))
     end subroutine fill_netcdf
 
@@ -137,12 +139,6 @@ module writeMod
      call check(nf90_put_var(ncid, kmID, Km))
      call check(nf90_put_var(ncid, tauID, tau))
 
-
-
-
-
-
-
      call check(nf90_close(ncid))
    end subroutine store_parameters
 
@@ -153,7 +149,7 @@ module writeMod
     !   end do
     ! end subroutine fluxes_netcdf
 
-    subroutine openOutputFile(name_ad, isVertical)
+    subroutine openOutputFile(name_ad, isVertical)!FOR TEXTFILES
       character (len=*) :: name_ad
       character (len=37),parameter :: path='/home/ecaas/decomposition/ecosystems/'
       logical, intent(in) :: isVertical
@@ -186,7 +182,7 @@ module writeMod
       write(unit=2, fmt=*) 'time, depth_level, HR, LITm,  LITs,  SAPr,  SAPk, EcM, ErM, AM,  SOMp,  SOMa,  SOMc'!header
     end subroutine openOutputFile
 
-    subroutine closeFiles(isVertical)
+    subroutine closeFiles(isVertical)!FOR TEXTFILES
       logical, intent(in) :: isVertical
       close(unit=1)
       close(unit=2)
@@ -200,5 +196,42 @@ module writeMod
         close(unit=10)
       end if
     end subroutine closeFiles
+
+    subroutine read_clmdata(clm_history_file, TSOI, SOILLIQ,SOILICE,WATSAT,month)
+      character (len = *):: clm_history_file
+      real(r8),intent(out), dimension(nlevdecomp)           :: TSOI
+      real(r8),intent(out), dimension(nlevdecomp)           :: SOILLIQ
+      real(r8), intent(out), dimension(nlevdecomp)          :: SOILICE
+      real(r8), intent(out), dimension(nlevdecomp)          :: WATSAT
+      integer            :: ncid, WATSATid, TSOIid, SOILICEid, SOILLIQid, month
+      WATSAT=0.0
+      TSOI= 0.0
+      call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
+      call check(nf90_inq_varid(ncid, 'WATSAT', WATSATid))
+      call check(nf90_get_var(ncid, WATSATid, WATSAT, count=(/1,1,nlevdecomp/)))
+
+      call check(nf90_inq_varid(ncid, 'TSOI', TSOIid))
+      call check(nf90_get_var(ncid, TSOIid, TSOI, start=(/1,1,1, month/), count=(/1,1,nlevdecomp,1/)))
+
+      call check(nf90_inq_varid(ncid, 'SOILLIQ', SOILLIQid))
+      call check(nf90_get_var(ncid, SOILLIQid, SOILLIQ, start=(/1,1,1, month/), count=(/1,1,nlevdecomp,1/)))
+
+      call check(nf90_inq_varid(ncid, 'SOILICE', SOILICEid))
+      call check(nf90_get_var(ncid, SOILICEid, SOILICE, start=(/1,1,1, month/), count=(/1,1,nlevdecomp,1/)))
+
+      !Unit conversions:
+      TSOI = TSOI - 273.15 !Kelvin to Celcius
+      !PRINT*, month
+      !print*, TSOI
+      !call disp(TSOI)
+      do i = 1, nlevdecomp
+        SOILICE(i) = SOILICE(i)/(delta_z(i)*917) !kg/m2 to m3/m3 rho_ice=917kg/m3
+        SOILLIQ(i) = SOILLIQ(i)/(delta_z(i)*1000) !kg/m2 to m3/m3 rho_liq=1000kg/m3
+      end do
+
+      !call disp(SOILLIQ)
+
+      call check(nf90_close(ncid))
+    end subroutine read_clmdata
 
 end module writeMod

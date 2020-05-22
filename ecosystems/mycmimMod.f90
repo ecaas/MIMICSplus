@@ -31,6 +31,7 @@ module mycmim
 
       real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C amount that is lost to respiration
       real(r8)                       :: pool_matrix(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m3]
+      real(r8)                       :: mass_pool_matrix(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m2] (pool_matrix*delta_z)
       real(r8)                       :: change_matrix(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: a_matrix(nlevdecomp, pool_types)     ! For storing the analytical solution
       real(r8)                       :: Init(nlevdecomp, pool_types)         ! Initial C concentration, determined in initMod.f90
@@ -53,20 +54,22 @@ module mycmim
 
       real(r8)                       :: lit_input(nlevdecomp,no_of_litter_pools)![gC/(m3 h)] Fraction of litter input to LITm and LITs, respectively
       real(r8)                       :: myc_input(nlevdecomp,no_of_myc_pools)   ![gC/(m3 h)] vector giving the input from vegetation to mycorrhiza pools
-      real(r8)                       :: som_input(nlevdecomp,no_of_som_pools-1) ![gC/(m3 h)]
+      real(r8)                       :: som_input(nlevdecomp,no_of_som_pools-1) ![gC/(m3 h)] !only input to SOMp and SOMc
       real(r8)                       :: I_tot                                   ![gC/(m3 h)]Total input to the system
       integer                        :: ycounter, year,ncid,varid
-      integer                        :: counter=0                               !used for determining when to output results
+      integer                        :: counter                                 !used for determining when to output results
+      integer                        :: month_counter
       integer                        :: j,i,t                                   !for iterations
       integer,parameter              ::t_init=1
       real(r8), dimension(nlevdecomp):: HR_sum                                  !Sums total HR between two output entries
       real(r8)                       :: change_sum(nlevdecomp, pool_types)
       real(r8)                       :: vert_change_sum(nlevdecomp, pool_types)
-      integer, parameter             :: write_hour=96
+      integer,parameter              :: write_hour= 24*4
+      real(r8)                       :: ecm_frac, erm_frac, am_frac
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
-      MGE       = (/0.55,0.25,0.75,0.35,0.55,0.25,0.75,0.35,0.55,0.25,0.75,0.35/)
-      k_mycsom  = (/1.0,1.0,1.4/)*10e-5   ![1/h] Decay constants, myc som
-      k_mycsap  = (/1.0,1.0,0.5/)*10e-5 ![1/h] Decay constants, myc sap
+      MGE       = (/0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.4,0.3,0.3,0.3,0.4/)
+      k_mycsom  = (/1.4,1.4,1.4/)*10e-4   ![1/h] Decay constants, myc som
+      k_mycsap  = (/1.0,1.0,1.0/)*10e-4 ![1/h] Decay constants, myc sap
       lit_input = 0.0
       myc_input = 0.0
       som_input = 0.0
@@ -74,19 +77,34 @@ module mycmim
       fPHYS = (/ 0.3 * exp(fCLAY), 0.2 * exp(0.8*fCLAY) /)
       fCHEM =  (/0.1 * exp(-3.0*fMET), 0.3 * exp(-3*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
-      tau = (/ 5e-4*exp(0.3*fMET), 5e-4*exp(0.1*fMET)/)![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
+
+      !TODO FROM MIMICS_CYCLE_CN:
+      ! WW also modify TAU as a function of soil moisture, so things don't
+      ! colapse in frozen soils...
+      !mimicsbiome%tauR(npt) = mimicsbiome%tauR(npt) * fW
+      !mimicsbiome%tauK(npt) = mimicsbiome%tauK(npt) * fW
+      tau = (/ 5e-4*exp(0.3*fMET), 5e-4*exp(0.1*fMET)/)!*0.3![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
 
       dt= 1.0/step_frac !Setting the time step
 
       if (ecosystem == 'Heath') then
          GEP      = 0.281
-         fMET     = 0.4
+         fMET     = 0.4 !Fraction of input to litter that goes to the metabolic litter pool
+         ecm_frac = 1
+         erm_frac = 2
+         am_frac = 0
       elseif (ecosystem == 'Meadow') then
         GEP       = 0.385
-        fMET      = 0.5
+        fMET      = 0.5 !Fraction of input to litter that goes to the metabolic litter pool
+        ecm_frac = 1
+        erm_frac = 1
+        am_frac = 1
       elseif (ecosystem == 'Shrub') then
         GEP       = 0.491
         fMET      = 0.30 !Fraction of input to litter that goes to the metabolic litter pool
+        ecm_frac = 2
+        erm_frac = 1
+        am_frac = 0
       else
         print*, 'Invalid ecosystem name', ecosystem
         stop
@@ -105,31 +123,76 @@ module mycmim
       HR            = 0.0
       vert_change_sum=0.0
 
-      !open and prepare files to store results
-      call create_netcdf(run_name)
-      call fill_netcdf(run_name, nlevdecomp,t_init, pool_matrix, change_matrix, a_matrix, HR, vert_change_sum, write_hour)
-     !stop
+      counter = 0
       ycounter = 0
       year     = 1
       HR_sum   = 0.0 !For summing up the total respiration between two output times
+      current_month = 1
+      month_counter = 30
 
-      !Inputs from aboveground litter to LIT and protected SOM pools
+
+      !open and prepare files to store results. Store initial value
+      call create_netcdf(run_name)
+      call fill_netcdf(run_name, nlevdecomp,t_init, pool_matrix, change_matrix, a_matrix, HR, vert_change_sum, write_hour,current_month)
+     !stop
+      counter = 0
+      ycounter = 0
+      year     = 1
+      HR_sum   = 0.0 !For summing up the total respiration between two output times
+      current_month = 1
+      month_counter = 30
+
+      call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month)
+      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)
+
+      ! if (current_month == previous_month + 1) then
+      !   !update temp and moisture variables
+      ! end if
+
+      !Inputs from aboveground litter to LIT and protected SOM pools: GEP/depth [gC/m3h]
       lit_input(1,:) = (/fMET, (0.9-fMET)/)*GEP/(delta_z(1) + delta_z(2))!Partition between litter pools. The last 0.1 fraction goes directly to SOM
       som_input(1,:) = (/0.05, 0.05/)*GEP/(delta_z(1) + delta_z(2))
+      myc_input(4,:) = (/ecm_frac, erm_frac, am_frac/)*GEP/(delta_z(6) + delta_z(6))
+      myc_input(5,:) = (/ecm_frac, erm_frac,am_frac/)*GEP/(delta_z(5) + delta_z(5))
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
         time = t*dt
         counter =counter + 1
         ycounter = ycounter + 1
+        month_counter = month_counter + 1
+
+
+        if (month_counter == days_in_month(current_month)*24) then
+          previous_month = current_month
+          !print*, previous_month, time
+           !call disp('moist: ', r_moist)
+           !call disp('Vmax: ', Vmax)
+           !call disp('Km: ', Km)
+          call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month)
+          call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)
+          !call disp('Temp: ',TSOIL)
+
+          !call disp('r_moist', r_moist)
+
+          if (current_month == 12) then
+            current_month = 1
+          else
+            current_month = current_month + 1
+          end if
+          !print*,previous_month, current_month, month_counter/24
+          month_counter = 0
+        end if
 
         if (ycounter == 365*24) then
           year = year + 1
-          print*, year
+          !print*, year
           ycounter = 0
         end if
         if (t == 1) then
           call disp("Init", pool_matrix)
         end if
+
+
 
         !If-test used to modify something after half of the total run time
          ! if (t == nsteps/2) then
@@ -166,11 +229,21 @@ module mycmim
         !   som_input =0
         ! end if
         tsoi = 1.7!8.9
-        Km      = exp(Kslope*tsoi+Kint)*10*Kmod       ![mgC/cm3]*10e3=[gC/m3]
-        Vmax    = exp(Vslope*tsoi + Vint)*8e-6*Vmod    ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
-        myc_input(4,:) = (/pool_matrix(5,5)+1, pool_matrix(5,6)+1, pool_matrix(5,7)+1/)*GEP*0.001
+
         !call disp("myc",myc_input)
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
+          !call disp('moisture',r_moist)
+          Km      = exp(Kslope*TSOIL(j) + Kint)*a_k*Kmod                    ![mgC/cm3]*10e3=[gC/m3]
+          Vmax    = exp(Vslope*TSOIL(j) + Vint)*a_v*Vmod*r_moist(j)    ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+          k_mycsom  = (/1.4,1.4,1.4/)*10e-3*r_moist(j)   ![1/h] Decay constants, myc som
+          k_mycsap  = 0! All myc necromass goes direectly to SOMa pool !(/1.0,1.0,1.0/)*10e-3*r_moist(j) ![1/h] Decay constants, myc sap
+          !print*, time, j
+          !call disp(Vmax)
+          !print*, r_moist(j), TSOIL(j)
+
+          !myc_input(6,:) = (/pool_matrix(5,5)+1, pool_matrix(5,6)+1, pool_matrix(5,7)+1/)*GEP*0.001
+
+
 
           ! if (isVertical) then
           !   if (j==1) then !The litter input is higher in the first depth level then the rest.
@@ -252,19 +325,17 @@ module mycmim
             elseif (i==2) then !LITs
               Gain = lit_input(j,2)
               Loss = LITsSAPb + LITsSAPf
-              ! print*, "Gain", Gain
-              ! print*, LITsSAPb, LITsSAPf
-              ! print*, "Difference", Gain - Loss
+
             elseif (i==3) then !SAPb
               Gain = LITmSAPb*MGE(1) + LITsSAPb*MGE(2) &
               + EcMSAPb*MGE(3) + ErMSAPb*MGE(4) + AMSAPb*MGE(5) + SOMaSAPb*MGE(6)
               Loss =  SAPbSOMp + SAPbSOMa + SAPbSOMc
-              !TODO: MGE's not the same for i=3 and i = 4
+
+
             elseif (i==4) then !SAPf
               Gain = LITmSAPf*MGE(7) + LITsSAPf*MGE(8) &
               + EcMSAPf*MGE(9) + ErMSAPf*MGE(10) + AMSAPf*MGE(11) + SOMaSAPf*MGE(12)
               Loss =  SAPfSOMp + SAPfSOMa + SAPfSOMc
-
             elseif (i==5) then !EcM
               Gain = myc_input(j,1)
               Loss = EcMSAPb + EcMSAPf + EcMSOMp + EcMSOMa + EcMSOMc
@@ -300,7 +371,14 @@ module mycmim
             !control check
             if (pool_temporary(j,i) < 0.0) then
               print*, 'Negative concentration value at t',t,'depth level',j,'pool number',i, ':', pool_temporary(j,i)
-              call disp(pool_temporary)
+              print*, 'Value changed to: ', min_pool_value
+              print*, 'Month, year: ', current_month, year
+              call disp('Temp: ',TSOIL)
+              call disp('moist: ', r_moist)
+              call disp('Vmax: ', Vmax)
+              call disp('Km: ', Km)
+              !call disp(pool_temporary)
+              pool_temporary(j,i) = min_pool_value
               STOP
             end if
 
@@ -313,8 +391,10 @@ module mycmim
           !Calculate the heterotrophic respiration loss from depth level j in timestep t:
           HR(j) =( LITmSAPb*(1-MGE(1)) + LITsSAPb*(1-MGE(2)) + EcMSAPb*(1-MGE(3)) + ErMSAPb*(1-MGE(4)) + AMSAPb*(1-MGE(5)) + SOMaSAPb*(1-MGE(6)) + LITmSAPf*(1-MGE(7)) &
           + LITsSAPf*(1-MGE(8)) + EcMSAPf*(1-MGE(9)) + ErMSAPf*(1-MGE(10)) + AMSAPf*(1-MGE(11)) + SOMaSAPf*(1-MGE(12)))*dt
+
           HR_sum(j) = HR_sum(j) + HR(j)
         end do !j, depth_level
+        !call disp('HR ', HR)
         if (isVertical) then
           call vertical_diffusion(tot_diff,upper,lower, pool_temporary, nlevdecomp,vert,time, counter,dt)
           pool_matrix =  vert*dt + pool_temporary
@@ -325,21 +405,28 @@ module mycmim
           pool_matrix=pool_temporary
         end if!isVertical
 
+        if (counter == write_hour) then
 
-        ! if (counter == write_hour) then
-        ! !  print*, HR_sum
-        !   counter = 0
-        !   !call disp("pool_matrix ",pool_matrix)
-        !   call fill_netcdf(run_name, nlevdecomp, t, pool_matrix, change_sum, a_matrix,HR_sum, vert_change_sum, write_hour)
-        !   HR_sum = 0.0
-        !   change_sum = 0.0
-        !   vert_change_sum = 0.0
-        ! !print*, HR_sum
+          counter = 0
+          !call disp("pool_matrix ",pool_matrix)
+          call fill_netcdf(run_name, nlevdecomp, t, pool_matrix, change_sum, a_matrix,HR, vert_change_sum, write_hour,current_month)
+          HR_sum = 0.0
+          change_sum = 0.0
+          vert_change_sum = 0.0
+        !print*, HR_sum
+        end if!writing
 
-        !end if!writing
         if (t == nsteps) then
-          call disp("pool_matrix ",pool_matrix)
+
+          do i = 1,pool_types
+            mass_pool_matrix(:,i) = pool_matrix(:,i)*delta_z
+          end do
+          call disp("pool_matrix gC/m2 ",mass_pool_matrix)
+          call disp("pool_matrix gC/m3 ",pool_matrix)
+
+          !call disp("respiration", HR)
         end if
+
       end do !t
       !call store_parameters(run_name)
 

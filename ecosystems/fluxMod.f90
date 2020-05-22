@@ -1,9 +1,10 @@
 module fluxMod
   use paramMod
-  !use dispmodule !External module to pretty print matrices (mainly for testing purposes)
+  use dispmodule !External module to pretty print matrices (mainly for testing purposes)
   implicit none
 
   contains
+
 
   subroutine litter_fluxes(depth,pool_matrix,level_max) !This subroutine calculates the fluxes out of the litter pools. The input to litter pools comes from vegetation, and is not handeled in this subroutine.
     !This is the total flux from the litter pools. A fraction (1-MGE) is lost to respiration before it reaches the SAP pools. This is handeled in the "decomp" subroutine.
@@ -18,13 +19,13 @@ module fluxMod
     LITs => pool_matrix(depth, 2)
 
     !From LIT to SAPb
-    LITmSAPb=f_depth(nlevdecomp +1 -depth)*SAPb*Vmax(1)*LITm/(Km(1)+LITm)
-    LITsSAPb=SAPb*Vmax(2)*LITs/(Km(2)+LITs)*f_depth(nlevdecomp +1 -depth)
+    LITmSAPb=SAPb*Vmax(1)*LITm/(Km(1)+LITm)
+    LITsSAPb=SAPb*Vmax(2)*LITs/(Km(2)+LITs)
     !print*, "LITmSAPb",LITmSAPb, depth
     !print*, "LITsSAPb",LITsSAPb, depth
     !From LIT to sapf
-    LITmSAPf=SAPf*Vmax(4)*LITm/(Km(4)+LITm)*f_depth(depth)
-    LITsSAPf=SAPf*Vmax(5)*LITs/(Km(5)+LITs)*f_depth(depth)
+    LITmSAPf=SAPf*Vmax(4)*LITm/(Km(4)+LITm)
+    LITsSAPf=SAPf*Vmax(5)*LITs/(Km(5)+LITs)
 
     !NOTE: These correspond to eq. A1,A5,A2,A6 in Wieder 2015
     nullify(SAPb, SAPf, LITm,LITs)
@@ -185,10 +186,32 @@ module fluxMod
 
   end subroutine vertical_diffusion
 
+  !FROM mimics_cycle.f90 in testbed:
+  ! ! Read in soil moisture data as in CORPSE
+  !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
+  !  theta_frzn = min(1.0, casamet%frznmoistavg(npt)/soil%ssat(npt)) ! fraction of frozen water-filled pore space (0.0 - 1.0)
+  !  air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
+  !
+  !  if (mimicsbiome%fWFunction .eq. CORPSE) then
+  !    ! CORPSE water scalar, adjusted to give maximum values of 1
+  !    fW = (theta_liq**3 * air_filled_porosity**2.5)/0.022600567942709
+  !    fW = max(0.05, fW)
 
-  subroutine moisture_func(r_moist)
-    real(r8), intent(out) :: r_moist
 
-    r_moist = max(0.05, P*(theta_l/theta_sat)**3*(1-(theta_l/theta_sat)-(theta_f/theta_sat))**gas_diffusion)
+  subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist)
+    real(r8), intent(out), dimension(nlevdecomp) :: r_moist
+    real(r8), intent(in), dimension(nlevdecomp)  :: theta_l, theta_sat, theta_f
+    real(r8), dimension(nlevdecomp)  :: theta_frzn, theta_liq, air_filled_porosity
+
+    theta_liq  = min(1.0, theta_l/theta_sat)     ! fraction of liquid water-filled pore space (0.0 - 1.0)
+    theta_frzn = min(1.0, theta_f/theta_sat)     ! fraction of frozen water-filled pore space (0.0 - 1.0)
+    air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
+    !call disp('liq',theta_liq)
+    !call disp('frzn', theta_frzn)
+    r_moist = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
+    r_moist = max(0.05, r_moist)
+
+
+    !r_moist = max(0.05, (theta_l/theta_sat)**3*(1-(theta_l/theta_sat)-(theta_f/theta_sat))**gas_diffusion)
   end subroutine moisture_func
 end module fluxMod
