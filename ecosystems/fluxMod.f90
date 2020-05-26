@@ -21,9 +21,7 @@ module fluxMod
     !From LIT to SAPb
     LITmSAPb=SAPb*Vmax(1)*LITm/(Km(1)+LITm)
     LITsSAPb=SAPb*Vmax(2)*LITs/(Km(2)+LITs)
-    !print*, "LITmSAPb",LITmSAPb, depth
-    !print*, "LITsSAPb",LITsSAPb, depth
-    !From LIT to sapf
+
     LITmSAPf=SAPf*Vmax(4)*LITm/(Km(4)+LITm)
     LITsSAPf=SAPf*Vmax(5)*LITs/(Km(5)+LITs)
 
@@ -46,22 +44,6 @@ module fluxMod
     SOMa => pool_matrix(depth, 9)
     SOMc => pool_matrix(depth, 10)
     !print*, 'EcM', EcM
-
-    !TODO No idea if the Michalis Menten equations is the right thing to use here..
-    !       !03.09.19: Probably. not bc. the mycorrhiza is not a substrate?
-    ! !From Mycorrhiza pools to SOMp
-    ! MYCtoSOM(1)=SOMp*Vmax(5)*EcM/(Km(5)+EcM)
-    ! MYCtoSOM(2)=SOMp*Vmax(6)*ErM/(Km(6)+ErM)
-    ! MYCtoSOM(3)=SOMp*Vmax(7)*AM/(Km(7)+AM)
-    ! !From Mycorrhiza pools to SOMa
-    ! MYCtoSOM(4)=SOMa*Vmax(8)*EcM/(Km(8)+EcM)
-    ! !print*, MYCtoSOM(4)
-    ! MYCtoSOM(5)=SOMa*Vmax(9)*ErM/(Km(9)+ErM)
-    ! MYCtoSOM(6)=SOMa*Vmax(10)*AM/(Km(10)+AM)
-    ! !From Mycorrhiza pools to SOMc
-    ! MYCtoSOM(7)=SOMc*Vmax(11)*EcM/(Km(11)+EcM)
-    ! MYCtoSOM(8)=SOMc*Vmax(12)*ErM/(Km(12)+ErM)
-    ! MYCtoSOM(9)=SOMc*Vmax(13)*AM/(Km(13)+AM)
 
     EcMSOMp=EcM*k_mycsom(1)*0.40!somp
     EcMSOMa=EcM*k_mycsom(1)*0.40!soma
@@ -114,17 +96,16 @@ module fluxMod
     ErM => pool_matrix(depth, 6)
     AM => pool_matrix(depth, 7)
 
-    !From Mycorrhizal pools to SAPotroph pools
-    !Mycorrhizal pool*fraction to SAP*fraction to SAP_r*decay constant for mycorrhizal pool. TODO: Maybe reconsider these equations..
-    EcMSAPb=EcM*MYC_SAPb*k_mycsap(1)
-    EcMSAPf=EcM*MYC_SAPf*k_mycsap(1)
+    !From Mycorrhizal pools to SAProtroph pools
+    !Mycorrhizal pool*fraction to SAP*fraction to SAP_r*decay constant for mycorrhizal pool.
+    !NOTE myc->sap Commented out for now, let all dead mycorrhiza go to SOMa
+    !EcMSAPf=EcM*MYC_SAPf*k_mycsap(1)
 
-    ErMSAPf=ErM*MYC_SAPf*k_mycsap(2)
-    ErMSAPb=ErM*MYC_SAPb*k_mycsap(2)
+    !ErMSAPf=ErM*MYC_SAPf*k_mycsap(2)
+    !ErMSAPb=ErM*MYC_SAPb*k_mycsap(2)
 
-    AMSAPb=AM*MYC_SAPb*k_mycsap(3)
-    AMSAPf=AM*MYC_SAPf*k_mycsap(3)
-
+    !AMSAPb=AM*MYC_SAPb*k_mycsap(3)
+    !AMSAPf=AM*MYC_SAPf*k_mycsap(3)
 
     nullify(EcM,ErM,AM)
   end subroutine microbial_fluxes
