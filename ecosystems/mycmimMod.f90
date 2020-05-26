@@ -30,15 +30,22 @@ module mycmim
       integer                        :: step_frac                            ! determines the size of the time step
 
       real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C amount that is lost to respiration
-      real(r8)                       :: pool_matrix(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m3]
-      real(r8)                       :: mass_pool_matrix(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m2] (pool_matrix*delta_z)
-      real(r8)                       :: change_matrix(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*hour)]
+      real(r8)                       :: pool_matrixC(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m3]
+      real(r8)                       :: mass_pool_matrixC(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m2] (pool_matrixC*delta_z)
+      real(r8)                       :: change_matrixC(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: a_matrix(nlevdecomp, pool_types)     ! For storing the analytical solution
-      real(r8)                       :: Init(nlevdecomp, pool_types)         ! Initial C concentration, determined in initMod.f90
-      real(r8)                       :: pool_temporary(nlevdecomp,pool_types)! When isVertical is True, pool_temporary = pool_matrix + change_matrix*dt is used to calculate the vertical transport
-                                                                             !The new value after the time step is then pool_matrix = pool_temporary + vertical change.
+      real(r8)                       :: InitC(nlevdecomp, pool_types)         ! Initial C concentration, determined in initMod.f90
+      real(r8)                       :: pool_temporaryC(nlevdecomp,pool_types)! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
+                                                                             !The new value after the time step is then pool_matrixC = pool_temporaryC + vertical change
+      real(r8)                       :: pool_matrixN(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m3]
+      real(r8)                       :: mass_pool_matrixN(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m2] (pool_matrixC*delta_z)
+      real(r8)                       :: change_matrixN(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*hour)]
+      !real(r8)                       :: a_matrix(nlevdecomp, pool_types)     ! For storing the analytical solution
+      real(r8)                       :: InitN(nlevdecomp, pool_types)         ! Initial C concentration, determined in initMod.f90
+      real(r8)                       :: pool_temporaryN(nlevdecomp,pool_types)! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
+                                                                                                                                                    !The new value after the time step is then pool_matrixC = pool_temporaryC + vertical change.
 
-                                                                             !Shape of the pool_matrix/change_matrix
+                                                                             !Shape of the pool_matrixC/change_matrixC
                                                                              !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc |
                                                                              !|level1   1   2    3    4   5   6   7   8    9    10  |
                                                                              !|level2                                               |
@@ -50,7 +57,8 @@ module mycmim
       real(r8)                       :: time                                 ! t*dt
       real(r8)                       :: Loss, Gain, Loss_term                ! Source and sink term for solving the analytical solution to the dC/dt=Gain-Loss*concentration equation.
       real(r8)                       :: tot_diff,upper,lower                 ! For the call to vertical_diffusion
-      real(r8)                       :: vert(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrix
+      real(r8)                       :: vertC(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrixC
+      real(r8)                       :: vertN(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrixN
 
       real(r8)                       :: lit_input(nlevdecomp,no_of_litter_pools)![gC/(m3 h)] Fraction of litter input to LITm and LITs, respectively
       real(r8)                       :: myc_input(nlevdecomp,no_of_myc_pools)   ![gC/(m3 h)] vector giving the input from vegetation to mycorrhiza pools
@@ -63,7 +71,8 @@ module mycmim
       integer,parameter              ::t_init=1
       real(r8), dimension(nlevdecomp):: HR_sum                                  !Sums total HR between two output entries
       real(r8)                       :: change_sum(nlevdecomp, pool_types)
-      real(r8)                       :: vert_change_sum(nlevdecomp, pool_types)
+      real(r8)                       :: vertN_change_sum(nlevdecomp, pool_types)
+      real(r8)                       :: vertC_change_sum(nlevdecomp, pool_types)
       integer,parameter              :: write_hour= 24*4
       real(r8)                       :: ecm_frac, erm_frac, am_frac
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
@@ -111,17 +120,19 @@ module mycmim
       end if
       print*, ecosystem
 
-      !Set initial concentration values in pool_matrix:
+      !Set initial concentration values in pool_matrixC:
       if (isVertical) then
-        call initialize_vert(Init, pool_matrix, nlevdecomp)
+        call initialize_vert(InitC, InitN, pool_matrixC, pool_matrixN, nlevdecomp)
       else
-        call initialize_onelayer(Init, pool_matrix)
+        call initialize_onelayer(InitC, pool_matrixC, InitN, pool_matrixN)
       end if !isVertical
 
-      change_matrix = 0.0
-      a_matrix      = pool_matrix
+      change_matrixC = 0.0
+      change_matrixN = 0.0
+      a_matrix      = pool_matrixC
       HR            = 0.0
-      vert_change_sum=0.0
+      vertC_change_sum=0.0
+      vertN_change_sum=0.0
 
       counter = 0
       ycounter = 0
@@ -133,7 +144,8 @@ module mycmim
 
       !open and prepare files to store results. Store initial value
       call create_netcdf(run_name)
-      call fill_netcdf(run_name, nlevdecomp,t_init, pool_matrix, change_matrix, a_matrix, HR, vert_change_sum, write_hour,current_month)
+      call fill_netcdf(run_name, nlevdecomp,t_init, pool_matrixC, change_matrixC, a_matrix, HR, vertC_change_sum, write_hour,current_month)
+      call fill_netcdf(run_name, nlevdecomp,t_init, pool_matrixN, change_matrixN, a_matrix, HR, vertN_change_sum, write_hour,current_month)
      !stop
       counter = 0
       ycounter = 0
@@ -154,6 +166,7 @@ module mycmim
       som_input(1,:) = (/0.05, 0.05/)*GEP/(delta_z(1) + delta_z(2))
       myc_input(4,:) = (/ecm_frac, erm_frac, am_frac/)*GEP/(delta_z(6) + delta_z(6))
       myc_input(5,:) = (/ecm_frac, erm_frac,am_frac/)*GEP/(delta_z(5) + delta_z(5))
+      !TODO Add N input to different layers
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
         time = t*dt
@@ -189,10 +202,9 @@ module mycmim
           ycounter = 0
         end if
         if (t == 1) then
-          call disp("Init", pool_matrix)
+          call disp("InitC", pool_matrixC)
+          call disp("InitN", pool_matrixN)
         end if
-
-
 
         !If-test used to modify something after half of the total run time
          ! if (t == nsteps/2) then
@@ -241,7 +253,7 @@ module mycmim
           !call disp(Vmax)
           !print*, r_moist(j), TSOIL(j)
 
-          !myc_input(6,:) = (/pool_matrix(5,5)+1, pool_matrix(5,6)+1, pool_matrix(5,7)+1/)*GEP*0.001
+          !myc_input(6,:) = (/pool_matrixC(5,5)+1, pool_matrixC(5,6)+1, pool_matrixC(5,7)+1/)*GEP*0.001
 
 
 
@@ -263,9 +275,9 @@ module mycmim
 
 
           !Calculate fluxes between pools in level j:
-          call microbial_fluxes(j, pool_matrix,nlevdecomp)
-          call som_fluxes(j, pool_matrix,nlevdecomp)
-          call litter_fluxes(j, pool_matrix,nlevdecomp)
+          call microbial_fluxes(j, pool_matrixC,nlevdecomp)
+          call som_fluxes(j, pool_matrixC,nlevdecomp)
+          call litter_fluxes(j, pool_matrixC,nlevdecomp)
         !  print*, LITsSAPf, LITmSAPb, lit_input(1,:)
           !   if (counter == write_hour) then
           !
@@ -317,7 +329,7 @@ module mycmim
           do i = 1, pool_types !loop over all the pool types, i, in depth level j
             !This if-loop calculates dC/dt for the different carbon pools.NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
             !The Gain and Loss variables are also used to calculate the analytical solution to dC/dt=Gain - Loss*C, a_matrix(j,i)
-            !NOTE: The "change_matrix" values correspond to the equations A11-A17 in Wieder 2015
+            !NOTE: The "change_matrixC" values correspond to the equations A11-A17 in Wieder 2015
             if (i==1) then !LITm
               Gain = lit_input(j,1)
               Loss = LITmSAPb + LITmSAPf
@@ -363,28 +375,28 @@ module mycmim
             else
               print*, 'Too many pool types expected, pool_types = ',pool_types
             end if !determine dC_i/dt
-            change_matrix(j,i) = Gain - Loss
-            change_sum(j,i)= change_sum(j,i) + change_matrix(j,i)*dt
+            change_matrixC(j,i) = Gain - Loss
+            change_sum(j,i)= change_sum(j,i) + change_matrixC(j,i)*dt
             !Store these values as temporary so that they can be used in the diffusion subroutine
-            pool_temporary(j,i)=pool_matrix(j,i) + change_matrix(j,i)*dt
+            pool_temporaryC(j,i)=pool_matrixC(j,i) + change_matrixC(j,i)*dt
 
             !control check
-            if (pool_temporary(j,i) < 0.0) then
-              print*, 'Negative concentration value at t',t,'depth level',j,'pool number',i, ':', pool_temporary(j,i)
+            if (pool_temporaryC(j,i) < 0.0) then
+              print*, 'Negative concentration value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
               print*, 'Value changed to: ', min_pool_value
               print*, 'Month, year: ', current_month, year
               call disp('Temp: ',TSOIL)
               call disp('moist: ', r_moist)
               call disp('Vmax: ', Vmax)
               call disp('Km: ', Km)
-              !call disp(pool_temporary)
-              pool_temporary(j,i) = min_pool_value
+              !call disp(pool_temporaryC)
+              pool_temporaryC(j,i) = min_pool_value
               STOP
             end if
 
             !To calculate analytical solution:
-            Loss_term = Loss/pool_matrix(j,i)
-            a_matrix(j,i) = Init(j,i)*exp(-time*Loss_term) + Gain*(1-exp(-time*Loss_term))/Loss_term !+ vert*dt
+            Loss_term = Loss/pool_matrixC(j,i)
+            a_matrix(j,i) = InitC(j,i)*exp(-time*Loss_term) + Gain*(1-exp(-time*Loss_term))/Loss_term !+ vertC*dt
 
           end do !i, pool_types
 
@@ -396,33 +408,33 @@ module mycmim
         end do !j, depth_level
         !call disp('HR ', HR)
         if (isVertical) then
-          call vertical_diffusion(tot_diff,upper,lower, pool_temporary, nlevdecomp,vert,time, counter,dt)
-          pool_matrix =  vert*dt + pool_temporary
-          vert_change_sum = vert_change_sum + vert*dt
-          !call disp("pool_matrix",pool_matrix)
-          a_matrix=a_matrix+vert*dt
+          call vertical_diffusion(tot_diff,upper,lower, pool_temporaryC, nlevdecomp,vertC,time, counter,dt)
+          pool_matrixC =  vertC*dt + pool_temporaryC
+          vertC_change_sum = vertC_change_sum + vertC*dt
+          !call disp("pool_matrixC",pool_matrixC)
+          a_matrix=a_matrix+vertC*dt
         else
-          pool_matrix=pool_temporary
+          pool_matrixC=pool_temporaryC
         end if!isVertical
 
         if (counter == write_hour) then
 
           counter = 0
-          !call disp("pool_matrix ",pool_matrix)
-          call fill_netcdf(run_name, nlevdecomp, t, pool_matrix, change_sum, a_matrix,HR, vert_change_sum, write_hour,current_month)
+          !call disp("pool_matrixC ",pool_matrixC)
+          call fill_netcdf(run_name, nlevdecomp, t, pool_matrixC, change_sum, a_matrix,HR, vertC_change_sum, write_hour,current_month)
           HR_sum = 0.0
           change_sum = 0.0
-          vert_change_sum = 0.0
+          vertC_change_sum = 0.0
         !print*, HR_sum
         end if!writing
 
         if (t == nsteps) then
 
           do i = 1,pool_types
-            mass_pool_matrix(:,i) = pool_matrix(:,i)*delta_z
+            mass_pool_matrixC(:,i) = pool_matrixC(:,i)*delta_z
           end do
-          call disp("pool_matrix gC/m2 ",mass_pool_matrix)
-          call disp("pool_matrix gC/m3 ",pool_matrix)
+          call disp("pool_matrixC gC/m2 ",mass_pool_matrixC)
+          call disp("pool_matrixC gC/m3 ",pool_matrixC)
 
           !call disp("respiration", HR)
         end if

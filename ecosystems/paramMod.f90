@@ -77,6 +77,7 @@ real(r8) :: SAPbSOMa, SAPbSOMp, SAPbSOMc,SAPfSOMa, SAPfSOMp, SAPfSOMc
 !End fluxes between pools
 character (len=*),parameter                  :: clm_data_file = '/home/ecaas/clm/cruncep_iso_hist/Dovre/clm50_clm50d001_1deg_CRUNCEPV7_iso_hist.clm2.h0.SOILLIQ_SOILICE_TSOI.Dovre2014.nc'
 !For writing to file:
+character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/'
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
 character (len=4), dimension(pool_types):: variables = (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
 character (len=10), dimension(pool_types):: change_variables = (/  "changeLITm", "changeLITs", "changeSAPb","changeSAPf", "changeEcM ", "changeErM ", "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)

@@ -10,7 +10,7 @@ program test_script
   implicit none
   integer :: dset_id,ierr
   !call store_parameters("Heath_newtest")
-  integer :: N=50*365*24!Total number of timesteps (years,days, hours)
+  integer :: N=1*365*24!Total number of timesteps (years,days, hours)
   !real(r8), dimension(nlevdecomp) :: TSOIL
   !real(r8), dimension(nlevdecomp) ::  SOILLIQ
   !real(r8), dimension(nlevdecomp) ::  SOILICE
@@ -21,8 +21,8 @@ program test_script
   !  call decomp(nsteps=N, run_name=trim(str(i))//"_input", isVertical = .True., ecosystem = trim(str(i)), step_frac=1)
   !end do
 
-  call decomp(nsteps=N, run_name=trim(str(1))//"_myc_moist", isVertical = .True., ecosystem = trim(str(1)), step_frac=1)
-  call decomp(nsteps=N, run_name=trim(str(2))//"_myc_moist", isVertical = .True., ecosystem = trim(str(2)), step_frac=1)
-  call decomp(nsteps=N, run_name=trim(str(3))//"_myc_moist", isVertical = .True., ecosystem = trim(str(3)), step_frac=1)
+  call decomp(nsteps=N, run_name=trim(str(1))//"_outtest", isVertical = .True., ecosystem = trim(str(1)), step_frac=1)
+  !call decomp(nsteps=N, run_name=trim(str(2))//"_myc_moist", isVertical = .True., ecosystem = trim(str(2)), step_frac=1)
+  !call decomp(nsteps=N, run_name=trim(str(3))//"_myc_moist", isVertical = .True., ecosystem = trim(str(3)), step_frac=1)
 
 end program test_script

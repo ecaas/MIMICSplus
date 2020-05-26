@@ -29,7 +29,7 @@ module writeMod
       ! else
       !   call check(nf90_create(trim(run_name)//".nc", NF90_CLOBBER, ncid))
       ! end if
-      call check(nf90_create(trim(run_name)//".nc",NF90_NETCDF4,ncid))
+      call check(nf90_create(output_path//trim(run_name)//".nc",NF90_NETCDF4,ncid))
 
 
       call check(nf90_def_dim(ncid, "time", nf90_unlimited, t_dimid))
@@ -75,7 +75,7 @@ module writeMod
         timestep = time/write_hour+1
       end if
       !  print*, HR_sum
-      call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
+      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, ncid))
 
       call check(nf90_inq_varid(ncid, "time", varid))
       call check(nf90_put_var(ncid, varid, time, start = (/ timestep /)))
@@ -106,7 +106,7 @@ module writeMod
      character (len = *):: run_name
      integer :: tsoiID, clayID, desorbID, MgeID, kmID, vmID, fmetID, tauID, gepID, depthID, fphysID, fchemID, favailID
      integer:: ncid
-     call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
+     call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, ncid))
 
      call check(nf90_def_var(ncid, "tsoi", NF90_double, tsoiID))
      call check(nf90_def_var(ncid, "f_clay", NF90_double, clayID))

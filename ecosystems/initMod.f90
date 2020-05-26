@@ -3,30 +3,32 @@ module initMod
   implicit none
 contains
 
-  subroutine initialize_onelayer(initial,pools) !This subroutine sets the initial carbon values in the pool matrix (Carbon content in each pool in every depth level)
+  subroutine initialize_onelayer(initialC,poolsC, initialN,poolsN) !This subroutine sets the initial carbon values in the pool matrix (Carbon content in each pool in every depth level)
                                                    !/LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc/
-    real(r8),intent(out) :: initial(1, pool_types)
-    real(r8), intent(inout) :: pools(1,pool_types)
-    initial(1,:) = (/500,500,5,5,5,5,5,5,5,5/)
-    pools = initial
+    real(r8),intent(out) :: initialC(1, pool_types)
+    real(r8), intent(inout) :: poolsC(1,pool_types)
+    real(r8),intent(out) :: initialN(1, pool_types)
+    real(r8), intent(inout) :: poolsN(1,pool_types)
+    initialC(1,:) = (/500,500,5,5,5,5,5,5,5,5/)
+    poolsC = initialC
   end subroutine initialize_onelayer
 
-  subroutine initialize_vert(Init, pools, levels) !This subroutine sets the initial carbon values in the pool matrix (Carbon content in each pool in every depth level)
+  subroutine initialize_vert(InitC, InitN, poolsC, poolsN, levels) !This subroutine sets the initial carbon values in the pool matrix (Carbon content in each pool in every depth level)
                       !/LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc/
 
     integer :: levels
-    real(r8),intent(out) :: Init(levels, pool_types)
-    real(r8), intent(inout) :: pools(levels, pool_types)
+    real(r8),intent(out) :: InitC(levels, pool_types), InitN(levels, pool_types)
+    real(r8), intent(inout) :: poolsC(levels, pool_types), poolsN(levels, pool_types)
     ! Init(1:5,:) = 50
     ! Init(6:,:)=100
-    Init = 0.0
-     Init(1,:) = (/50.0,50.0,10.0,10.0, 10.0,10.0,10.0,10.0,10.0,10.0/)
-     Init(2,:) = (/30.0,30.0,20.0,20.0, 10.0,10.0,10.0,10.0,10.0,10.0/)
-     Init(3,:) = (/15.0,15.0,10.0,10.0, 10.0,10.0,10.0,20.0,20.0,20.0/)
-     Init(4,:) = (/15.0,15.0,10.0,10.0, 10.0,10.0,10.0,20.0,20.0,20.0/)
-     Init(5,:) = (/0.0, 0.0, 10.0,10.0, 20.0,20.0,20.0,30.0,30.0,30.0/)
-     Init(6,:) = (/0.0,0.0,10.0,10.0,   20.0,20.0,20.0,30.0,30.0,30.0/)
-     Init(7,:) = (/0.0,0.0,10.0,10.0,   20.0,20.0,20.0,50.0,50.0,50.0/)
+    InitC = 0.0
+     InitC(1,:) = (/50.0,50.0,10.0,10.0, 10.0,10.0,10.0,10.0,10.0,10.0/)
+     InitC(2,:) = (/30.0,30.0,20.0,20.0, 10.0,10.0,10.0,10.0,10.0,10.0/)
+     InitC(3,:) = (/15.0,15.0,10.0,10.0, 10.0,10.0,10.0,20.0,20.0,20.0/)
+     InitC(4,:) = (/15.0,15.0,10.0,10.0, 10.0,10.0,10.0,20.0,20.0,20.0/)
+     InitC(5,:) = (/0.0, 0.0, 10.0,10.0, 20.0,20.0,20.0,30.0,30.0,30.0/)
+     InitC(6,:) = (/0.0,0.0,10.0,10.0,   20.0,20.0,20.0,30.0,30.0,30.0/)
+     InitC(7,:) = (/0.0,0.0,10.0,10.0,   20.0,20.0,20.0,50.0,50.0,50.0/)
      ! Init(8,:) = (/0.0,0.0,10.0,10.0,   20.0,20.0,20.0,50.0,50.0,50.0/)
      ! Init(9,:) = (/0.0,0.0,10.0,10.0,   20.0,20.0,20.0,50.0,50.0,50.0/)
      ! Init(10,:) = (/0.0,0.0,10.0,10.0,  20.0,20.0,20.0,50.0,50.0,50.0/)
@@ -64,7 +66,7 @@ contains
     ! Init(8,:)= (/ 0.000 , 0.000 , 0.000,    0.037,  0.000,   0.000,  0.000,    0.257 , 8.533,  1.479/)
     ! Init(9,:)= (/ 0.000 , 0.000 , 0.000,    0.037,  0.000,   0.000  ,0.000,    0.257 , 8.533,  1.479/)
     ! Init(10,:)= (/ 0.000,  0.000,  0.000,    0.037,  0.000 ,  0.000 , 0.000,    0.257,  8.533,  1.479/)
-    pools=Init
+    poolsC=InitC
   end subroutine initialize_vert
 
 end module initMod
