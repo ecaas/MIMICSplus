@@ -60,10 +60,9 @@ module mycmim
       real(r8)                       :: vertC(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrixC
       real(r8)                       :: vertN(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrixN
 
-      real(r8)                       :: lit_input(nlevdecomp,no_of_litter_pools)![gC/(m3 h)] Fraction of litter input to LITm and LITs, respectively
-      real(r8)                       :: myc_input(nlevdecomp,no_of_myc_pools)   ![gC/(m3 h)] vector giving the input from vegetation to mycorrhiza pools
-      real(r8)                       :: som_input(nlevdecomp,no_of_som_pools-1) ![gC/(m3 h)] !only input to SOMp and SOMc
-      real(r8)                       :: I_tot                                   ![gC/(m3 h)]Total input to the system
+      real(r8)                       :: lit_inputC(nlevdecomp,no_of_litter_pools)![gC/(m3 h)] Fraction of litter input to LITm and LITs, respectively
+      real(r8)                       :: myc_inputC(nlevdecomp,no_of_myc_pools)   ![gC/(m3 h)] vector giving the input from vegetation to mycorrhiza pools
+      real(r8)                       :: som_inputC(nlevdecomp,no_of_som_pools-1) ![gC/(m3 h)] !only input to SOMp and SOMc
       integer                        :: ycounter, year,ncid,varid
       integer                        :: counter                                 !used for determining when to output results
       integer                        :: month_counter
@@ -77,11 +76,9 @@ module mycmim
       real(r8)                       :: ecm_frac, erm_frac, am_frac
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
       MGE       = (/0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.4,0.3,0.3,0.3,0.4/)
-      k_mycsom  = (/1.4,1.4,1.4/)*10e-4   ![1/h] Decay constants, myc som
-      k_mycsap  = (/1.0,1.0,1.0/)*10e-4 ![1/h] Decay constants, myc sap
-      lit_input = 0.0
-      myc_input = 0.0
-      som_input = 0.0
+      lit_inputC = 0.0
+      myc_inputC = 0.0
+      som_inputC = 0.0
       ! Fracions of SAP that goes to different SOM pools
       fPHYS = (/ 0.3 * exp(fCLAY), 0.2 * exp(0.8*fCLAY) /)
       fCHEM =  (/0.1 * exp(-3.0*fMET), 0.3 * exp(-3*fMET) /)
@@ -162,10 +159,10 @@ module mycmim
       ! end if
 
       !Inputs from aboveground litter to LIT and protected SOM pools: GEP/depth [gC/m3h]
-      lit_input(1,:) = (/fMET, (0.9-fMET)/)*GEP/(delta_z(1) + delta_z(2))!Partition between litter pools. The last 0.1 fraction goes directly to SOM
-      som_input(1,:) = (/0.05, 0.05/)*GEP/(delta_z(1) + delta_z(2))
-      myc_input(4,:) = (/ecm_frac, erm_frac, am_frac/)*GEP/(delta_z(6) + delta_z(6))
-      myc_input(5,:) = (/ecm_frac, erm_frac,am_frac/)*GEP/(delta_z(5) + delta_z(5))
+      lit_inputC(1,:) = (/fMET, (0.9-fMET)/)*GEP/(delta_z(1) + delta_z(2))!Partition between litter pools. The last 0.1 fraction goes directly to SOM
+      som_inputC(1,:) = (/0.05, 0.05/)*GEP/(delta_z(1) + delta_z(2))
+      myc_inputC(4,:) = (/ecm_frac, erm_frac, am_frac/)*GEP/(delta_z(6) + delta_z(6))
+      myc_inputC(5,:) = (/ecm_frac, erm_frac,am_frac/)*GEP/(delta_z(5) + delta_z(5))
       !TODO Add N input to different layers
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
@@ -192,7 +189,6 @@ module mycmim
           else
             current_month = current_month + 1
           end if
-          !print*,previous_month, current_month, month_counter/24
           month_counter = 0
         end if
 
@@ -232,144 +228,69 @@ module mycmim
 
         ! if (time >= 244*24 + (year-1)*365*24 .and. time <= 335*24 + (year-1)*365*24) then
         !   !print*, time, 335*24 + year*365*24 - 244*24 - year*365*24
-        !   lit_input(1,:) = (/fMET, (0.9-fMET)/)*GEP/delta_z(1) !Partition between litter pools. The last 0.1 fraction goes directly to SOM
-        !   som_input(1,:) = (/0.05, 0.05/)*GEP/delta_z(1)
+        !   lit_inputC(1,:) = (/fMET, (0.9-fMET)/)*GEP/delta_z(1) !Partition between litter pools. The last 0.1 fraction goes directly to SOM
+        !   som_inputC(1,:) = (/0.05, 0.05/)*GEP/delta_z(1)
         !   !print*, "TIME: ", time
-        !   !print*, lit_input(1,:)
+        !   !print*, lit_inputC(1,:)
         ! else
-        !   lit_input = 0
-        !   som_input =0
+        !   lit_inputC = 0
+        !   som_inputC =0
         ! end if
-        tsoi = 1.7!8.9
 
-        !call disp("myc",myc_input)
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
-          !call disp('moisture',r_moist)
           Km      = exp(Kslope*TSOIL(j) + Kint)*a_k*Kmod                    ![mgC/cm3]*10e3=[gC/m3]
           Vmax    = exp(Vslope*TSOIL(j) + Vint)*a_v*Vmod*r_moist(j)    ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
           k_mycsom  = (/1.4,1.4,1.4/)*10e-3*r_moist(j)   ![1/h] Decay constants, myc som
-          k_mycsap  = 0! All myc necromass goes direectly to SOMa pool !(/1.0,1.0,1.0/)*10e-3*r_moist(j) ![1/h] Decay constants, myc sap
-          !print*, time, j
-          !call disp(Vmax)
-          !print*, r_moist(j), TSOIL(j)
-
-          !myc_input(6,:) = (/pool_matrixC(5,5)+1, pool_matrixC(5,6)+1, pool_matrixC(5,7)+1/)*GEP*0.001
-
-
-
-          ! if (isVertical) then
-          !   if (j==1) then !The litter input is higher in the first depth level then the rest.
-          !     lit_input=(/fMET*0.25, (1-fMET)*0.25/)*I_tot*0.5
-          !     !som_input = ()
-          !   else
-          !     lit_input=(/fMET*0.25, (1-fMET)*0.25/)*I_tot*0.5 !TODO Change this so it is not always the same
-          !     !som_input()
-          !   end if !j=1
-          ! else
-          !   som_input= (/f_som1,f_som2/)*I_tot*0.1
-          !   !print*, time, 335*24 + (year-1)*365*24 -244*24 - (year-1)*365*24
-          !   lit_input=(/fMET, 1-fMET/)*I_tot*0.5 ! input in gC/m³*day
-          !
-
-          ! end if !isVertical
-
 
           !Calculate fluxes between pools in level j:
           call microbial_fluxes(j, pool_matrixC,nlevdecomp)
           call som_fluxes(j, pool_matrixC,nlevdecomp)
           call litter_fluxes(j, pool_matrixC,nlevdecomp)
-        !  print*, LITsSAPf, LITmSAPb, lit_input(1,:)
-          !   if (counter == write_hour) then
-          !
-          !     call check(nf90_open(trim(run_name)//".nc", nf90_write, ncid))
-          !     call check(nf90_inq_varid(ncid, "time", varid))
-          !     call check(nf90_put_var(ncid, varid, time, start = (/ t/write_hour+1/)))
-          ! !    call check(nf90_inq_varid(ncid, "LITmSAPb", varid))
-          ! !    call check(nf90_put_var(ncid, varid, LITmSAPb, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "LITsSAPb", varid))
-          ! !    call check(nf90_put_var(ncid, varid, LITsSAPb, start = (/ t/48, j /)))
-          !     !call check(nf90_inq_varid(ncid, "EcMSAPb", varid))
-          !     !call check(nf90_put_var(ncid, varid, EcMSAPb, start = (/ t/48, j /)))
-          !     !call check(nf90_inq_varid(ncid, "ErMSAPb", varid))
-          !     !call check(nf90_put_var(ncid, varid, ErMSAPb, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "AMSAPb", varid))
-          ! !    call check(nf90_put_var(ncid, varid, AMSAPb, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "LITmSAPf", varid))
-          ! !    call check(nf90_put_var(ncid, varid, LITmSAPf, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "LITsSAPf", varid))
-          ! !    call check(nf90_put_var(ncid, varid, LITsSAPf, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "EcMSAPf", varid))
-          ! !    call check(nf90_put_var(ncid, varid, EcMSAPf, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "ErMSAPf", varid))
-          ! !    call check(nf90_put_var(ncid, varid, ErMSAPf, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "AMSAPf", varid))
-          ! !    call check(nf90_put_var(ncid, varid, AMSAPf, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "SOMpSOMa", varid))
-          ! !    call check(nf90_put_var(ncid, varid, SOMpSOMa, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "SOMcSOMa", varid))
-          ! !    call check(nf90_put_var(ncid, varid, SOMcSOMa, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "SAPbSOMa", varid))
-          ! !    call check(nf90_put_var(ncid, varid, SAPbSOMa, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "SAPfSOMa", varid))
-          ! !    call check(nf90_put_var(ncid, varid, SAPfSOMa, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "EcMSOMa", varid))
-          ! !    call check(nf90_put_var(ncid, varid, EcMSOMa, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "ErMSOMa", varid))
-          ! !    call check(nf90_put_var(ncid, varid, ErMSOMa, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "AMSOMa", varid))
-          ! !    call check(nf90_put_var(ncid, varid, AMSOMa, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "SOMaSAPb", varid))
-          ! !    call check(nf90_put_var(ncid, varid, SOMaSAPb, start = (/ t/48, j /)))
-          ! !    call check(nf90_inq_varid(ncid, "SOMaSAPf", varid))
-          ! !    call check(nf90_put_var(ncid, varid, SOMaSAPf, start = (/ t/48, j /)))
-          !     call check(nf90_close(ncid))
-          ! !
-          !  end if !writing
 
           do i = 1, pool_types !loop over all the pool types, i, in depth level j
             !This if-loop calculates dC/dt for the different carbon pools.NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
             !The Gain and Loss variables are also used to calculate the analytical solution to dC/dt=Gain - Loss*C, a_matrix(j,i)
             !NOTE: The "change_matrixC" values correspond to the equations A11-A17 in Wieder 2015
             if (i==1) then !LITm
-              Gain = lit_input(j,1)
+              Gain = lit_inputC(j,1)
               Loss = LITmSAPb + LITmSAPf
 
             elseif (i==2) then !LITs
-              Gain = lit_input(j,2)
+              Gain = lit_inputC(j,2)
               Loss = LITsSAPb + LITsSAPf
 
             elseif (i==3) then !SAPb
               Gain = LITmSAPb*MGE(1) + LITsSAPb*MGE(2) &
-              + EcMSAPb*MGE(3) + ErMSAPb*MGE(4) + AMSAPb*MGE(5) + SOMaSAPb*MGE(6)
+              + SOMaSAPb*MGE(6) !+ EcMSAPb*MGE(3) + ErMSAPb*MGE(4) + AMSAPb*MGE(5)
               Loss =  SAPbSOMp + SAPbSOMa + SAPbSOMc
-
 
             elseif (i==4) then !SAPf
               Gain = LITmSAPf*MGE(7) + LITsSAPf*MGE(8) &
-              + EcMSAPf*MGE(9) + ErMSAPf*MGE(10) + AMSAPf*MGE(11) + SOMaSAPf*MGE(12)
+              + SOMaSAPf*MGE(12) !  + EcMSAPf*MGE(9) + ErMSAPf*MGE(10) + AMSAPf*MGE(11)
               Loss =  SAPfSOMp + SAPfSOMa + SAPfSOMc
+
             elseif (i==5) then !EcM
-              Gain = myc_input(j,1)
-              Loss = EcMSAPb + EcMSAPf + EcMSOMp + EcMSOMa + EcMSOMc
+              Gain = myc_inputC(j,1)
+              Loss = EcMSOMp + EcMSOMa + EcMSOMc !EcMSAPb + EcMSAPf
 
             elseif (i==6) then !ErM
-              Gain = myc_input(j,2)
-              Loss = ErMSAPb + ErMSAPf + ErMSOMp + ErMSOMa + ErMSOMc
+              Gain = myc_inputC(j,2)
+              Loss = ErMSOMp + ErMSOMa + ErMSOMc !ErMSAPb + ErMSAPf
 
             elseif (i==7) then !AM
-              Gain = myc_input(j,3)
-              Loss = AMSAPb + AMSAPf + AMSOMp + AMSOMa + AMSOMc
+              Gain = myc_inputC(j,3)
+              Loss = AMSOMp + AMSOMa + AMSOMc !AMSAPb + AMSAPf
 
             elseif (i==8) then !SOMp
               !Use the same partitioning between the depth levels as for mycorrhiza (f_myc_levels)
-              Gain = som_input(j,1) + SAPbSOMp + SAPfSOMp + EcMSOMp + ErMSOMp + AMSOMp
+              Gain = som_inputC(j,1) + SAPbSOMp + SAPfSOMp + EcMSOMp + ErMSOMp + AMSOMp
               Loss = SOMpSOMa
 
             elseif (i==9) then !SOMa
                Gain = SAPbSOMa + SAPfSOMa + EcMSOMa + ErMSOMa + AMSOMa +  SOMpSOMa + SOMcSOMa
                Loss = SOMaSAPb + SOMaSAPf
             elseif (i==10) then !SOMc
-              Gain = som_input(j,2) + SAPbSOMc + SAPfSOMc + EcMSOMc + ErMSOMc + AMSOMc
+              Gain = som_inputC(j,2) + SAPbSOMc + SAPfSOMc + EcMSOMc + ErMSOMc + AMSOMc
               Loss = SOMcSOMa
 
             else
