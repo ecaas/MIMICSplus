@@ -9,9 +9,7 @@ implicit none
 real(kind=r8)                                :: tsoi                            ![degC]
 real(kind=r8)                                :: GEP                             ![gC/(m2 h)] Gross ecosystem productivity
 real(kind=r8),parameter                      :: fCLAY  = 0.15                   ![-] fraction of clay in soil
-real(kind=r8),dimension(12),save             :: MGE                             ![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
-                                                                                !The rest is lost in respiration. These should be determined carefully. pH/soil quality/N availability may be important
-                                                                                !Maybe also vary with time/depth..? See DOI:10.1016/j.soilbio.2018.09.036 and DOI: 10.1016/J.SOILBIO.2019.03.008
+
 real(r8)                                     :: f_som1=0.05, f_som2=0.05
 real(kind=r8),dimension(3)                   :: k_mycsap                         ![1/h](EcM, ErM, AM) decay constants, MYC to SAP pool
 real(kind=r8),dimension(3)                   :: k_mycsom                         ! [1/h] decay constants, MYC to SOM pools
@@ -31,6 +29,10 @@ real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/4.0,  4.0, 4.0, 3.0,
 real(kind=r8),parameter, dimension(2)        :: KO      =  4                    ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
 real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*10e3=[gC/m3]
 real(kind=r8),dimension(MM_eqs)              :: Vmax                            ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
+
+real(kind=r8),dimension(MM_eqs),save         :: MGE                             ![mg/mg] Microbial growth efficiency/Carbon Use efficiency. The fraction of the flux from litter pools that is used in microbial processes.
+                                                                                !The rest is lost in respiration. Values should be determined carefully. pH/soil quality/N availability may be important
+                                                                                !Maybe also vary with time/depth..? See DOI:10.1016/j.soilbio.2018.09.036 and DOI: 10.1016/J.SOILBIO.2019.03.008
 
 !Pools: NOTE: This needs to be updated if pools are added to/removed from the system.
 integer, parameter                           :: num_soilc = 1                  !Number of soil columns modeled. Only use one column here, but TODO code should be working for several columns as well (add loop)

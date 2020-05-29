@@ -75,7 +75,7 @@ module mycmim
       integer,parameter              :: write_hour= 24*4
       real(r8)                       :: ecm_frac, erm_frac, am_frac
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
-      MGE       = (/0.3,0.3,0.3,0.3,0.3,0.3,0.4,0.4,0.3,0.3,0.3,0.4/)
+      MGE       = (/0.3,0.3,0.3,0.4,0.4,0.4/)
       lit_inputC = 0.0
       myc_inputC = 0.0
       som_inputC = 0.0
@@ -261,12 +261,12 @@ module mycmim
 
             elseif (i==3) then !SAPb
               Gain = LITmSAPb*MGE(1) + LITsSAPb*MGE(2) &
-              + SOMaSAPb*MGE(6) !+ EcMSAPb*MGE(3) + ErMSAPb*MGE(4) + AMSAPb*MGE(5)
+              + SOMaSAPb*MGE(3) !+ EcMSAPb*MGE(3) + ErMSAPb*MGE(4) + AMSAPb*MGE(5)
               Loss =  SAPbSOMp + SAPbSOMa + SAPbSOMc
 
             elseif (i==4) then !SAPf
-              Gain = LITmSAPf*MGE(7) + LITsSAPf*MGE(8) &
-              + SOMaSAPf*MGE(12) !  + EcMSAPf*MGE(9) + ErMSAPf*MGE(10) + AMSAPf*MGE(11)
+              Gain = LITmSAPf*MGE(4) + LITsSAPf*MGE(5) &
+              + SOMaSAPf*MGE(6) !  + EcMSAPf*MGE(9) + ErMSAPf*MGE(10) + AMSAPf*MGE(11)
               Loss =  SAPfSOMp + SAPfSOMa + SAPfSOMc
 
             elseif (i==5) then !EcM
@@ -322,8 +322,8 @@ module mycmim
           end do !i, pool_types
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t:
-          HR(j) =( LITmSAPb*(1-MGE(1)) + LITsSAPb*(1-MGE(2)) + EcMSAPb*(1-MGE(3)) + ErMSAPb*(1-MGE(4)) + AMSAPb*(1-MGE(5)) + SOMaSAPb*(1-MGE(6)) + LITmSAPf*(1-MGE(7)) &
-          + LITsSAPf*(1-MGE(8)) + EcMSAPf*(1-MGE(9)) + ErMSAPf*(1-MGE(10)) + AMSAPf*(1-MGE(11)) + SOMaSAPf*(1-MGE(12)))*dt
+          HR(j) =( LITmSAPb*(1-MGE(1)) + LITsSAPb*(1-MGE(2))  + SOMaSAPb*(1-MGE(3)) + LITmSAPf*(1-MGE(4)) &
+          + LITsSAPf*(1-MGE(5)) + SOMaSAPf*(1-MGE(6)))*dt
 
           HR_sum(j) = HR_sum(j) + HR(j)
         end do !j, depth_level
