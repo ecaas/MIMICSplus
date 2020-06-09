@@ -119,11 +119,13 @@ module mycmim
 
       !Set initial concentration values in pool_matrixC:
       if (isVertical) then
-        call initialize_vert(InitC, InitN, pool_matrixC, pool_matrixN, nlevdecomp)
+        call initialize_vert(InitC, InitN)
       else
-        call initialize_onelayer(InitC, pool_matrixC, InitN, pool_matrixN)
+        call initialize_onelayer(InitC, InitN)
       end if !isVertical
 
+      pool_matrixC = InitC
+      pool_matrixN = InitN
       change_matrixC = 0.0
       change_matrixN = 0.0
       a_matrix      = pool_matrixC
