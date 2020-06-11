@@ -44,10 +44,13 @@ integer, parameter                           :: pool_types = no_of_litter_pools 
                                                 no_of_sap_pools + no_of_som_pools
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
-real(kind=r8)                                :: fMET                            ![-]
-real(kind=r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
-real(kind=r8), dimension(no_of_sap_pools)    :: tau                             ![1/h]
-real(kind=r8)                                :: desorb = 3e-4 * exp(-4*(sqrt(fclay)))!1.5e-5 * exp(-1.5*(fclay)) ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
+real(r8)                                :: fMET                            ![-]
+real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
+real(r8), dimension(no_of_sap_pools)    :: tau                             ![1/h]
+real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools
+real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.2,0.4,0.3/)
+real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
+real(r8)                                :: desorb = 3e-4 * exp(-4*(sqrt(fclay)))!1.5e-5 * exp(-1.5*(fclay)) ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Depth & vertical transport
 real(r8),parameter                           :: depth = 0.56                    ![m] used if isVertical is False

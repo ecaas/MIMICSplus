@@ -45,17 +45,17 @@ module fluxMod
     SOMc => pool_matrix(depth, 10)
     !print*, 'EcM', EcM
 
-    EcMSOMp=EcM*k_mycsom(1)*0.40!somp
-    EcMSOMa=EcM*k_mycsom(1)*0.40!soma
-    EcMSOMc=EcM*k_mycsom(1)*0.2!somc
+    EcMSOMp=EcM*k_mycsom(1)*fEcMSOM(1)!somp
+    EcMSOMa=EcM*k_mycsom(1)*fEcMSOM(2)!soma
+    EcMSOMc=EcM*k_mycsom(1)*fEcMSOM(3)!somc
 
-    ErMSOMp=ErM*k_mycsom(2)*0.2
-    ErMSOMa=ErM*k_mycsom(2)*0.4
-    ErMSOMc=ErM*k_mycsom(2)*0.3
+    ErMSOMp=ErM*k_mycsom(2)*fErMSOM(1)
+    ErMSOMa=ErM*k_mycsom(2)*fErMSOM(2)
+    ErMSOMc=ErM*k_mycsom(2)*fErMSOM(3)
 
-    AMSOMp=AM*k_mycsom(3)*0.3
-    AMSOMa=AM*k_mycsom(3)*0.3
-    AMSOMc=AM*k_mycsom(3)*0.4
+    AMSOMp=AM*k_mycsom(3)*fAMSOM(1)
+    AMSOMa=AM*k_mycsom(3)*fAMSOM(2)
+    AMSOMc=AM*k_mycsom(3)*fAMSOM(3)
 
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools.
     !NOTE: correspond to eq A4,A8 in Wieder 2015
