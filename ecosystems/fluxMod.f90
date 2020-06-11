@@ -59,7 +59,6 @@ module fluxMod
 
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools.
     !NOTE: correspond to eq A4,A8 in Wieder 2015
-
     SAPbSOMp=SAPb*tau(1)*fPHYS(1)
     SAPbSOMa=SAPb*tau(1)*fAVAIL(1)
     SAPbSOMc=SAPb*tau(1)*fCHEM(1) !No arrow on illustration by Haavard and Ella
@@ -72,64 +71,44 @@ module fluxMod
     SOMaSAPb=SAPb*Vmax(3)*SOMa/(Km(3)+SOMa)
     SOMaSAPf=SAPf*Vmax(6)*SOMa/(Km(6)+SOMa)
 
-
     !Between SOM pools
     !Desorption of SOMp to SOMa, from Mimics model, eq A9
     SOMpSOMa=SOMp*desorb
+
     !---Oxidation from SOMc to SOMa
     !From equations for decomposing structural litter in mimics,eq. A10
     !KO modifies Km which is used in the litter->SAP equations.
     SOMcSOMa    = ( SAPb * Vmax(2) * SOMc / (KO(1)*Km(2) + SOMc)) + &
-                   (SAPf* Vmax(5) * SOMc / (KO(2)*Km(5) + SOMc))
+                   (SAPf * Vmax(5) * SOMc / (KO(2)*Km(5) + SOMc))
 
     nullify( SOMp,SOMa,SOMc,EcM,ErM,AM, SAPb,SAPf)
   end subroutine som_fluxes
 
-  subroutine microbial_fluxes(depth,pool_matrix,level_max) !This subroutine calculates the fluxes between the microbial pools (Mycorrhiza and SAPotrophs).
-
-    integer :: depth,level_max !depth level
-    real(r8),target :: pool_matrix(level_max, pool_types)
-
-    !Creating these pointers improve readability of the flux equations.
-    real(r8), pointer :: EcM,ErM,AM
-    EcM => pool_matrix(depth, 5)
-    ErM => pool_matrix(depth, 6)
-    AM => pool_matrix(depth, 7)
-
-    !From Mycorrhizal pools to SAProtroph pools
-    !Mycorrhizal pool*fraction to SAP*fraction to SAP_r*decay constant for mycorrhizal pool.
-    !NOTE myc->sap Commented out for now, let all dead mycorrhiza go to SOMa
-    !EcMSAPf=EcM*MYC_SAPf*k_mycsap(1)
-
-    !ErMSAPf=ErM*MYC_SAPf*k_mycsap(2)
-    !ErMSAPb=ErM*MYC_SAPb*k_mycsap(2)
-
-    !AMSAPb=AM*MYC_SAPb*k_mycsap(3)
-    !AMSAPf=AM*MYC_SAPf*k_mycsap(3)
-
-    nullify(EcM,ErM,AM)
-  end subroutine microbial_fluxes
-
-  subroutine alt_vertical_diffusion(depth, pool,tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,level_max) !This subroutine calculates the vertical transport of carbon through the soil layers.
-      integer               :: depth, pool,level_max
-      real(r8)              :: pool_matrix(level_max, pool_types)
-      real(r8),intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
-      real(r8), intent(out) :: tot_diffusion_dummy ![gC/day]
-
-      !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
-      if (depth == 1) then
-        upper_diffusion_flux= 0.0
-        lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
-      elseif (depth==level_max) then
-        upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
-        lower_diffusion_flux= 0.0
-      else
-        upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
-        lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
-      end if
-
-      tot_diffusion_dummy=(upper_diffusion_flux-lower_diffusion_flux)/delta_z(depth)
-  end subroutine alt_vertical_diffusion
+  !NOTE myc->sap Commented out for now, let all dead mycorrhiza go to SOMa. see Commit: 075363ec3c7b30471e717ca2a7c94585366cdf56
+  ! subroutine microbial_fluxes(depth,pool_matrix,level_max) !This subroutine calculates the fluxes between the microbial pools (Mycorrhiza and SAPotrophs).
+  !
+  !   integer :: depth,level_max !depth level
+  !   real(r8),target :: pool_matrix(level_max, pool_types)
+  !
+  !   !Creating these pointers improve readability of the flux equations.
+  !   real(r8), pointer :: EcM,ErM,AM
+  !   EcM => pool_matrix(depth, 5)
+  !   ErM => pool_matrix(depth, 6)
+  !   AM => pool_matrix(depth, 7)
+  !
+  !   From Mycorrhizal pools to SAProtroph pools
+  !   Mycorrhizal pool*fraction to SAP*fraction to SAP_r*decay constant for mycorrhizal pool.
+  !   EcMSAPf=EcM*MYC_SAPf*k_mycsap(1)
+  !   EcMSAPf=EcM*MYC_SAPb*k_mycsap(1)
+  !
+  !   ErMSAPf=ErM*MYC_SAPf*k_mycsap(2)
+  !   ErMSAPb=ErM*MYC_SAPb*k_mycsap(2)
+  !
+  !   AMSAPb=AM*MYC_SAPb*k_mycsap(3)
+  !   AMSAPf=AM*MYC_SAPf*k_mycsap(3)
+  !
+  !   nullify(EcM,ErM,AM)
+  ! end subroutine microbial_fluxes
 
   subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,level_max,vert,t,counter,step_frac) !This subroutine calculates the vertical transport of carbon through the soil layers.
 
@@ -141,9 +120,13 @@ module fluxMod
       real(r8)              :: t !t*dt in main routine
       real(r8)              :: sum_day=0.0
       real(r8)              :: step_frac
-      !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
+
+      !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
+      !pool_matrix is used here to calculate the diffusion.
       do depth = 1,level_max
         do pool =1, pool_types
+
+          !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
           if (depth == 1) then
             upper_diffusion_flux= 0.0
             lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
@@ -154,45 +137,39 @@ module fluxMod
             upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
             lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
           end if
+
           tot_diffusion_dummy=(upper_diffusion_flux-lower_diffusion_flux)/delta_z(depth)
           vert(depth,pool) = tot_diffusion_dummy
           sum_day=sum_day+tot_diffusion_dummy
-          ! if (counter == step_frac) then
-          !   write(unit=10,fmt='(F10.0,A2,I2,A2,I6,A2,F30.10,A2,F30.10,A2,F30.10)') &
-          !   t,',',depth,',',pool,',',tot_diffusion_dummy,',', upper_diffusion_flux,',', lower_diffusion_flux
-          !   sum_day=0.0
-          ! end if !writing
         end do !pool
       end do !depth
 
   end subroutine vertical_diffusion
-
-  !FROM mimics_cycle.f90 in testbed:
-  ! ! Read in soil moisture data as in CORPSE
-  !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
-  !  theta_frzn = min(1.0, casamet%frznmoistavg(npt)/soil%ssat(npt)) ! fraction of frozen water-filled pore space (0.0 - 1.0)
-  !  air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
-  !
-  !  if (mimicsbiome%fWFunction .eq. CORPSE) then
-  !    ! CORPSE water scalar, adjusted to give maximum values of 1
-  !    fW = (theta_liq**3 * air_filled_porosity**2.5)/0.022600567942709
-  !    fW = max(0.05, fW)
-
 
   subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist)
     real(r8), intent(out), dimension(nlevdecomp) :: r_moist
     real(r8), intent(in), dimension(nlevdecomp)  :: theta_l, theta_sat, theta_f
     real(r8), dimension(nlevdecomp)  :: theta_frzn, theta_liq, air_filled_porosity
 
+
+      !FROM mimics_cycle.f90 in testbed:
+      ! ! Read in soil moisture data as in CORPSE
+      !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
+      !  theta_frzn = min(1.0, casamet%frznmoistavg(npt)/soil%ssat(npt)) ! fraction of frozen water-filled pore space (0.0 - 1.0)
+      !  air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
+      !
+      !  if (mimicsbiome%fWFunction .eq. CORPSE) then
+      !    ! CORPSE water scalar, adjusted to give maximum values of 1
+      !    fW = (theta_liq**3 * air_filled_porosity**2.5)/0.022600567942709
+      !    fW = max(0.05, fW)
+
+
     theta_liq  = min(1.0, theta_l/theta_sat)     ! fraction of liquid water-filled pore space (0.0 - 1.0)
     theta_frzn = min(1.0, theta_f/theta_sat)     ! fraction of frozen water-filled pore space (0.0 - 1.0)
     air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
-    !call disp('liq',theta_liq)
-    !call disp('frzn', theta_frzn)
+
     r_moist = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
     r_moist = max(0.05, r_moist)
 
-
-    !r_moist = max(0.05, (theta_l/theta_sat)**3*(1-(theta_l/theta_sat)-(theta_f/theta_sat))**gas_diffusion)
   end subroutine moisture_func
 end module fluxMod
