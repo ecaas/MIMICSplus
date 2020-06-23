@@ -32,6 +32,7 @@ module mycmim
       real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C amount that is lost to respiration
       real(r8)                       :: pool_matrixC(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m3]
       real(r8)                       :: mass_pool_matrixC(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m2] (pool_matrixC*delta_z)
+      real(r8)                       :: previous_conc(nlevdecomp,pool_types)   ! stores concentration at timestep. Used for comparing in subroutine test_mass_conservation
       real(r8)                       :: change_matrixC(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: a_matrix(nlevdecomp, pool_types)     ! For storing the analytical solution
       real(r8)                       :: InitC(nlevdecomp, pool_types)         ! Initial C concentration, determined in initMod.f90
@@ -74,6 +75,8 @@ module mycmim
       real(r8)                       :: vertC_change_sum(nlevdecomp, pool_types)
       integer,parameter              :: write_hour= 24*4
       real(r8)                       :: ecm_frac, erm_frac, am_frac
+      real(r8), dimension(nlevdecomp, 7) :: tot_input
+
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
       MGE       = (/0.3,0.3,0.3,0.4,0.4,0.4/)
       lit_inputC = 0.0
@@ -172,7 +175,7 @@ module mycmim
         counter =counter + 1
         ycounter = ycounter + 1
         month_counter = month_counter + 1
-
+        previous_conc = pool_matrixC !Store value of previous timestep. Used in subroutine test_mass_conservation
 
         if (month_counter == days_in_month(current_month)*24) then
           previous_month = current_month
@@ -327,9 +330,19 @@ module mycmim
           HR(j) =( LITmSAPb*(1-MGE(1)) + LITsSAPb*(1-MGE(2))  + SOMaSAPb*(1-MGE(3)) + LITmSAPf*(1-MGE(4)) &
           + LITsSAPf*(1-MGE(5)) + SOMaSAPf*(1-MGE(6)))*dt
 
+          if (HR(j) < 0.0) then
+            print*, 'Negative HR: ', HR(j)
+          end if
+
+
           HR_sum(j) = HR_sum(j) + HR(j)
         end do !j, depth_level
-        !call disp('HR ', HR)
+
+        !Store accumulated HR mass
+        call respired_mass(HR, HR_mass)
+        HR_mass_accumulated = HR_mass_accumulated + HR_mass
+
+
         if (isVertical) then
           call vertical_diffusion(tot_diff,upper,lower, pool_temporaryC,vertC,time, counter,dt)
           pool_matrixC =  vertC*dt + pool_temporaryC
@@ -365,5 +378,8 @@ module mycmim
       end do !t
       !call store_parameters(run_name)
 
+      call tot_mass_input(lit_inputC, som_inputC,myc_inputC, tot_input)!TODO: Need to multiply with dt! (current dt =1, so ok for now..09.06.20)
+      input_mass_accumulated = sum(tot_input)*nsteps
+      call total_mass_conservation(sum_input= input_mass_accumulated, sum_respiration = HR_mass_accumulated, old = InitC, new = pool_matrixC)
     end subroutine decomp
 end module mycmim
