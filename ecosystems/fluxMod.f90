@@ -4,13 +4,11 @@ module fluxMod
   implicit none
 
   contains
-
-
-  subroutine litter_fluxes(depth,pool_matrix,level_max) !This subroutine calculates the fluxes out of the litter pools. The input to litter pools comes from vegetation, and is not handeled in this subroutine.
+  subroutine litter_fluxes(depth,pool_matrix) !This subroutine calculates the fluxes out of the litter pools. The input to litter pools comes from vegetation, and is not handeled in this subroutine.
     !This is the total flux from the litter pools. A fraction (1-MGE) is lost to respiration before it reaches the SAP pools. This is handeled in the "decomp" subroutine.
 
-    integer :: depth,level_max !depth level
-    real(r8),target :: pool_matrix(level_max, pool_types)
+    integer :: depth!depth level
+    real(r8),target :: pool_matrix(nlevdecomp, pool_types)
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: SAPb, SAPf, LITm, LITs
     SAPb => pool_matrix(depth, 3)
@@ -29,10 +27,10 @@ module fluxMod
     nullify(SAPb, SAPf, LITm,LITs)
   end subroutine litter_fluxes
 
-  subroutine som_fluxes(depth,pool_matrix,level_max) !This subroutine calculates the fluxes in and out of the SOM pools.
+  subroutine som_fluxes(depth,pool_matrix) !This subroutine calculates the fluxes in and out of the SOM pools.
 
-    integer :: depth,level_max !depth level
-    real(r8),target :: pool_matrix(level_max, pool_types)
+    integer :: depth!depth level
+    real(r8),target :: pool_matrix(nlevdecomp, pool_types)
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: SOMp,SOMa,SOMc,EcM,ErM,AM, SAPb, SAPf
     SAPb => pool_matrix(depth, 3)
@@ -110,27 +108,27 @@ module fluxMod
   !   nullify(EcM,ErM,AM)
   ! end subroutine microbial_fluxes
 
-  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,level_max,vert,t,counter,step_frac) !This subroutine calculates the vertical transport of carbon through the soil layers.
+  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,t,counter,step_frac) !This subroutine calculates the vertical transport of carbon through the soil layers.
 
-      integer               :: level_max, depth, pool,counter
-      real(r8)              :: pool_matrix(level_max, pool_types)
+      integer               :: depth, pool,counter
+      real(r8)              :: pool_matrix(nlevdecomp, pool_types)
       real(r8),intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
       real(r8), intent(out) :: tot_diffusion_dummy ![gC/day]
-      real(r8),intent(out)  :: vert(level_max, pool_types)
+      real(r8),intent(out)  :: vert(nlevdecomp, pool_types)
       real(r8)              :: t !t*dt in main routine
       real(r8)              :: sum_day=0.0
       real(r8)              :: step_frac
 
       !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
       !pool_matrix is used here to calculate the diffusion.
-      do depth = 1,level_max
+      do depth = 1,nlevdecomp
         do pool =1, pool_types
 
           !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
           if (depth == 1) then
             upper_diffusion_flux= 0.0
             lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
-          elseif (depth==level_max) then
+          elseif (depth==nlevdecomp) then
             upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
             lower_diffusion_flux= 0.0
           else

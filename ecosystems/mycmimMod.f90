@@ -245,9 +245,9 @@ module mycmim
           k_mycsom  = (/1.4,1.4,1.4/)*10e-3*r_moist(j)   ![1/h] Decay constants, myc som
 
           !Calculate fluxes between pools in level j:
-          call microbial_fluxes(j, pool_matrixC,nlevdecomp)
-          call som_fluxes(j, pool_matrixC,nlevdecomp)
-          call litter_fluxes(j, pool_matrixC,nlevdecomp)
+          !call microbial_fluxes(j, pool_matrixC,nlevdecomp)
+          call som_fluxes(j, pool_matrixC)
+          call litter_fluxes(j, pool_matrixC)
 
           do i = 1, pool_types !loop over all the pool types, i, in depth level j
             !This if-loop calculates dC/dt for the different carbon pools.NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
@@ -331,7 +331,7 @@ module mycmim
         end do !j, depth_level
         !call disp('HR ', HR)
         if (isVertical) then
-          call vertical_diffusion(tot_diff,upper,lower, pool_temporaryC, nlevdecomp,vertC,time, counter,dt)
+          call vertical_diffusion(tot_diff,upper,lower, pool_temporaryC,vertC,time, counter,dt)
           pool_matrixC =  vertC*dt + pool_temporaryC
           vertC_change_sum = vertC_change_sum + vertC*dt
           !call disp("pool_matrixC",pool_matrixC)
