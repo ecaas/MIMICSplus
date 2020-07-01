@@ -63,6 +63,34 @@ real(r8),dimension(nlevdecomp,pool_types)    :: net_diffusion
 !real(r8), dimension(nlevdecomp), parameter   :: f_depth = 1!(/1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4/)
 real(r8), parameter                          :: min_pool_value = 0.01
 
+real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
+                                                                                          !NOTE: Wallander/Rousk may have data more suited for Boreal/Arctic conditions
+                                                                                          !EcM: From Baskaran et al as in Wallander et al 2004
+                                                                                          !SOM: From CLM documentation, table 21.3 (Mendeley version)
+                                                                                          !LITm: MIMICS-CN manuscript
+                                                                                          !LITs, ErM, AM: Guesses!
+!From Baskaran et al 2016
+real(r8), parameter :: yr_to_hr = 365*24        !Year to hour
+real(r8), parameter :: my_sap = 1/yr_to_hr      ![1/hr]mortality rate sap
+real(r8), parameter :: my_myc = 1/yr_to_hr      ![1/hr] mortality rate myc
+real(r8), parameter :: my_root = 0.15/yr_to_hr  ![1/hr]mortality rate plant root
+real(r8), parameter :: my_shoot = 0.15/yr_to_hr ![1/hr]  mortality rate plant shoot
+real(r8), parameter :: gamma_rs = 0.3           !Plant root:shoot ratio                      TODO: Vary with plant type/pft/myc?
+real(r8)            :: delta                    !Fraction of plant C allocated to mycorrhiza TODO: determine based on myc type?
+real(r8), parameter :: a = 80                   !gC(gN)⁻¹yr⁻¹, max plant N productivity
+real(r8), parameter :: b = 0.09                 !Shading factor of plant productivity
+real(r8), parameter :: Km_plant = 0.6           ![gNm-2] Half saturation constant of plant uptake of inorganic N (called S_p in article)
+real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article)
+real(r8), parameter :: V_max_plant = 1.8        ![g g-1 yr-1] Max plant root uptake of inorganic N (called K_pn in article)
+real(r8), parameter :: V_max_myc = 1.8          ![g g-1 yr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article)
+real(r8), parameter :: Leaching_rate = 3             ![gNm-2yr-1] Leaching rate
+real(r8), parameter :: Deposition_rate = 0.3         ![gNm-2yr-1] Deposition rate           NOTE: varied from 0.3-3 in article
+real(r8), parameter :: e_s = 0.25 !Growth efficiency of saprotrophs                         TODO: Compare these to the efficiencies from Mimics
+real(r8), parameter :: e_m = 0.25 !Growth efficiency of mycorrhiza
+!Decomposition rates:
+real(r8), parameter :: K_SH = 0.006 ![m2gC-1yr-1] Saprotrophic decay rate constant for hydrolizable store. TODO: review these
+real(r8), parameter :: K_MO = 0.003 ![m2gC-1yr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
+
 real(r8), dimension(nlevdecomp)          :: TSOIL
 real(r8), dimension(nlevdecomp)          :: SOILLIQ
 real(r8), dimension(nlevdecomp)          :: SOILICE
@@ -76,9 +104,14 @@ real(r8)                                     :: gas_diffusion
 integer, parameter, dimension(12)           :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
 integer                                      :: current_month, previous_month
 !Fluxes between pools:
-real(r8) :: LITmSAPb, LITsSAPb, EcMSAPb, ErMSAPb, AMSAPb, EcMSOMp, EcMSOMa, EcMSOMc, ErMSOMp, ErMSOMa, ErMSOMc, AMSOMp, AMSOMa, AMSOMc, SOMaSAPb,SOMaSAPf, SOMpSOMa, SOMcSOMa
-real(r8) :: LITmSAPf, LITsSAPf, EcMSAPf, ErMSAPf, AMSAPf
-real(r8) :: SAPbSOMa, SAPbSOMp, SAPbSOMc,SAPfSOMa, SAPfSOMp, SAPfSOMc
+real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_ErMSOMp, C_ErMSOMa, C_ErMSOMc, C_AMSOMp, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa
+real(r8) :: C_LITmSAPf, C_LITsSAPf
+real(r8) :: C_SAPbSOMa, C_SAPbSOMp, C_SAPbSOMc,C_SAPfSOMa, C_SAPfSOMp, C_SAPfSOMc
+real(r8) :: N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc, N_ErMSOMp, N_ErMSOMa, N_ErMSOMc, N_AMSOMp, N_AMSOMa, N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa
+real(r8) :: N_LITmSAPf, N_LITsSAPf, N_SOMaEcM, N_SOMaErM,N_SOMaAM, N_PlantLITs, N_PlantLITm, N_INPlant, N_INEcM, N_INErM, N_INAM, N_EcMPlant, N_ErMPlant, N_AMPlant
+real(r8) :: N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc, N_SAPfIN, N_SAPbIN
+real(r8) :: C_growth_rate, C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, Decomp_ecm, Decomp_erm, Decomp_am, Leaching, Deposition
+real(r8) :: C_PR, C_PS, Total_plant_mortality,f, U_sb, U_sf
 !End fluxes between pools
 character (len=*),parameter                  :: clm_data_file = '/home/ecaas/clm/cruncep_iso_hist/Dovre/clm50_clm50d001_1deg_CRUNCEPV7_iso_hist.clm2.h0.SOILLIQ_SOILICE_TSOI.Dovre2014.nc'
 !For writing to file:
