@@ -58,16 +58,17 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_netcdf
 
-    subroutine fill_netcdf(run_name, soil_levels, time, pool_matrix, change_matrix, a_matrix, HR, vert_sum, write_hour,month)
+    subroutine fill_netcdf(run_name, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, a_matrix, HR, vert_sum, write_hour,month)
       character (len = *):: run_name
 
-      integer :: soil_levels, time, i , j, varidchange,varid,ncid,varidan, timestep,vertid,write_hour
-      real(r8), intent(in)                       :: pool_matrix(soil_levels,pool_types)   ! For storing C pool sizes [gC/m3]
-      real(r8), intent(in)                       :: change_matrix(soil_levels,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
-      real(r8), intent(in)                       :: a_matrix(soil_levels,pool_types) ! For storing analytical solution
-      real(r8), intent(in)                       :: vert_sum(soil_levels, pool_types)
-      integer, intent(in)                       :: month
-      real(r8), dimension(soil_levels)           :: HR,HR_sum
+      integer :: time, i , j, varidchange,varid,ncid,varidan, timestep,vertid,write_hour
+      real(r8), intent(in)                       :: pool_matrix(nlevdecomp,pool_types), Npool_matrix(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m3]
+      real(r8), intent(in)                       :: change_matrix(nlevdecomp,pool_types), Nchange_matrix(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
+      real(r8), intent(in)                       :: a_matrix(nlevdecomp,pool_types) ! For storing analytical solution
+      real(r8), intent(in)                       :: vert_sum(nlevdecomp, pool_types)
+      integer, intent(in)                        :: month
+      real(r8), dimension(nlevdecomp)           :: HR,HR_sum
+
       if (time == 1) then
         !print*, "INSIDE"
         timestep = 1
@@ -82,7 +83,7 @@ module writeMod
 
       call check(nf90_inq_varid(ncid, "month", varid))
       call check(nf90_put_var(ncid, varid, month, start = (/ timestep /)))
-      do j=1,soil_levels
+      do j=1,nlevdecomp
         call check(nf90_inq_varid(ncid, "HR", varid))
       !  print*,  HR_sum(j)
         call check(nf90_put_var(ncid, varid, HR(j), start = (/timestep, j/)))

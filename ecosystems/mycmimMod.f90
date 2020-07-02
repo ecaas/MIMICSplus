@@ -147,8 +147,8 @@ module mycmim
 
       !open and prepare files to store results. Store initial value
       call create_netcdf(run_name)
-      call fill_netcdf(run_name, nlevdecomp,t_init, pool_matrixC, change_matrixC, a_matrix, HR, vertC_change_sum, write_hour,current_month)
       call fill_netcdf(run_name, nlevdecomp,t_init, pool_matrixN, change_matrixN, a_matrix, HR, vertN_change_sum, write_hour,current_month)
+      call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, a_matrix, HR, vertC_change_sum, write_hour,current_month)
      !stop
       counter = 0
       ycounter = 0
@@ -358,7 +358,7 @@ module mycmim
 
           counter = 0
           !call disp("pool_matrixC ",pool_matrixC)
-          call fill_netcdf(run_name, nlevdecomp, t, pool_matrixC, change_sum, a_matrix,HR, vertC_change_sum, write_hour,current_month)
+          call fill_netcdf(run_name, t, pool_matrixC, change_sum, pool_matrixN,change_matrixN, a_matrix,HR, vertC_change_sum, write_hour,current_month)
           HR_sum = 0.0
           change_sum = 0.0
           vertC_change_sum = 0.0
