@@ -63,11 +63,11 @@ module mycmim
       real(r8)                       :: tot_diff,upper,lower                 ! For the call to vertical_diffusion
       real(r8)                       :: vertC(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrixC
       real(r8)                       :: vertN(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrixN
+!NOTE: these are not used after the plant pool was introduced:
+!      real(r8)                       :: lit_inputC(nlevdecomp,no_of_litter_pools)![gC/(m3 h)] Fraction of litter input to LITm and LITs, respectively
+!      real(r8)                       :: myc_inputC(nlevdecomp,no_of_myc_pools)   ![gC/(m3 h)] vector giving the input from vegetation to mycorrhiza pools
+!      real(r8)                       :: som_inputC(nlevdecomp,no_of_som_pools-1) ![gC/(m3 h)] !only input to SOMp and SOMc
 
-      real(r8)                       :: lit_inputC(nlevdecomp,no_of_litter_pools)![gC/(m3 h)] Fraction of litter input to LITm and LITs, respectively
-      real(r8)                       :: myc_inputC(nlevdecomp,no_of_myc_pools)   ![gC/(m3 h)] vector giving the input from vegetation to mycorrhiza pools
-      real(r8)                       :: som_inputC(nlevdecomp,no_of_som_pools-1) ![gC/(m3 h)] !only input to SOMp and SOMc
-      integer                        :: ycounter, year,ncid,varid
       integer                        :: counter                                 !used for determining when to output results
       integer                        :: month_counter
       integer                        :: j,i,t                                   !for iterations
@@ -77,14 +77,14 @@ module mycmim
       real(r8)                       :: vertN_change_sum(nlevdecomp, pool_types)
       real(r8)                       :: vertC_change_sum(nlevdecomp, pool_types)
       integer,parameter              :: write_hour= 24*4
-      real(r8)                       :: ecm_frac, erm_frac, am_frac
+!      real(r8)                       :: ecm_frac, erm_frac, am_frac
       real(r8), dimension(nlevdecomp, 7) :: tot_input
 
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
       MGE       = (/0.3,0.3,0.3,0.4,0.4,0.4/)
-      lit_inputC = 0.0
-      myc_inputC = 0.0
-      som_inputC = 0.0
+!      lit_inputC = 0.0
+!      myc_inputC = 0.0
+!      som_inputC = 0.0
       ! Fracions of SAP that goes to different SOM pools
       fPHYS = (/ 0.3 * exp(fCLAY), 0.2 * exp(0.8*fCLAY) /)
       fCHEM =  (/0.1 * exp(-3.0*fMET), 0.3 * exp(-3*fMET) /)
@@ -99,29 +99,29 @@ module mycmim
 
       dt= 1.0/step_frac !Setting the time step
 
-      if (ecosystem == 'Heath') then
-         GEP      = 0.281
-         fMET     = 0.4 !Fraction of input to litter that goes to the metabolic litter pool
-         ecm_frac = 1
-         erm_frac = 2
-         am_frac = 0
-      elseif (ecosystem == 'Meadow') then
-        GEP       = 0.385
-        fMET      = 0.5 !Fraction of input to litter that goes to the metabolic litter pool
-        ecm_frac = 1
-        erm_frac = 1
-        am_frac = 1
-      elseif (ecosystem == 'Shrub') then
-        GEP       = 0.491
-        fMET      = 0.30 !Fraction of input to litter that goes to the metabolic litter pool
-        ecm_frac = 2
-        erm_frac = 1
-        am_frac = 0
-      else
-        print*, 'Invalid ecosystem name', ecosystem
-        stop
-      end if
-      print*, ecosystem
+      ! if (ecosystem == 'Heath') then
+      !    GEP      = 0.281
+      !    fMET     = 0.4 !Fraction of input to litter that goes to the metabolic litter pool
+      !    ecm_frac = 1
+      !    erm_frac = 2
+      !    am_frac = 0
+      ! elseif (ecosystem == 'Meadow') then
+      !   GEP       = 0.385
+      !   fMET      = 0.5 !Fraction of input to litter that goes to the metabolic litter pool
+      !   ecm_frac = 1
+      !   erm_frac = 1
+      !   am_frac = 0
+      ! elseif (ecosystem == 'Shrub') then
+      !   GEP       = 0.491
+      !   fMET      = 0.30 !Fraction of input to litter that goes to the metabolic litter pool
+      !   ecm_frac = 2
+      !   erm_frac = 1
+      !   am_frac = 0
+      ! else
+      !   print*, 'Invalid ecosystem name', ecosystem
+      !   stop
+      ! end if
+      ! print*, ecosystem
 
       !Set initial concentration values in pool_matrixC:
       if (isVertical) then
@@ -165,13 +165,12 @@ module mycmim
       ! if (current_month == previous_month + 1) then
       !   !update temp and moisture variables
       ! end if
+      !Inputs from aboveground litter to LIT and protected SOM pools: GEP/depth [gC/m3h]NOTE: No longer in use!
+      ! lit_inputC(1,:) = (/fMET, (0.9-fMET)/)*GEP/(delta_z(1) + delta_z(2))!Partition between litter pools. The last 0.1 fraction goes directly to SOM
+      ! som_inputC(1,:) = (/0.05, 0.05/)*GEP/(delta_z(1) + delta_z(2))
+      ! myc_inputC(4,:) = (/ecm_frac, erm_frac, am_frac/)*(GEP)/(delta_z(4))
+      ! myc_inputC(5,:) = (/ecm_frac, erm_frac,am_frac/)*(GEP)/(delta_z(5))
 
-      !Inputs from aboveground litter to LIT and protected SOM pools: GEP/depth [gC/m3h]
-      lit_inputC(1,:) = (/fMET, (0.9-fMET)/)*GEP/(delta_z(1) + delta_z(2))!Partition between litter pools. The last 0.1 fraction goes directly to SOM
-      som_inputC(1,:) = (/0.05, 0.05/)*GEP/(delta_z(1) + delta_z(2))
-      myc_inputC(4,:) = (/ecm_frac, erm_frac, am_frac/)*GEP/(delta_z(6) + delta_z(6))
-      myc_inputC(5,:) = (/ecm_frac, erm_frac,am_frac/)*GEP/(delta_z(5) + delta_z(5))
-      !TODO Add N input to different layers
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
         time = t*dt
