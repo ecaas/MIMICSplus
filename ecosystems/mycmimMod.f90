@@ -251,54 +251,76 @@ module mycmim
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
             !NOTE: The "change_matrixC" values correspond to the equations A11-A17 in Wieder 2015
             if (i==1) then !LITm
-              Gain = lit_inputC(j,1)
-              Loss = LITmSAPb + LITmSAPf
-
+              N_Gain = N_PlantLITm
+              N_Loss = N_LITmSAPb + N_LITmSAPf
+              C_Gain = C_PlantLITm
+              C_Loss = C_LITmSAPb + C_LITmSAPf
             elseif (i==2) then !LITs
-              Gain = lit_inputC(j,2)
-              Loss = LITsSAPb + LITsSAPf
-
-            elseif (i==3) then !SAPb
-              Gain = LITmSAPb*MGE(1) + LITsSAPb*MGE(2) &
-              + SOMaSAPb*MGE(3) !+ EcMSAPb*MGE(3) + ErMSAPb*MGE(4) + AMSAPb*MGE(5)
-              Loss =  SAPbSOMp + SAPbSOMa + SAPbSOMc
-
+              N_Gain = N_PlantLITs
+              N_Loss = N_LITsSAPb + N_LITsSAPf
+              C_Gain = C_PlantLITs
+              C_Loss = C_LITsSAPb + C_LITsSAPf
+            elseif (i==3) then !SAPb                                            !TODO Sap: Check if MGE/efficiency still makes sense in the new setup.
+              C_Gain = C_LITmSAPb*MGE(1) + C_LITsSAPb*MGE(2) &
+              + C_SOMaSAPb*MGE(3)
+              C_Loss =  C_SAPbSOMp + C_SAPbSOMa + C_SAPbSOMc
+              N_Gain = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb
+              N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMp + N_SAPbIN
             elseif (i==4) then !SAPf
-              Gain = LITmSAPf*MGE(4) + LITsSAPf*MGE(5) &
-              + SOMaSAPf*MGE(6) !  + EcMSAPf*MGE(9) + ErMSAPf*MGE(10) + AMSAPf*MGE(11)
-              Loss =  SAPfSOMp + SAPfSOMa + SAPfSOMc
-
+              C_Gain = C_LITmSAPf*MGE(1) + C_LITsSAPf*MGE(2) &
+              + C_SOMaSAPf*MGE(3)
+              C_Loss =  C_SAPfSOMp + C_SAPfSOMa + C_SAPfSOMc
+              N_Gain = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
+              N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMp + N_SAPfIN
             elseif (i==5) then !EcM
-              Gain = myc_inputC(j,1)
-              Loss = EcMSOMp + EcMSOMa + EcMSOMc !EcMSAPb + EcMSAPf
-
+              C_Gain = C_PlantEcM
+              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc
+              N_Gain = N_INEcM + N_SOMaEcM
+              N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
             elseif (i==6) then !ErM
-              Gain = myc_inputC(j,2)
-              Loss = ErMSOMp + ErMSOMa + ErMSOMc !ErMSAPb + ErMSAPf
-
+              C_Gain = C_PlantErM
+              C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc
+              N_Gain = N_INErM + N_SOMaErM
+              N_Loss = N_ErMPlant + N_ErMSOMa + N_ErMSOMp + N_ErMSOMc
             elseif (i==7) then !AM
-              Gain = myc_inputC(j,3)
-              Loss = AMSOMp + AMSOMa + AMSOMc !AMSAPb + AMSAPf
-
+              C_Gain = C_PlantAM
+              C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc
+              N_Gain = N_INAM + N_SOMaAM
+              N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
             elseif (i==8) then !SOMp
-              !Use the same partitioning between the depth levels as for mycorrhiza (f_myc_levels)
-              Gain = som_inputC(j,1) + SAPbSOMp + SAPfSOMp + EcMSOMp + ErMSOMp + AMSOMp
-              Loss = SOMpSOMa
-
+              C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp
+              C_Loss = C_SOMpSOMa
+              N_Gain =  N_SAPbSOMp + N_SAPfSOMp + N_EcMSOMp + N_ErMSOMp + N_AMSOMp
+              N_Loss = N_SOMpSOMa
             elseif (i==9) then !SOMa
-               Gain = SAPbSOMa + SAPfSOMa + EcMSOMa + ErMSOMa + AMSOMa +  SOMpSOMa + SOMcSOMa
-               Loss = SOMaSAPb + SOMaSAPf
+               C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa
+               C_Loss = C_SOMaSAPb + C_SOMaSAPf
+               N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa
+               N_Loss = N_SOMaSAPb + N_SOMaSAPf + N_SOMaEcM + N_SOMaErM + N_SOMaAM
             elseif (i==10) then !SOMc
-              Gain = som_inputC(j,2) + SAPbSOMc + SAPfSOMc + EcMSOMc + ErMSOMc + AMSOMc
-              Loss = SOMcSOMa
-
+              C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc
+              C_Loss = C_SOMcSOMa
+              N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_ErMSOMc + N_AMSOMc
+              N_Loss = N_SOMcSOMa
+            elseif (i == 11) then !Inorganic N
+                 N_Gain = N_SAPbIN + N_SAPfIN + Deposition/delta_z(j)
+                 N_Loss = N_INEcM + N_INErM + N_INAM + N_InPlant + Leaching/delta_z(j)
+                 change_matrixN(j,i) = N_Gain - N_loss
             else
-              print*, 'Too many pool types expected, pool_types = ',pool_types
+              print*, 'Too many pool types expected, pool_types = ',pool_types, 'i: ', i
             end if !determine dC_i/dt
-            change_matrixC(j,i) = Gain - Loss
-            change_sum(j,i)= change_sum(j,i) + change_matrixC(j,i)*dt
-            !Store these values as temporary so that they can be used in the diffusion subroutine
-            pool_temporaryC(j,i)=pool_matrixC(j,i) + change_matrixC(j,i)*dt
+
+            if (i /= 11) then !Carbon matrix does only have 10 columns (if i == 11 this is handeled inside the loop over pools)
+                change_matrixC(j,i) = C_Gain - C_Loss
+                change_matrixN(j,i) = N_Gain - N_loss
+                !For summarize total change between each written output
+                change_sum(j,i)= change_sum(j,i) + change_matrixC(j,i)*dt
+                !Store these values as temporary so that they can be used in the diffusion subroutine
+                pool_temporaryC(j,i)=pool_matrixC(j,i) + change_matrixC(j,i)*dt
+            end if
+
+
+            pool_matrixN(j,i) = pool_matrixN(j,i) + change_matrixN(j,i)*dt      !NOTE No vertical transport of nitrogen (yet..)
 
             !control check
             if (pool_temporaryC(j,i) < 0.0) then
