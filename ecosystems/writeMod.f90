@@ -44,12 +44,20 @@ module writeMod
         call check(nf90_def_var(ncid, trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
         call check(nf90_def_var(ncid, "change"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
         call check(nf90_def_var(ncid, "an"//trim(variables(v)), NF90_DOUBLE, (/t_dimid, lev_dimid/), varid))
+
+        call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, "N_change"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
       end do
+      call check(nf90_def_var(ncid, "N_inorganic", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "N_plant", NF90_DOUBle, (/t_dimid/),varid))
+      call check(nf90_def_var(ncid, "C_plant", NF90_DOUBle, (/t_dimid/),varid))
       call check(nf90_def_var(ncid,"HR", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid, "vert_change", NF90_DOUBLE, (/t_dimid, lev_dimid/), varid))
-      do v = 1, size(name_fluxes)
-        call check(nf90_def_var(ncid, trim(name_fluxes(v)), NF90_double, (/t_dimid, lev_dimid /), varid))
-      end do
+      call check(nf90_def_var(ncid, "Temp", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
+      call check(nf90_def_var(ncid, "Moisture", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
+      ! do v = 1, size(name_fluxes)
+      !   call check(nf90_def_var(ncid, trim(name_fluxes(v)), NF90_double, (/t_dimid, lev_dimid /), varid))
+      ! end do
       call check(nf90_def_var(ncid, "time", NF90_DOUBLE, (/t_dimid /), varid))
       call check(nf90_def_var(ncid, "month", NF90_DOUBLE, (/t_dimid /), varid))
 
@@ -58,24 +66,25 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_netcdf
 
-    subroutine fill_netcdf(run_name, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, a_matrix, HR, vert_sum, write_hour,month)
+    subroutine fill_netcdf(run_name, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, a_matrix, HR, vert_sum, write_hour,month, N_plant, C_plant, TSOIL, MOIST)
       character (len = *):: run_name
 
       integer :: time, i , j, varidchange,varid,ncid,varidan, timestep,vertid,write_hour
-      real(r8), intent(in)                       :: pool_matrix(nlevdecomp,pool_types), Npool_matrix(nlevdecomp,pool_types)   ! For storing C pool sizes [gC/m3]
-      real(r8), intent(in)                       :: change_matrix(nlevdecomp,pool_types), Nchange_matrix(nlevdecomp,pool_types) ! For storing dC/dt for each time step [gC/(m3*day)]
+      real(r8), intent(in)                       :: pool_matrix(nlevdecomp,pool_types), Npool_matrix(nlevdecomp,pool_types+1)   ! For storing C pool sizes [gC/m3]
+      real(r8), intent(in)                       :: N_plant, C_plant
+      real(r8), intent(in)                       :: change_matrix(nlevdecomp,pool_types), Nchange_matrix(nlevdecomp,pool_types+1) ! For storing dC/dt for each time step [gC/(m3*day)]
       real(r8), intent(in)                       :: a_matrix(nlevdecomp,pool_types) ! For storing analytical solution
       real(r8), intent(in)                       :: vert_sum(nlevdecomp, pool_types)
       integer, intent(in)                        :: month
       real(r8), dimension(nlevdecomp)           :: HR,HR_sum
+      real(r8), dimension(nlevdecomp)           :: TSOIL, MOIST
 
       if (time == 1) then
-        !print*, "INSIDE"
         timestep = 1
       else
         timestep = time/write_hour+1
       end if
-      !  print*, HR_sum
+
       call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, ncid))
 
       call check(nf90_inq_varid(ncid, "time", varid))
@@ -83,17 +92,39 @@ module writeMod
 
       call check(nf90_inq_varid(ncid, "month", varid))
       call check(nf90_put_var(ncid, varid, month, start = (/ timestep /)))
+
+      call check(nf90_inq_varid(ncid, "N_plant", varid))
+      call check(nf90_put_var(ncid, varid, N_Plant, start = (/ timestep /)))
+
+      call check(nf90_inq_varid(ncid, "C_plant", varid))
+      call check(nf90_put_var(ncid, varid, C_Plant, start = (/ timestep /)))
+
       do j=1,nlevdecomp
+        call check(nf90_inq_varid(ncid, "Temp",varid))
+        call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/timestep,j/)))
+
+        call check(nf90_inq_varid(ncid, "Moisture",varid))
+        call check(nf90_put_var(ncid, varid, MOIST(j), start = (/timestep,j/)))
+
         call check(nf90_inq_varid(ncid, "HR", varid))
-      !  print*,  HR_sum(j)
         call check(nf90_put_var(ncid, varid, HR(j), start = (/timestep, j/)))
 
+        call check(nf90_inq_varid(ncid, "N_inorganic", varid))
+        call check(nf90_put_var(ncid, varid, Npool_matrix(j,11), start = (/timestep, j/)))
         do i = 1,pool_types
-          !print*, "INSIDE again"
+          !C:
           call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
           call check(nf90_put_var(ncid, varid, pool_matrix(j,i), start = (/ timestep, j /)))
+          !N:
+          call check(nf90_inq_varid(ncid, "N_"//trim(variables(i)), varid))
+          call check(nf90_put_var(ncid, varid, Npool_matrix(j,i), start = (/ timestep, j /)))
+          !C change:
           call check(nf90_inq_varid(ncid, trim(change_variables(i)), varidchange))
           call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ timestep, j /)))
+          !N change:
+          call check(nf90_inq_varid(ncid, "N_"//trim(change_variables(i)), varidchange))
+          call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ timestep, j /)))
+
           call check(nf90_inq_varid(ncid, trim(an_variables(i)), varidan))
           call check(nf90_put_var(ncid, varidan, a_matrix(j,i), start = (/ timestep, j /)))
           call check(nf90_inq_varid(ncid, "vert_change", vertid))
