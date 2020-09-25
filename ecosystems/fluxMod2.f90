@@ -121,8 +121,8 @@ module fluxMod2
 
     !Inorganic N taken up directly by plant roots
     N_InPlant = V_max_plant*N_in*(1-delta)*(C_PR/(C_PR + Km_plant))
-
-    Deposition = DEposition_rate*N_in
+    !Deposition and leacing from the inorganic N pool
+    Deposition = Deposition_rate                                          !Usikker pa enheter
     Leaching = Leaching_rate*N_in
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc)) !Bør MMK parametere være spesifikke til Myc type?
     N_INErM = V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc))
