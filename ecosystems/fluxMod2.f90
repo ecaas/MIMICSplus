@@ -4,13 +4,8 @@ module fluxMod2
   implicit none
 
   contains
-
-
-
-
-
-  subroutine som_fluxes(depth,C_pool_matrix,N_pool_matrix, C_plant, N_plant) !This subroutine calculates the fluxes in and out of the SOM pools.
-
+    !testchange
+  subroutine calculate_fluxes(depth,C_pool_matrix,N_pool_matrix, C_plant, N_plant) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer :: depth!depth level
     real(r8) :: C_plant, N_plant
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
@@ -175,7 +170,7 @@ module fluxMod2
     N_AMPlant = N_INAM + N_SOMaErM - e_m*C_PlantAM/CN_ratio(7)
 
     nullify( C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
-  end subroutine som_fluxes
+  end subroutine calculate_fluxes
 
 
   subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,t,counter,step_frac) !This subroutine calculates the vertical transport of carbon through the soil layers.

@@ -236,6 +236,9 @@ module mycmim
         !   lit_inputC = 0
         !   som_inputC =0
         ! end if
+          !Calculate fluxes between pools in level j (file: fluxMod2.f90):
+          call calculate_fluxes(j, pool_matrixC, pool_matrixN, CPlant, NPlant)
+
 
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
           Km      = exp(Kslope*TSOIL(j) + Kint)*a_k*Kmod                    ![mgC/cm3]*10e3=[gC/m3]
