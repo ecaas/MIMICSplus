@@ -110,10 +110,10 @@ module fluxMod2
     Decomp_am  = K_MO*C_AM*C_SOMa
 
     !-----------------------------------NITROGEN FLUXES----------------------------:
-    !Nitrogen aquired bymycorrhiza via oxidation of SOMa
-    N_SOMaEcM = Decomp_ecm/CN_ratio(9)
-    N_SOMaErM = Decomp_erm/CN_ratio(9)
-    N_SOMaAM  = Decomp_am/CN_ratio(9)
+    !Nitrogen aquired bymycorrhiza via oxidation of SOMa                        gN/m3h
+    N_SOMaEcM = Decomp_ecm*N_SOMa/C_SOMa!/CN_ratio(9)
+    N_SOMaErM = Decomp_erm*N_SOMa/C_SOMa!/CN_ratio(9)
+    N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa!/CN_ratio(9)
 
     !Inorganic N taken up directly by plant roots
     N_InPlant = V_max_plant*N_in*(1-delta)*(C_PR/(C_PR + Km_plant))
@@ -124,39 +124,43 @@ module fluxMod2
     N_INErM = V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc))
     N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc))
     !Plant mortality
-    N_PlantLITm = C_PlantLITm*(1/CN_ratio(1))
-    N_PlantLITs = C_PlantLITs*(1/CN_ratio(2))
+    N_PlantLITm = C_PlantLITm*N_Plant/C_Plant
+    N_PlantLITs = C_PlantLITs*N_Plant/C_Plant
+
     !Decomposition of LIT and SOMa by SAP
-    N_LITmSAPb = C_LITmSAPb/CN_ratio(1)
-    N_LITsSAPb = C_LITsSAPb/CN_ratio(2)
-    N_LITmSAPf = C_LITmSAPf/CN_ratio(1)
-    N_LITsSAPf = C_LITsSAPf/CN_ratio(2)
-    N_SOMaSAPb = C_SOMaSAPb/CN_ratio(9)
-    N_SOMaSAPf = C_SOMaSAPf/CN_ratio(9)
+    N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm!/CN_ratio(1)
+    N_LITsSAPb = C_LITsSAPb*N_LITs/C_LITs!/CN_ratio(2)
+
+    N_LITmSAPf = C_LITmSAPf*N_LITm/C_LITm!/CN_ratio(1)
+
+    N_LITsSAPf = C_LITsSAPf*N_LITs/C_LITs!/CN_ratio(2)
+    N_SOMaSAPb = C_SOMaSAPb*N_SOMa/C_SOMa!/CN_ratio(9)
+    N_SOMaSAPf = C_SOMaSAPf*N_SOMa/C_SOMa!/CN_ratio(9)
+
     !Dead mycorrhizal biomass enters SOM pools
-    N_EcMSOMp = C_EcMSOMp/CN_ratio(5)
-    N_EcMSOMa = C_EcMSOMa/CN_ratio(5)
-    N_EcMSOMc = C_EcMSOMc/CN_ratio(5)
-    N_ErMSOMp = C_ErMSOMp/CN_ratio(6)
-    N_ErMSOMa = C_ErMSOMa/CN_ratio(6)
-    N_ErMSOMc = C_ErMSOMc/CN_ratio(6)
-    N_AMSOMp = C_AMSOMp/CN_ratio(7)
-    N_AMSOMa = C_AMSOMa/CN_ratio(7)
-    N_AMSOMc = C_AMSOMc/CN_ratio(7)
+    N_EcMSOMp = C_EcMSOMp*(N_EcM/C_EcM)!/CN_ratio(5)
+    N_EcMSOMa = C_EcMSOMa*(N_EcM/C_EcM)!/CN_ratio(5)
+    N_EcMSOMc = C_EcMSOMc*(N_EcM/C_EcM)!/CN_ratio(5)
+    N_ErMSOMp = C_ErMSOMp*(N_ErM/C_ErM)!/CN_ratio(6)
+    N_ErMSOMa = C_ErMSOMa*(N_ErM/C_ErM)!/CN_ratio(6)
+    N_ErMSOMc = C_ErMSOMc*(N_ErM/C_ErM)!/CN_ratio(6)
+    N_AMSOMp = C_AMSOMp*(N_AM/C_AM)!/CN_ratio(7)
+    N_AMSOMa = C_AMSOMa*(N_AM/C_AM)!/CN_ratio(7)
+    N_AMSOMc = C_AMSOMc*(N_AM/C_AM)!/CN_ratio(7)
 
     !Dead saphrotroph biomass enters SOM pools
-    N_SAPbSOMp = C_SAPbSOMp/CN_ratio(3)
-    N_SAPbSOMa = C_SAPbSOMa/CN_ratio(3)
-    N_SAPbSOMc = C_SAPbSOMc/CN_ratio(3)
-    N_SAPfSOMp = C_SAPfSOMp/CN_ratio(4)
-    N_SAPfSOMa = C_SAPfSOMa/CN_ratio(4)
-    N_SAPfSOMc = C_SAPfSOMc/CN_ratio(4)
+    N_SAPbSOMp = C_SAPbSOMp*N_SAPb/C_SAPb!/CN_ratio(3)
+    N_SAPbSOMa = C_SAPbSOMa*N_SAPb/C_SAPb!CN_ratio(3)
+    N_SAPbSOMc = C_SAPbSOMc*N_SAPb/C_SAPb!/CN_ratio(3)
+    N_SAPfSOMp = C_SAPfSOMp*N_SAPf/C_SAPf!/CN_ratio(4)
+    N_SAPfSOMa = C_SAPfSOMa*N_SAPf/C_SAPf!/CN_ratio(4)
+    N_SAPfSOMc = C_SAPfSOMc*N_SAPf/C_SAPf!/CN_ratio(4)
 
     !Desorption of SOMp to SOMa
-    N_SOMpSOMa = C_SOMpSOMa/CN_ratio(8)
+    N_SOMpSOMa = C_SOMpSOMa*N_SOMp/C_SOMp!/CN_ratio(8)
 
     !Transport from SOMc to SOMa:
-    N_SOMcSOMa = C_SOMcSOMa/CN_ratio(10)
+    N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc!/CN_ratio(10)
 
     !"Leftover" N in saprotrophs. Given to inorganic pool to ensure constant C:N ratios:
     f = 0.5                                                                     !NOTE: A fraction, f, of the C "liberated" by myc is decomposed by SAPb, the rest by SAPf
