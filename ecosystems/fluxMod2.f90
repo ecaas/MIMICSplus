@@ -36,24 +36,34 @@ module fluxMod2
     N_SOMc => N_pool_matrix(depth, 10)
     N_IN => N_pool_matrix(depth, 11)
 
-
     !------------------CARBON FLUXES----------------------------:
-
     C_PR = gamma_rs*C_Plant/(1+gamma_rs) !Carbon in plant roots
     C_PS = C_plant/(1+ gamma_rs)!Carbon in plant shoots
 
+    N_PR = gamma_rs*N_Plant/(1+gamma_rs) !N in plant roots
+    N_PS = N_plant/(1+ gamma_rs)!N in plant shoots
+    !print*, "N_PS, N_PR, N_Plant", N_PS, N_PR, N_Plant
+    P_N =  a-b*C_PS !Plant N productivity (as in Baskaran 2016, eq (12))
+    if (P_N < 0) then
+      print*, "P_N < 0: ", P_N
+      !P_N = 0.0
+    end if
     !Plant growth rate
-    C_growth_rate = (1-delta)*(a-b*C_PS)*(N_Plant/(1+gamma_rs))
+    C_growth_rate = 0!(1-delta)*P_N*N_PS                                 !NOTE Usikker paa enheter her
+  !  print*, 'C_growth_rate', C_growth_rate
+  !  print*, "C_PS", C_PS, "N_PS", N_PS
 
-    !Plant Carbon to mycorrhiza: = delta*P_N*N_PS                               !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
-    C_PlantEcM = delta*(a-b*(C_Plant/(1+gamma_rs)))*(N_Plant/(1+gamma_rs))
-    C_PlantErM = delta*(a-b*(C_Plant/(1+gamma_rs)))*(N_Plant/(1+gamma_rs))
-    C_PlantAM = delta*(a-b*(C_Plant/(1+gamma_rs)))*(N_Plant/(1+gamma_rs))
+    !Plant Carbon to mycorrhiza: = delta*P_N*N_PS                     !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
+    C_PlantEcM = delta*P_N*N_PS/delta_z(depth)                        !NOTE: Deler pa lagdybde for a fordele inputen fra planten likt over alle lagene
+    C_PlantErM = delta*P_N*N_PS/delta_z(depth)                        !gC/m3h  (?)
+    C_PlantAM = delta*P_N*N_PS/delta_z(depth)
 
-    !Plant mortality:
-    Total_plant_mortality = (my_shoot + gamma_rs*my_root)*(C_Plant/(1+gamma_rs))
-    C_PlantLITm = fMET*Total_plant_mortality
-    C_PlantLITs =(1-fMET)*Total_plant_mortality                                 !TODO: Blir det riktig å bruke fMET for å dele opp totalproduksjonen?
+    !Used to calculate litter production in flux subroutine:
+    Total_plant_mortality = (my_shoot + gamma_rs*my_root)*(C_plant/(1+gamma_rs))!gC/m2h
+    !Plant mortality/litter production:
+    C_PlantLITm = fMET*Total_plant_mortality/delta_z(depth)                     !gC/m3h
+    C_PlantLITs =(1-fMET)*Total_plant_mortality/delta_z(depth)                  !TODO: Blir det riktig a bruke fMET for a dele opp totalproduksjonen?
+                                                                                !Tallene fra Baskaran
 
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
