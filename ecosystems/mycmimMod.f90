@@ -300,33 +300,50 @@ module mycmim
               N_Loss = N_LITsSAPb + N_LITsSAPf
               C_Gain = C_PlantLITs
               C_Loss = C_LITsSAPb + C_LITsSAPf
-            elseif (i==3) then !SAPb                                            !TODO Sap: Check if MGE/efficiency still makes sense in the new setup.
-              C_Gain = C_LITmSAPb*MGE(1) + C_LITsSAPb*MGE(2) &
-              + C_SOMaSAPb*MGE(3)
+            elseif (i==3) then !SAPb
+            !TODO Sap: Check if MGE/efficiency still makes sense in the new setup.
+            !  C_Gain = C_LITmSAPb*MGE(1) + C_LITsSAPb*MGE(2) &
+            !  + C_SOMaSAPb*MGE(3) + e_s*(Decomp_ecm + Decomp_erm + Decomp_am)
+              C_Gain = e_s*(C_LITmSAPb + C_LITsSAPb &
+                + C_SOMaSAPb + 0.5*(Decomp_ecm + Decomp_erm + Decomp_am))
               C_Loss =  C_SAPbSOMp + C_SAPbSOMa + C_SAPbSOMc
-              N_Gain = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb
-              N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMp + N_SAPbIN
+              !N_Gain = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb
+              !N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMp + N_SAPbIN
+              N_Gain = e_s*U_sb/CN_ratio(3)
+              N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMc
+
             elseif (i==4) then !SAPf
-              C_Gain = C_LITmSAPf*MGE(1) + C_LITsSAPf*MGE(2) &
-              + C_SOMaSAPf*MGE(3)
+              !C_Gain = C_LITmSAPf*MGE(1) + C_LITsSAPf*MGE(2) &
+              !+ C_SOMaSAPf*MGE(3)
+              C_Gain = e_s*(C_LITmSAPf + C_LITsSAPf &
+                + C_SOMaSAPf + 0.5*(Decomp_ecm + Decomp_erm + Decomp_am))
               C_Loss =  C_SAPfSOMp + C_SAPfSOMa + C_SAPfSOMc
-              N_Gain = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
-              N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMp + N_SAPfIN
+            !  N_Gain = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
+            !  N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMp + N_SAPfIN
+              N_Gain = e_s*U_sf/CN_ratio(4)
+              N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMc
             elseif (i==5) then !EcM
-              C_Gain = C_PlantEcM
+              C_Gain = e_m*C_PlantEcM
               C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc
-              N_Gain = N_INEcM + N_SOMaEcM
-              N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
+              !N_Gain = N_INEcM + N_SOMaEcM
+              !N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
+              N_Gain = e_m*C_PlantEcM/CN_ratio(5)
+              N_Loss = N_EcMSOMp + N_EcMSOMa + N_EcMSOMc
             elseif (i==6) then !ErM
-              C_Gain = C_PlantErM
+              C_Gain = e_m*C_PlantErM
               C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc
-              N_Gain = N_INErM + N_SOMaErM
-              N_Loss = N_ErMPlant + N_ErMSOMa + N_ErMSOMp + N_ErMSOMc
+              N_Gain = e_m*C_PlantErM/CN_ratio(6)
+              N_Loss = N_ErMSOMp + N_ErMSOMa + N_ErMSOMc
+              !N_Gain = N_INErM + N_SOMaErM
+              !N_Loss = N_ErMPlant + N_ErMSOMa + N_ErMSOMp + N_ErMSOMc
             elseif (i==7) then !AM
-              C_Gain = C_PlantAM
+              C_Gain = e_m*C_PlantAM
               C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc
-              N_Gain = N_INAM + N_SOMaAM
-              N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
+              N_Gain = e_m*C_PlantAM/CN_ratio(7)
+              N_Loss = N_AMSOMp + N_AMSOMa + N_AMSOMc
+            !  N_Gain = N_INAM + N_SOMaAM
+            !  N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
+              !print*, N_Loss, "am"
             elseif (i==8) then !SOMp
               C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp
               C_Loss = C_SOMpSOMa
