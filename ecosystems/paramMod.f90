@@ -10,9 +10,9 @@ real(kind=r8)                                :: GEP                             
 real(kind=r8),parameter                      :: fCLAY  = 0.15                   ![-] fraction of clay in soil
 
 real(r8)                                     :: f_som1=0.05, f_som2=0.05
-real(kind=r8),dimension(3)                   :: k_mycsap                        ! [1/h](EcM, ErM, AM) decay constants, MYC to SAP pool
+!real(kind=r8),dimension(3)                   :: k_mycsap                        ! [1/h](EcM, ErM, AM) decay constants, MYC to SAP pool
 real(kind=r8),dimension(3)                   :: k_mycsom                        ! [1/h] decay constants, MYC to SOM pools
-real(kind=r8), parameter                     :: MYC_SAPb=0.4, MYC_SAPf=1-MYC_SAPb![-]Fraction of the flux from mycorrhizal pools to SAPf pool. The rest is going to SAPb
+!real(kind=r8), parameter                     :: MYC_SAPb=0.4, MYC_SAPf=1-MYC_SAPb![-]Fraction of the flux from mycorrhizal pools to SAPf pool. The rest is going to SAPb
 
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
 integer, parameter                           :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters
