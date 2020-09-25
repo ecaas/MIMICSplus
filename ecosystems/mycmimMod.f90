@@ -245,6 +245,37 @@ module mycmim
           !Calculate fluxes between pools in level j (file: fluxMod2.f90):
           call calculate_fluxes(j, pool_matrixC, pool_matrixN, CPlant, NPlant)
 
+          !calculate the change of N and C in the plant based on the flux equations.  TODO: Needs better way to ensure reasonable values in these pools
+          !CPlant_tstep and NPlant_tstep sum up the change from each layer, and will be used to update CPlant and NPlant at the end of the timestep.
+          !(This will only be one value if isVertical = False)
+          possible_N_change = (N_EcMPlant+  N_ErMPlant +  N_AMPlant + N_InPlant  &
+          - N_PlantLITm - N_PlantLITs)*dt*delta_z(j) !gN/m2h
+
+          Plant_lossN = (N_PlantLITm + N_PlantLITs)*delta_z(j)
+          Plant_gainN = (N_EcMPlant+  N_ErMPlant +  N_AMPlant + N_InPlant)*delta_z(j)
+          !print*, "PLANTLOSS", N_PlantLITm,N_PlantLITs
+          !print*, "PLANTGAIN", N_EcMPlant,N_ErMPlant, N_AMPlant, N_InPlant
+          possible_C_change = (C_growth_rate - C_PlantLITm - C_PlantLITs - &
+           C_PlantEcM - C_PlantErM - C_PlantAM)*dt*delta_z(j)!gC/m2h
+
+          Plant_lossC = (C_PlantLITm + C_PlantLITs + C_PlantEcM + C_PlantErM + C_PlantAM)*delta_z(j)
+          Plant_gainC = C_growth_rate*delta_z(j) !TODO:: Skal ikke ganges med delta_z her??
+          growth_rate_sum = growth_rate_sum + C_growth_rate
+          ! if (possible_C_change + Cplant < CPlant_min) then
+          !   CPlant_tstep = CPlant_tstep + (C_growth_rate - C_PlantLITm - N_PlantLITs)*dt
+          !   !Instead of the values calculated in subroutine calculate_fluxes, they are set to zero:
+          !   C_PlantEcM = 0
+          !   C_PlantErM = 0
+          !   C_PlantAM = 0
+          ! else
+          ! end if
+          ! if (possible_N_change + NPlant < NPlant_min) then
+          !   print*,"possible_N_change + NPlant < NPlant_min", NPlant + possible_N_change
+          !   !TODO: How to ensure this will not happen?
+          ! end if
+          NPlant_tstep = NPlant_tstep + possible_N_change
+          CPlant_tstep = CPlant_tstep + possible_C_change
+          !print*, NPlant_tstep, CPlant_tstep
 
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
           Km      = exp(Kslope*TSOIL(j) + Kint)*a_k*Kmod                    ![mgC/cm3]*10e3=[gC/m3]
