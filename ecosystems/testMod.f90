@@ -25,12 +25,12 @@ contains
     tot_input(:, 1:2) = lit
     tot_input(:, 3:4) = som
     tot_input(:, 5:7) = myc
-    call disp('tot_input', tot_input)
+    !call disp('tot_input', tot_input)
     do i = 1,7
       tot_input(:,i) = tot_input(:,i)*delta_z
     end do
-    call disp('mass_tot_input', tot_input)
-    print*, sum(tot_input)
+  !  call disp('mass_tot_input', tot_input)
+  !  print*, 'sum of input: ', sum(tot_input)
   end subroutine tot_mass_input
   ! subroutine mass_conservation_pool(in_layer_change, vert_change old, new) !Checking that mass is conserved during a time step in the vertical layer NOTE: Not finished!!
   !   real(r8), intent(in), dimension(nlevdecomp, pool_types) :: in_layer_change, vert_change old, new
@@ -59,7 +59,9 @@ contains
 
     HR_mass_vr = HR_conc_vr*delta_z
 
+
     HR_mass_tot = sum(HR_mass_vr)
+
   end subroutine respired_mass
 
   subroutine test_mass_conservation(mass_input, mass_respiration, old, new) !Checking that mass is conserved during a time step

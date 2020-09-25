@@ -4,6 +4,75 @@ module fluxMod
   implicit none
 
   contains
+
+  subroutine N_fluxes(depth, Npool_matrix, Cpool_matrix)
+    integer :: depth!depth level
+    real(r8),target :: Npool_matrix(nlevdecomp, pool_types+1)
+    real(r8),target :: Cpool_matrix(nlevdecomp, pool_types)
+    real(r8), pointer :: SAPb, SAPf, EcM, ErM, AM
+
+
+    SAPb => pool_matrix(depth, 3)
+    SAPf => pool_matrix(depth, 4)
+
+    !Inorganic Nitrogen
+    N_SAPbDIN  =
+    N_SAPfDIN  =
+    N_DINPlant =
+    N_DINEcM =
+    N_DINErM =
+    N_DINAM  =
+
+    !SOMa nitrogen (Organic, available N)
+    !Dead saprotrophs and mycorrhiza:
+    N_SAPbSOMa =
+    N_SAPfSOMa =
+    N_EcMSOMa =
+    N_ErMSOMa =
+    N_AMSOMa =
+    !Saprotrophs decompose SOMa:
+    N_SOMaSAPb =
+    N_SOMaSAPf =
+    !Mycorrhizal mining (N only):
+    N_SOMaEcM =
+    N_SOMaErM =
+    N_SOMaAM =
+
+    !SOMp nitrogen:
+    !Dead saprotrophs and mycorrhiza:
+    N_SAPbSOMp =
+    N_SAPfSOMp =
+    N_EcMSOMp =
+    N_ErMSOMp =
+    N_AMSOMp =
+
+    !SOMc nitrogen:
+    !Dead saprotrophs and mycorrhiza:
+    N_SAPbSOMc =
+    N_SAPfSOMc =
+    N_EcMSOMc =
+    N_ErMSOMc =
+    N_AMSOMc =
+
+    !Mycorrhizal nitrogen:
+    N_EcMPlant =
+    N_ErMPlant =
+    N_AMPlant =
+
+    !N in saprotrophs: N/C*MMK eq. for Carbon
+    N_LITmSAPb =
+    N_LITmSAPf =
+    N_LITsSAPb =
+    N_LITsSAPf =
+
+    !N in litter:
+    N_PlantLITm =
+    N_PlantLITs =
+
+
+  end subroutine DIN_fluxes
+
+
   subroutine litter_fluxes(depth,pool_matrix) !This subroutine calculates the fluxes out of the litter pools. The input to litter pools comes from vegetation, and is not handeled in this subroutine.
     !This is the total flux from the litter pools. A fraction (1-MGE) is lost to respiration before it reaches the SAP pools. This is handeled in the "decomp" subroutine.
 

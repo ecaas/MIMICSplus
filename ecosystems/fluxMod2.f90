@@ -174,12 +174,30 @@ module fluxMod2
     U_sf = e_s*(C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf+ (1-f)*(Decomp_ecm + Decomp_erm + Decomp_am))
     !print*, "Saprotrophic uptake of C:", U_sb
     N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb/CN_ratio(3)
+  !  print*, "NSAPbIN", N_SAPbIN, N_LITmSAPb, N_LITsSAPb, N_SOMaSAPb, e_s*U_sb/CN_ratio(3)
     N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf/CN_ratio(4)
+    !If nothing is leftover, nothing is given:
+    ! if (N_SAPbIN <= 0) then
+    !   N_SAPbIN = 0
+    ! end if
+    ! if (N_SAPfIN <=0) then
+    !   N_SAPfIN = 0
+    ! end if
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM/CN_ratio(5)
+    N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM/CN_ratio(5) !gN/m3h
     N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM/CN_ratio(6)
     N_AMPlant = N_INAM + N_SOMaErM - e_m*C_PlantAM/CN_ratio(7)
+    !If not enough N to cover the internal need, nothing is given to the plant
+    ! if (N_EcMPlant <= 0) then
+    !   N_EcMPlant = 0
+    ! end if
+    ! if (N_ErMPlant <= 0) then
+    !   N_ErMPlant = 0
+    ! end if
+    ! if (N_AMPlant <= 0) then
+    !   N_AMPlant = 0
+    ! end if
 
     nullify( C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
   end subroutine calculate_fluxes
