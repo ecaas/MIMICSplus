@@ -108,11 +108,10 @@ module fluxMod2
     C_SOMcSOMa    = ( C_SAPb * Vmax(2) * C_SOMc / (KO(1)*Km(2) + C_SOMc)) + &
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
-
     !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
-    Decomp_ecm = K_MO*C_EcM*C_SOMa ![gC/m-2yr-1]                                  !TODO: change yr to hr
-    Decomp_erm = K_MO*C_ErM*C_SOMa                                                !TODO: Somehow incorporate this carbon into SAP pools (?)
-    Decomp_am  = K_MO*C_AM*C_SOMa
+    Decomp_ecm = K_MO*delta_z(depth)*C_EcM*C_SOMa                               ![gC/m3h]
+    Decomp_erm = K_MO*delta_z(depth)*C_ErM*C_SOMa                                !TODO: Somehow incorporate this carbon into SAP pools (?)
+    Decomp_am  = K_MO*delta_z(depth)*C_AM*C_SOMa
 
     !-----------------------------------NITROGEN FLUXES----------------------------:
     !Nitrogen aquired bymycorrhiza via oxidation of SOMa                        gN/m3h
