@@ -119,14 +119,16 @@ module fluxMod2
     N_SOMaErM = Decomp_erm*N_SOMa/C_SOMa!/CN_ratio(9)
     N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa!/CN_ratio(9)
 
-    !Inorganic N taken up directly by plant roots
+    !Inorganic N taken up directly by plant roots                               !Usikker pa enheter
     N_InPlant = V_max_plant*N_in*(1-delta)*(C_PR/(C_PR + Km_plant))
     !Deposition and leacing from the inorganic N pool
     Deposition = Deposition_rate                                          !Usikker pa enheter
     Leaching = Leaching_rate*N_in
-    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc)) !Bør MMK parametere være spesifikke til Myc type?
-    N_INErM = V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc))
-    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc))
+
+    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/delta_z(depth)))            !Bor MMK parametere vaere spesifikke til mycorrhiza type?
+    N_INErM = V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))            !Usikker pa enheter
+    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
+
     !Plant mortality
     N_PlantLITm = C_PlantLITm*N_Plant/C_Plant
     N_PlantLITs = C_PlantLITs*N_Plant/C_Plant
