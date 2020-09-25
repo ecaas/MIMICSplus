@@ -29,7 +29,6 @@ module fluxMod2
     C_SOMa => C_pool_matrix(depth, 9)
     C_SOMc => C_pool_matrix(depth, 10)
 
-    !real(r8), pointer :: N_LITm, N_LITs, N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb, N_SAPf!, N_IN
     N_LITm => N_pool_matrix(depth, 1)
     N_LITs => N_pool_matrix(depth, 2)
     N_SAPb => N_pool_matrix(depth, 3)
@@ -73,7 +72,7 @@ module fluxMod2
     C_SOMaSAPb=C_SAPb*Vmax(3)*C_SOMa/(Km(3)+C_SOMa)
     C_SOMaSAPf=C_SAPf*Vmax(6)*C_SOMa/(Km(6)+C_SOMa)
 
-    !Dead mycorrhizal biomass enters the SOM pools:
+    !Dead mycorrhizal biomass enters the SOM pools:                             gC/m3h
     C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp
     C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(2)!soma
     C_EcMSOMc=C_EcM*k_mycsom(1)*fEcMSOM(3)!somc
@@ -87,7 +86,7 @@ module fluxMod2
     C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(3)
 
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
-    C_SAPbSOMp=C_SAPb*tau(1)*fPHYS(1)
+    C_SAPbSOMp=C_SAPb*tau(1)*fPHYS(1)                                           !gC/m3h
     C_SAPbSOMa=C_SAPb*tau(1)*fAVAIL(1)
     C_SAPbSOMc=C_SAPb*tau(1)*fCHEM(1)
 
