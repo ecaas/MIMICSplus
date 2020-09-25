@@ -437,15 +437,15 @@ module mycmim
 
           end do !i, pool_types
 
-          !Calculate the heterotrophic respiration loss from depth level j in timestep t:
-          HR(j) =( LITmSAPb*(1-MGE(1)) + LITsSAPb*(1-MGE(2))  + SOMaSAPb*(1-MGE(3)) + LITmSAPf*(1-MGE(4)) &
-          + LITsSAPf*(1-MGE(5)) + SOMaSAPf*(1-MGE(6)))*dt
-
-          if (HR(j) < 0.0) then
-            print*, 'Negative HR: ', HR(j)
+          !Calculate the heterotrophic respiration loss from depth level j in timestep t: NOTE: revise!
+          !HR(j) =( C_LITmSAPb*(1-MGE(1)) + C_LITsSAPb*(1-MGE(2))  + C_SOMaSAPb*(1-MGE(3)) + C_LITmSAPf*(1-MGE(4)) &
+          !+ C_LITsSAPf*(1-MGE(5)) + C_SOMaSAPf*(1-MGE(6)) + (C_PlantEcM + C_PlantErM + C_PlantAM)*(1-e_m))*dt
+          HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb + C_LITmSAPf &
+          + C_LITsSAPf + C_SOMaSAPf+Decomp_ecm + Decomp_erm + Decomp_am)*(1-e_s) &
+          + (C_PlantEcM + C_PlantErM + C_PlantAM)*(1-e_m))*dt
+          if (HR(j) < 0 ) then
+            print*, 'Negative HR: ', HR(j), t
           end if
-
-
           HR_sum(j) = HR_sum(j) + HR(j)
         end do !j, depth_level
 
