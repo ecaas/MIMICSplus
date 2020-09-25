@@ -169,10 +169,11 @@ module fluxMod2
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc!/CN_ratio(10)
 
     !"Leftover" N in saprotrophs. Given to inorganic pool to ensure constant C:N ratios:
-    f = 0.5                                                                     !NOTE: A fraction, f, of the C "liberated" by myc is decomposed by SAPb, the rest by SAPf
-    U_sb = C_LITmSAPb + C_LITsSAPb + f*(Decomp_ecm + Decomp_erm + Decomp_am) !The saprotrophs decompose the carbon that is made more available when the mycorrhiza take N from SOM.
-    U_sf = C_LITmSAPf + C_LITsSAPf + (1-f)*(Decomp_ecm + Decomp_erm + Decomp_am) !The saprotrophs decompose the carbon that is made more available when the mycorrhiza take N from SOM.
-    N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb/CN_ratio(3)          !TODO: Skjønner ikke dette..
+    f = 0.5                                                                     !NOTE: A fraction, f, of the C made available by myc is decomposed by SAPb, the rest by SAPf
+    U_sb = e_s*(C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb+f*(Decomp_ecm + Decomp_erm + Decomp_am))    !The saprotrophs decompose the carbon that is made more available when the mycorrhiza take N from SOM.
+    U_sf = e_s*(C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf+ (1-f)*(Decomp_ecm + Decomp_erm + Decomp_am))
+    !print*, "Saprotrophic uptake of C:", U_sb
+    N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb/CN_ratio(3)
     N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf/CN_ratio(4)
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
