@@ -185,15 +185,13 @@ module fluxMod2
   end subroutine calculate_fluxes
 
 
-  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,t,counter,step_frac) !This subroutine calculates the vertical transport of carbon through the soil layers.
-      integer               :: depth, pool,counter
-      real(r8)              :: pool_matrix(nlevdecomp, pool_types)
+  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert) !This subroutine calculates the vertical transport of carbon through the soil layers.
+      integer               :: depth, pool
+      real(r8),intent(in)   :: pool_matrix(nlevdecomp, pool_types)
       real(r8),intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
       real(r8), intent(out) :: tot_diffusion_dummy ![gC/day]
       real(r8),intent(out)  :: vert(nlevdecomp, pool_types)
-      real(r8)              :: t !t*dt in main routine
       real(r8)              :: sum_day=0.0
-      real(r8)              :: step_frac
 
       !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
       !pool_matrix is used here to calculate the diffusion.
