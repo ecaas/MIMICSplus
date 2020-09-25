@@ -36,16 +36,16 @@ module mycmim
 
       real(r8)                       :: pool_matrixC(nlevdecomp,pool_types)     ! For storing C pool sizes [gC/m3]
       real(r8)                       :: mass_pool_matrixC(nlevdecomp,pool_types)! For storing C pool masses [gC/m2] (pool_matrixC*delta_z)
-      real(r8)                       :: previous_conc(nlevdecomp,pool_types)    ! stores concentration at timestep. Used for comparing in subroutine test_mass_conservation
+      !real(r8)                       :: previous_conc(nlevdecomp,pool_types)    ! stores concentration at timestep. Used for comparing in subroutine test_mass_conservation
       real(r8)                       :: change_matrixC(nlevdecomp,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
-      real(r8)                       :: a_matrix(nlevdecomp, pool_types)        ! For storing the analytical solution
+      real(r8)                       :: a_matrixC(nlevdecomp, pool_types)        ! For storing the analytical solution
       real(r8)                       :: InitC(nlevdecomp, pool_types)           ! Initial C concentration, determined in initMod.f90
       real(r8)                       :: pool_temporaryC(nlevdecomp,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
                                                                                 !The new value after the time step is then pool_matrixC = pool_temporaryC + vertical change
       real(r8)                       :: pool_matrixN(nlevdecomp,pool_types+1)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: mass_pool_matrixN(nlevdecomp,pool_types+1)! For storing N pool masses [gN/m2] (pool_matrixN*delta_z)
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types+1) ! For storing dC/dt for each time step [gN/(m3*hour)]
-      !real(r8)                       :: a_matrix(nlevdecomp, pool_types)       ! For storing the analytical solution
+      real(r8)                       :: a_matrixN(nlevdecomp, pool_types+1)       ! For storing the analytical solution
       real(r8)                       :: InitN(nlevdecomp, pool_types+1)         ! Initial N concentration, determined in initMod.f90
       !real(r8)                       :: pool_temporaryN(nlevdecomp,pool_types+1)
 
@@ -134,7 +134,8 @@ module mycmim
       pool_matrixN = InitN
       change_matrixC = 0.0
       change_matrixN = 0.0
-      a_matrix      = pool_matrixC
+      a_matrixC      = InitC
+      a_matrixN      = InitN
       HR            = 0.0
       vertC_change_sum=0.0
       vertN_change_sum=0.0
@@ -323,7 +324,45 @@ module mycmim
             end if
 
 
-            pool_matrixN(j,i) = pool_matrixN(j,i) + change_matrixN(j,i)*dt      !NOTE No vertical transport of nitrogen (yet..)
+                !print*, "CN_ratio: ", variables(i)
+                !print*, CN_ratio(i)
+                !print*, a_matrixC(j,i)/a_matrixN(j,i)
+                a_matrixC(j,i) = a_matrixC(j,i)*exp(-dt*Loss_termC) + (C_Gain/Loss_termC)*(1-exp(-dt*Loss_termC))
+                !print*, loss_termC, C_Gain, i, pool_temporaryC(j,i)
+            end if
+            ! print*, "FROM IN", N_INEcM, N_INErM, N_INAM
+            ! print*, "FROM SOMa" ,N_SOMaEcM, N_SOMaErM, N_SOMaAM
+            ! print*, "TO plant: ",N_EcMPlant, N_ErMPlant, N_AMPlant
+            ! print*, "TO SOM: ",  N_EcMSOMa, N_ErMSOMa, N_AMSOMa
+            ! print*, N_EcMSOMp, N_ErMSOMp, N_AMSOMp
+            ! print*, N_EcMSOMc, N_ErMSOMc, N_ErMSOMc
+            Loss_termN = N_Loss/a_matrixN(j,i)
+            !print*, Loss_termN, N_variables(i), a_matrixN(j,i)
+            a_matrixN(j,i)= &
+            a_matrixN(j,i)*exp(-dt*Loss_termN) + (N_Gain/Loss_termN)*(1-exp(-dt*Loss_termN))!
+            ! if (i==11)then
+            !   print*, a_matrixN(j,i)*exp(-dt*Loss_termN),(N_Gain/Loss_termN)*(1-exp(-dt*Loss_termN))
+            ! end if
+
+            !print*, "*Levetid nitrogen i ", N_variables(i),  ': ', (1/Loss_termN)/24, 'dager. '
+            !print*,"N loss_term (k)",  N_Loss, a_matrixN(j,i), Loss_termN
+            !print*, "------------------------------------------------------------------------------"
+
+
+            pool_matrixN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt      !NOTE No vertical transport of nitrogen (yet..)
+            !control check
+            ! if (pool_temporaryC(j,i) < 0.0) then
+            ! !  print*, 'Negative concentration value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
+            ! !  print*, 'Value changed to: ', min_pool_value
+            ! !  print*, 'Month, year: ', current_month, year
+            !   !call disp('Temp: ',TSOIL)
+            !   !call disp('moist: ', r_moist)
+            !   !call disp('Vmax: ', Vmax)
+            !   !call disp('Km: ', Km)
+            !   !call disp(pool_temporaryC)
+            ! !  pool_temporaryC(j,i) = min_pool_value
+            !   !STOP
+            ! end if
 
             !control check
             if (pool_temporaryC(j,i) < 0.0) then
@@ -357,6 +396,32 @@ module mycmim
           HR_sum(j) = HR_sum(j) + HR(j)
         end do !j, depth_level
 
+        !Update Plant pools with the total change from all the layers
+        CPlant = CPlant + CPlant_tstep!Numerial
+        NPlant = NPlant + NPlant_tstep
+
+        !"analytic":
+        Loss_termNP = Plant_lossN/a_NPlant
+        Loss_termCP = Plant_lossC/a_CPlant
+      !  print*, "time", time, "Loss_termCP", Loss_termCP, "Loss_termNP", Loss_termNP
+        a_NPlant = a_Nplant*exp(-dt*Loss_termNP) + Plant_GainN*(1-exp(-dt*Loss_termNP))/Loss_termNP!
+        a_CPlant = a_Cplant*exp(-dt*Loss_termCP) + Plant_GainC*(1-exp(-dt*Loss_termCP))/Loss_termCP!
+
+        !print*, '*Levetid nitrogen i plant pool: ', (1/Loss_termNP)/24, 'dager'
+      !  print*, '*Levetid karbon i plant pool: ', (1/Loss_termCP)/24, 'dager'
+
+
+        Plant_CN = CPlant/NPlant
+        ! if (Plant_CN < opt_Plant_CN + 5 .and. Plant_CN > opt_Plant_CN - 5 ) then
+        !   print*, "innafor"
+        ! else
+        !
+        ! !  print*, "Diff: ", Plant_CN - opt_Plant_CN
+        ! !  print*, "C: ", CPlant
+        ! !  Print*, "N: ", NPlant
+        !   NPlant = CPlant/opt_Plant_CN
+        !
+        ! end if
         !Store accumulated HR mass
         call respired_mass(HR, HR_mass)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
