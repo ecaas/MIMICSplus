@@ -49,14 +49,14 @@ module fluxMod2
       !P_N = 0.0
     end if
     !Plant growth rate
-    C_growth_rate = 0!(1-delta)*P_N*N_PS                                 !NOTE Usikker paa enheter her
+    C_growth_rate = (1-delta)*P_N*N_PS                                 !NOTE Usikker paa enheter her
   !  print*, 'C_growth_rate', C_growth_rate
   !  print*, "C_PS", C_PS, "N_PS", N_PS
 
     !Plant Carbon to mycorrhiza: = delta*P_N*N_PS                     !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
-    C_PlantEcM = delta*P_N*N_PS/delta_z(depth)                        !NOTE: Deler pa lagdybde for a fordele inputen fra planten likt over alle lagene
-    C_PlantErM = delta*P_N*N_PS/delta_z(depth)                        !gC/m3h  (?)
-    C_PlantAM = delta*P_N*N_PS/delta_z(depth)
+    C_PlantEcM = delta*0.4*P_N*N_PS/delta_z(depth)                        !NOTE: Deler pa lagdybde for a fordele inputen fra planten likt over alle lagene
+    C_PlantErM = delta*0.3*P_N*N_PS/delta_z(depth)                        !gC/m3h  (?)
+    C_PlantAM = delta*0.3*P_N*N_PS/delta_z(depth)
 
     !Used to calculate litter production in flux subroutine:
     Total_plant_mortality = (my_shoot + gamma_rs*my_root)*(C_plant/(1+gamma_rs))!gC/m2h
