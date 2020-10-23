@@ -313,12 +313,28 @@ module mycmim
               N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_ErMSOMc + N_AMSOMc
               N_Loss = N_SOMcSOMa
             elseif (i == 11) then !Inorganic N
-              N_Gain = Deposition/delta_z(j) + N_SAPbIN + N_SAPfIN
-              N_Loss = Leaching/delta_z(j)+N_INEcM + N_INErM + N_INAM + N_InPlant
+              N_Gain = Deposition+ N_SAPbIN + N_SAPfIN
+              N_Loss = Leaching+N_INEcM + N_INErM + N_INAM + N_InPlant
               change_matrixN(j,i) = N_Gain - N_loss
             else
               print*, 'Too many pool types expected, pool_types = ',pool_types, 'i: ', i
             end if !determine dC_i/dt
+
+            if (C_Loss < 0) then
+              print*, 'C_loss:', C_Loss, i, t
+            endif
+            if (C_Gain < 0) then
+              print*, 'C_Gain: ', C_Gain, i, t
+            endif
+            if (N_Loss < 0) then
+              print*, 'N_loss:', N_Loss, i, t
+            endif
+            if (N_Gain < 0) then
+              print*, 'N_Gain: ', N_Gain, i, t
+              print*, Deposition/delta_z(j),N_SAPbIN,N_SAPfIN
+              print*, "NSAPbIN", N_SAPbIN, N_LITmSAPb, N_LITsSAPb, N_SOMaSAPb, e_s*U_sb/CN_ratio(3)
+
+            endif
 
             if (i /= 11) then !Carbon matrix does only have 10 columns (if i == 11 this is handeled inside the loop over pools)
                 change_matrixC(j,i) = C_Gain - C_Loss
