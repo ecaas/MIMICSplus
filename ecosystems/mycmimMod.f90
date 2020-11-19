@@ -121,18 +121,19 @@ module mycmim
       dt= 1.0/step_frac !Setting the time step
 
       !Set initial concentration values:
-      if (isVertical) then
-        call initialize_vert(InitC, InitN, P_init_C, P_init_N)
-      else
-        call initialize_onelayer(InitC, InitN, P_init_C, P_init_N)
-      end if !isVertical
-
-      pool_matrixC = InitC
-      pool_matrixN = InitN
-      CPlant = P_init_C
-      NPlant = P_init_N
-      a_NPlant = P_init_N
-      a_CPlant = P_init_C
+      call initialize(pool_matrixC,pool_matrixN,CPlant,NPlant)
+      ! if (isVertical) then
+      !   call initialize_vert(InitC, InitN, P_init_C, P_init_N)
+      ! else
+      !   call initialize_onelayer(InitC, InitN, P_init_C, P_init_N)
+      ! end if !isVertical
+      !
+      ! pool_matrixC = InitC
+      ! pool_matrixN = InitN
+      ! CPlant = P_init_C
+      ! NPlant = P_init_N
+      ! a_NPlant = P_init_N
+      ! a_CPlant = P_init_C
       change_matrixC = 0.0
       change_matrixN = 0.0
       a_matrixC      = InitC
