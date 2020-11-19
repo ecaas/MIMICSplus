@@ -203,18 +203,27 @@ module fluxMod2
 
 
   subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert) !This subroutine calculates the vertical transport of carbon through the soil layers.
-      integer               :: depth, pool
-      real(r8),intent(in)   :: pool_matrix(nlevdecomp, pool_types)
+
+      real(r8),intent(in)   :: pool_matrix(:,:)
       real(r8),intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
-      real(r8), intent(out) :: tot_diffusion_dummy ![gC/day]
-      real(r8),intent(out)  :: vert(nlevdecomp, pool_types)
+      real(r8), intent(out) :: tot_diffusion_dummy ![gC/h]
+      real(r8), allocatable, intent(out)  :: vert(:,:)
       real(r8)              :: sum_day=0.0
+      integer               :: depth, pool !For iteration
+      integer,dimension(1)  :: max_pool, max_depth !For iteration
+
+      allocate (vert, mold = pool_matrix)
+
+      !Get how many depth levels and pools we will loop over.
+      max_depth=shape(pool_matrix(:,1)) !TODO: Easier way to do this?
+      max_pool=shape(pool_matrix(1,:))
 
       !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
       !pool_matrix is used here to calculate the diffusion.
-      do depth = 1,nlevdecomp
-        do pool =1, pool_types
 
+      do depth = 1,max_depth(1)
+        do pool =1, max_pool(1)
+          print*, "pool number: ", pool, "depth: ", depth
           !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
           if (depth == 1) then
             upper_diffusion_flux= 0.0

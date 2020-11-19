@@ -41,6 +41,8 @@ module mycmim
       real(r8)                       :: a_matrixC(nlevdecomp, pool_types)        ! For storing the analytical solution
       real(r8)                       :: InitC(nlevdecomp, pool_types)           ! Initial C concentration, determined in initMod.f90
       real(r8)                       :: pool_temporaryC(nlevdecomp,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
+      real(r8)                       :: pool_temporaryN(nlevdecomp,pool_types+1)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
+
                                                                                 !The new value after the time step is then pool_matrixC = pool_temporaryC + vertical change
       real(r8)                       :: pool_matrixN(nlevdecomp,pool_types+1)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: mass_pool_matrixN(nlevdecomp,pool_types+1)! For storing N pool masses [gN/m2] (pool_matrixN*delta_z)
@@ -68,8 +70,11 @@ module mycmim
       real(r8)                       :: dt                                   ! size of time step
       real(r8)                       :: time                                 ! t*dt
       real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss
-      real(r8)                       :: tot_diff,upper,lower                 ! For the call to vertical_diffusion
-      real(r8)                       :: vertC(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrixC
+      real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion
+      real(r8)                       :: tot_diffN,upperN,lowerN                 ! For the call to vertical_diffusion
+
+      real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, on the same form as change_matrixC
+      real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, on the same form as change_matrixC
 !      real(r8)                       :: vertN(nlevdecomp, pool_types)         !Stores the vertical change in a time step, on the same form as change_matrixN
 
 !NOTE: these are not used after the plant pool was introduced:
@@ -367,7 +372,7 @@ module mycmim
             !print*, "------------------------------------------------------------------------------"
 
 
-            pool_matrixN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt      !NOTE No vertical transport of nitrogen (yet..)
+            pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt      
 
             if (isnan(pool_matrixN(j,i))) then
               print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_matrixN(j,i)
@@ -418,10 +423,16 @@ module mycmim
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
 
         if (isVertical) then
-          call vertical_diffusion(tot_diff,upper,lower, pool_temporaryC,vertC)
+          call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC)
+          call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN)
+          call disp(vertN)
+          call disp(vertC)
+
           pool_matrixC =  vertC*dt + pool_temporaryC
+          pool_matrixN = vertN*dt + pool_temporaryN
         else
           pool_matrixC=pool_temporaryC
+          pool_matrixN=pool_temporaryN
 
         end if!isVertical
 
