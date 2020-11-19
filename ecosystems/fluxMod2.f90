@@ -120,7 +120,7 @@ module fluxMod2
     N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa!/CN_ratio(9)
 
     !Inorganic N taken up directly by plant roots                               !Usikker pa enheter
-    N_InPlant = V_max_plant*N_in*(1-delta)*(C_PR/(C_PR + Km_plant))
+    N_InPlant = V_max_plant*N_in*(1-delta)*(C_PR/(C_PR + Km_plant/delta_z(depth)))
     !Deposition and leacing from the inorganic N pool
     Deposition = Deposition_rate/delta_z(depth)                                          !Usikker pa enheter
     Leaching = Leaching_rate*N_in/delta_z(depth)
