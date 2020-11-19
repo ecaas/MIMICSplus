@@ -173,9 +173,8 @@ module fluxMod2
     U_sb = (C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb+f*(Decomp_ecm + Decomp_erm + Decomp_am))    !The saprotrophs decompose the carbon that is made more available when the mycorrhiza take N from SOM.
     U_sf = (C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf+ (1-f)*(Decomp_ecm + Decomp_erm + Decomp_am))
     !print*, "Saprotrophic uptake of C:", U_sb
-    N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb/CN_ratio(3)
-  !  print*, "NSAPbIN", N_SAPbIN, N_LITmSAPb, N_LITsSAPb, N_SOMaSAPb, e_s*U_sb/CN_ratio(3)
-    N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf/CN_ratio(4)
+    N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb*N_SAPb/C_SAPb
+    N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*N_SAPf/C_SAPf
     !If nothing is leftover, nothing is given:
     ! if (N_SAPbIN <= 0) then
     !   N_SAPbIN = 0
@@ -185,9 +184,9 @@ module fluxMod2
     ! end if
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM/CN_ratio(5) !gN/m3h
-    N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM/CN_ratio(6)
-    N_AMPlant = N_INAM + N_SOMaErM - e_m*C_PlantAM/CN_ratio(7)
+    N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*N_EcM/C_EcM !gN/m3h
+    N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*N_ErM/C_ErM
+    N_AMPlant = N_INAM + N_SOMaErM - e_m*C_PlantAM*N_AM/C_AM
     !If not enough N to cover the internal need, nothing is given to the plant
     ! if (N_EcMPlant <= 0) then
     !   N_EcMPlant = 0
