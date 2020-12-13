@@ -111,7 +111,6 @@ module mycmim
 !      real(r8)                       :: ecm_frac, erm_frac, am_frac
 !      real(r8), dimension(nlevdecomp, 7) :: tot_input
 
-      real(r8)                      :: P_init_N, P_init_C
       real(r8)                      :: possible_N_change, possible_C_change
 
 
@@ -141,19 +140,7 @@ module mycmim
       dt= 1.0/step_frac !Setting the time step
 
       !Set initial concentration values:
-      call initialize(pool_matrixC,pool_matrixN,CPlant,NPlant)
-      ! if (isVertical) then
-      !   call initialize_vert(InitC, InitN, P_init_C, P_init_N)
-      ! else
-      !   call initialize_onelayer(InitC, InitN, P_init_C, P_init_N)
-      ! end if !isVertical
-      !
-      ! pool_matrixC = InitC
-      ! pool_matrixN = InitN
-      ! CPlant = P_init_C
-      ! NPlant = P_init_N
-      ! a_NPlant = P_init_N
-      ! a_CPlant = P_init_C
+      call initialize(pool_matrixC,pool_matrixN,CPlant,NPlant,nlevdecomp)
 
       if (.not. isVertical) then !So that delta_z will not be 1st on delta_z from parametersMod
         delta_z=1.52             !TODO: This can be done better
@@ -162,8 +149,8 @@ module mycmim
 
       change_matrixC = 0.0
       change_matrixN = 0.0
-      a_matrixC      = InitC
-      a_matrixN      = InitN
+      a_matrixC      = pool_matrixC
+      a_matrixN      = pool_matrixN
       HR            = 0.0
       vertC_change_sum=0.0
 !      vertN_change_sum=0.0
