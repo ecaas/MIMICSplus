@@ -242,6 +242,9 @@ module mycmim
           !Calculate fluxes between pools in level j (file: fluxMod2.f90):
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN, CPlant, NPlant,isVertical)
 
+          if (counter == write_hour .or. t==1) then
+           call fluxes_netcdf(int(time), write_hour, timestep, j, run_name)
+          end if !write fluxes
 
           !calculate the change of N and C in the plant based on the flux equations.  TODO: Needs better way to ensure reasonable values in these pools
           !CPlant_tstep and NPlant_tstep sum up the change from each layer, and will be used to update CPlant and NPlant at the end of the timestep.

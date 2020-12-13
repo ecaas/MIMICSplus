@@ -109,29 +109,47 @@ real(r8)                                     :: gas_diffusion
 integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
 integer                                      :: current_month, previous_month
 
-real(r8)                                     :: Loss_termN, Loss_termC, Loss_termNP, Loss_termCP, Plant_gainN, Plant_GainC, Plant_lossN, Plant_lossC, a_NPlant, a_CPlant
+real(r8)                                     :: Loss_termN, Loss_termC, Loss_termNP, Loss_termCP, Plant_gainN,&
+                                                Plant_GainC, Plant_lossN, Plant_lossC, a_NPlant, a_CPlant
 
 !Fluxes etc:
-real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_ErMSOMp, C_ErMSOMa, C_ErMSOMc, C_AMSOMp, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa
-real(r8) :: C_LITmSAPf, C_LITsSAPf
-real(r8) :: C_SAPbSOMa, C_SAPbSOMp, C_SAPbSOMc,C_SAPfSOMa, C_SAPfSOMp, C_SAPfSOMc
-real(r8) :: N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc, N_ErMSOMp, N_ErMSOMa, N_ErMSOMc, N_AMSOMp, N_AMSOMa, N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa
-real(r8) :: N_LITmSAPf, N_LITsSAPf, N_SOMaEcM, N_SOMaErM,N_SOMaAM, N_PlantLITs, N_PlantLITm, N_INPlant, N_INEcM, N_INErM, N_INAM, N_EcMPlant, N_ErMPlant, N_AMPlant
-real(r8) :: N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc, N_SAPfIN, N_SAPbIN
-real(r8) :: C_growth_rate, C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, Decomp_ecm, Decomp_erm, Decomp_am, Leaching, Deposition
-real(r8) :: C_PR, C_PS,N_PR, N_PS, Total_plant_mortality,f, U_sb, U_sf, CPlant, NPlant, P_N, Plant_CN, CPlant_tstep, NPlant_tstep
-real(r8) :: growth_rate_sum
-character (len=*),parameter                  :: clm_data_file = '/home/ecaas/clm/cruncep_iso_hist/Dovre/clm50_clm50d001_1deg_CRUNCEPV7_iso_hist.clm2.h0.SOILLIQ_SOILICE_TSOI.Dovre2014.nc'
+real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_ErMSOMp, C_ErMSOMa, C_ErMSOMc, C_AMSOMp, &
+C_LITmSAPf, C_LITsSAPf, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa, &
+C_SAPbSOMa, C_SAPbSOMp, C_SAPbSOMc,C_SAPfSOMa, C_SAPfSOMp, C_SAPfSOMc, &
+N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc, N_ErMSOMp, N_ErMSOMa, N_ErMSOMc, N_AMSOMp, N_AMSOMa,&
+N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, N_LITmSAPf, N_LITsSAPf, N_SOMaEcM, N_SOMaErM,N_SOMaAM,&
+N_PlantLITs, N_PlantLITm, N_INPlant, N_INEcM, N_INErM, N_INAM, N_EcMPlant, N_ErMPlant, N_AMPlant, &
+N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc, N_SAPfIN, N_SAPbIN,&
+C_growth_rate, C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, Decomp_ecm, &
+Decomp_erm, Decomp_am, Leaching, Deposition, C_PR, C_PS,N_PR, N_PS, Total_plant_mortality,f, U_sb, U_sf, CPlant,&
+NPlant, P_N, Plant_CN, CPlant_tstep, NPlant_tstep, growth_rate_sum
+
+character (len=*),parameter                  :: clm_data_file = &
+'/home/ecaas/clm/cruncep_iso_hist/Dovre/clm50_clm50d001_1deg_CRUNCEPV7_iso_hist.clm2.h0.SOILLIQ_SOILICE_TSOI.Dovre2014.nc'
 !For writing to file:
-character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/'
+character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/vertical/'
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
-character (len=4), dimension(pool_types):: variables = (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
-character (len=*), dimension(pool_types+1), parameter:: N_variables = (/  "N_LITm", "N_LITs", "N_SAPb","N_SAPf", "N_EcM ", "N_ErM ", "N_AM  ", "N_SOMp", "N_SOMa", "N_SOMc", "N_Inor"/)
-character (len=10), dimension(pool_types):: change_variables = (/  "changeLITm", "changeLITs", "changeSAPb","changeSAPf", "changeEcM ", "changeErM ", "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
-character (len=*), dimension(pool_types),parameter:: an_variables = (/  "anLITm", "anLITs", "anSAPb","anSAPf", "anEcM ", "anErM ", "anAM  ", "anSOMp", "anSOMa", "anSOMc" /)
-character (len=*), dimension(29), parameter ::  name_fluxes = (/"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
-      "EcMSAPb ", "EcMSAPf ","ErMSAPb ","ErMSAPf ", "AMSAPb  ","AMSAPf  ","EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ","ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  " &
-      ,"AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa" /)
+character (len=4), dimension(pool_types)     :: variables = &
+(/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
+character (len=*), dimension(pool_types+1), parameter:: N_variables = &
+(/  "N_LITm", "N_LITs", "N_SAPb","N_SAPf", "N_EcM ", "N_ErM ", "N_AM  ", "N_SOMp", "N_SOMa", "N_SOMc", "N_Inor"/)
+character (len=10), dimension(pool_types):: change_variables = &
+(/  "changeLITm", "changeLITs", "changeSAPb","changeSAPf", "changeEcM ", "changeErM ",&
+    "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
+character (len=*), dimension(pool_types),parameter:: an_variables = &
+&(/  "anLITm", "anLITs", "anSAPb","anSAPf", "anEcM ", "anErM ", "anAM  ", "anSOMp", "anSOMa", "anSOMc" /)
+character (len=*), dimension(*), parameter ::  C_name_fluxes = &
+[character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
+  "EcMSAPb ", "EcMSAPf ","ErMSAPb ","ErMSAPf ", "AMSAPb  ","AMSAPf  ","EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
+  "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
+  ,"PlantLITs","PlantEcM","PlantErM","PlantAM"]
+
+character (len=*), dimension(*), parameter ::  N_name_fluxes = &
+[character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
+  "EcMSAPb ", "EcMSAPf ","ErMSAPb ","ErMSAPf ", "AMSAPb  ","AMSAPf  ","EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
+  "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
+  ,"PlantLITs","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
+  "SAPbIN", "SAPfIN"]
 
 
 
