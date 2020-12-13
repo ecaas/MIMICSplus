@@ -3,14 +3,14 @@
 #-------------------------------------------------------------------------------
 
 PROG = ./run_script
-LIB_NETCDF = /home/ecaas/anaconda3/envs/pyn_env/lib
-INCS = /home/ecaas/anaconda3/envs/pyn_env/include
+LIB_NETCDF = /home/ecaas/anaconda3/envs/nc-fortran/lib
+INCS = /home/ecaas/anaconda3/envs/nc-fortran/include
 
 OBJ = test_script.o mycmimMod.o fluxMod2.o initMod.o \
 	testMod.o writeMod.o paramMod.o dispmodule.o
 #-------------------------------------------------------------------------------
 FC = gfortran
-FFLAGS = -g -fcheck=all -Wall -ffree-line-length-'none'
+FFLAGS = -g -fcheck=all -fbacktrace -ffpe-trap=zero -O0 -Wall -ffree-line-length-'none'
 
 EXTRAFFLAGS =  -Wno-unused-dummy-argument -Wno-unused-parameter
 FINCLUDES = -I$(INCS)
@@ -22,7 +22,8 @@ $(PROG): $(OBJ)
 
 
 
-mycmimMod.o: mycmimMod.f90 paramMod.o dispmodule.o fluxMod2.o initMod.o writeMod.o testMod.o
+mycmimMod.o: mycmimMod.f90 paramMod.o dispmodule.o fluxMod2.o initMod.o writeMod.o \
+testMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) mycmimMod.f90
 
 fluxMod2.o: fluxMod2.f90 paramMod.o dispmodule.o 
