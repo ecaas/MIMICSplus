@@ -101,9 +101,9 @@ module mycmim
       integer                        :: ycounter, year
       integer                        :: counter                                 !used for determining when to output results
       integer                        :: month_counter
-      integer                        :: j,i,t                                   !for iterations
+      integer                        :: j,i,t                                !for iterations
       integer,parameter              ::t_init=1
-      real(r8), dimension(nlevdecomp):: HR_sum                                  !Sums total HR between two output entries
+      real(r8), allocatable:: HR_sum(:)                                  !Sums total HR between two output entries
 
       real(r8)                       :: change_sum(nlevdecomp, pool_types)
 !      real(r8)                       :: vertN_change_sum(nlevdecomp, pool_types)
@@ -114,8 +114,21 @@ module mycmim
       real(r8)                      :: possible_N_change, possible_C_change
 
 
-      integer,parameter              :: write_hour= 1*24*7!How often output is written to file
-
+      !For reading soil temperature and moisture from CLM output file
+      real(r8), dimension(nlevdecomp)         :: TSOIL!(:), SOILLIQ(:),SOILICE(:),WATSAT(:),r_moist(:)
+      real(r8), dimension(nlevdecomp)          :: SOILLIQ
+      real(r8), dimension(nlevdecomp)          :: SOILICE
+      real(r8), dimension(nlevdecomp)          :: WATSAT
+      real(r8), dimension(nlevdecomp)          :: r_moist
+      integer,parameter              :: write_hour= 1*24*14!How often output is written to file
+      !ALLOCATIONS:
+      ! allocate(Pool_matrixC(nlevdecomp, pool_types))
+      ! allocate(change_matrixC,a_matrixC,pool_temporaryC, mold = Pool_matrixC)
+      ! allocate(Pool_matrixN(nlevdecomp, pool_types_N))
+      ! allocate(change_matrixN,a_matrixN,pool_temporaryN, mold = Pool_matrixN)
+      allocate(HR_sum(nlevdecomp))
+      !allocate(TSOIL(nlevdecomp))
+      !allocate(SOILLIQ,SOILICE,WATSAT,r_moist, mold = TSOIL)
 
       if (nlevdecomp>1) then
         isVertical = .True.
@@ -163,11 +176,9 @@ module mycmim
       month_counter = 30
       HR_mass_accumulated = 0
       growth_rate_sum=0
-      print*,  "test"
 
       !open and prepare files to store results. Store initial value
       call create_netcdf(run_name, nlevdecomp)
-      print*,  "test2"
 
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
                       a_matrixC,a_matrixN, HR_mass_accumulated, vertC_change_sum, write_hour,current_month, &
@@ -185,7 +196,6 @@ module mycmim
         month_counter = month_counter + 1
         NPlant_tstep=0
         CPlant_tstep=0
-
         ! if (t == nsteps/2) then
         !   !Leaching_rate = 0.3/hr_pr_yr
         !   TSOI= TSOI+2
@@ -196,7 +206,6 @@ module mycmim
         if (month_counter == days_in_month(current_month)*24) then
           !print*, month_counter
           previous_month = current_month
-          call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month)
           call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month, nlevdecomp)
           call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
           if (current_month == 12) then
@@ -216,10 +225,12 @@ module mycmim
         if (t == 1) then
           call disp("InitC", pool_matrixC)
           call disp("InitN", pool_matrixN)
+          print*, "C plant", CPlant
+          print*, "N plant", NPlant
+
         end if
 
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
-
           !Michaelis Menten parameters:
           Km      = exp(Kslope*TSOI + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
           Vmax    = exp(Vslope*TSOI + Vint)*a_v*Vmod!*r_moist(j)    ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
@@ -248,8 +259,24 @@ module mycmim
            C_PlantEcM - C_PlantErM - C_PlantAM)*dt*delta_z(j)!gC/m2h
 
           Plant_lossC = (C_PlantLITm + C_PlantLITs + C_PlantEcM + C_PlantErM + C_PlantAM)*delta_z(j)
-          Plant_gainC = C_growth_rate*delta_z(j) !TODO:: Skal ikke ganges med delta_z her??
+          Plant_gainC = C_growth_rate!*delta_z(j) !TODO:: Skal ikke ganges med delta_z her??
           growth_rate_sum = growth_rate_sum + C_growth_rate
+
+
+          ! if (Plant_LossC < 0) then
+          !   print*, 'C_loss Plant:',Plant_LossC, i, t
+          !   print*, C_PlantLITm,C_PlantLITs,C_PlantEcM,C_PlantErM,C_PlantAM
+          ! endif
+          ! if (Plant_GainC < 0) then
+          !   print*, 'C_Gain Plant: ', Plant_GainC, i, t
+          !   print*, C_growth_rate*delta_z(j)
+          ! endif
+          ! if (Plant_LossN < 0) then
+          !   print*, 'N_loss Plant:', Plant_LossN, i, t
+          ! endif
+          ! if (Plant_GainN < 0) then
+          !   print*, 'N_Gain Plant: ', Plant_GainN, i, t
+          ! endif
           ! if (possible_C_change + Cplant < CPlant_min) then
           !   CPlant_tstep = CPlant_tstep + (C_growth_rate - C_PlantLITm - N_PlantLITs)*dt
           !   !Instead of the values calculated in subroutine calculate_fluxes, they are set to zero:
@@ -350,21 +377,21 @@ module mycmim
               print*, 'Too many pool types expected, pool_types = ',pool_types, 'i: ', i
             end if !determine dC_i/dt
 
-            if (C_Loss < 0) then
-              print*, 'C_loss:', C_Loss, i, t
-            endif
-            if (C_Gain < 0) then
-              print*, 'C_Gain: ', C_Gain, i, t
-            endif
-            if (N_Loss < 0) then
-              print*, 'N_loss:', N_Loss, i, t
-            endif
-            if (N_Gain < 0) then
-              print*, 'N_Gain: ', N_Gain, i, t
-              print*, Deposition/delta_z(j),N_SAPbIN,N_SAPfIN
-              print*, "NSAPbIN", N_SAPbIN, N_LITmSAPb, N_LITsSAPb, N_SOMaSAPb, e_s*U_sb/CN_ratio(3)
-
-            endif
+            ! if (C_Loss < 0) then
+            !   print*, 'C_loss:', C_Loss, i, t
+            ! endif
+            ! if (C_Gain < 0) then
+            !   print*, 'C_Gain: ', C_Gain, i, t
+            ! endif
+            ! if (N_Loss < 0) then
+            !   print*, 'N_loss:', N_Loss, i, t
+            ! endif
+            ! if (N_Gain < 0) then
+            !   print*, 'N_Gain: ', N_Gain, i, t
+            !   print*, Deposition/delta_z(j),N_SAPbIN,N_SAPfIN
+            !   print*, "NSAPbIN", N_SAPbIN, N_LITmSAPb, N_LITsSAPb, N_SOMaSAPb, e_s*U_sb/CN_ratio(3)
+            !
+            ! endif
 
             if (i /= 11) then !Carbon matrix does only have 10 columns (if i == 11 this is handeled inside the loop over pools)
                 change_matrixC(j,i) = C_Gain - C_Loss
@@ -374,20 +401,20 @@ module mycmim
                 !Store these values as temporary so that they can be used in the diffusion subroutine
                 pool_temporaryC(j,i)=pool_matrixC(j,i) + change_matrixC(j,i)*dt
 
-                Loss_termC = C_Loss/a_matrixC(j,i)
+                !Loss_termC = C_Loss/a_matrixC(j,i)
 
                 !print*, "*Levetid karbon i ", variables(i), ': ',(1/Loss_termC)/24, 'dager'
                 !print*, "C loss_term (k)", C_Loss, a_matrixC(j,i), Loss_termC
                 !print*, "------------------------------------------------------------------------------"
 
-                a_matrixC(j,i) = a_matrixC(j,i)*exp(-dt*Loss_termC) + (C_Gain/Loss_termC)*(1-exp(-dt*Loss_termC))
+                !a_matrixC(j,i) = a_matrixC(j,i)*exp(-dt*Loss_termC) + (C_Gain/Loss_termC)*(1-exp(-dt*Loss_termC))
                 !print*, loss_termC, C_Gain, i, pool_temporaryC(j,i)
             end if
 
-            Loss_termN = N_Loss/a_matrixN(j,i)
+          !  Loss_termN = N_Loss/a_matrixN(j,i)
             !print*, Loss_termN, N_variables(i), a_matrixN(j,i)
-            a_matrixN(j,i)= &
-            a_matrixN(j,i)*exp(-dt*Loss_termN) + (N_Gain/Loss_termN)*(1-exp(-dt*Loss_termN))!
+          !  a_matrixN(j,i)= &
+          !  a_matrixN(j,i)*exp(-dt*Loss_termN) + (N_Gain/Loss_termN)*(1-exp(-dt*Loss_termN))!
             ! if (i==11)then
             !   print*, a_matrixN(j,i)*exp(-dt*Loss_termN),(N_Gain/Loss_termN)*(1-exp(-dt*Loss_termN))
             ! end if
@@ -397,7 +424,7 @@ module mycmim
             !print*, "------------------------------------------------------------------------------"
 
 
-            pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt      
+            pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt
 
             if (isnan(pool_matrixN(j,i))) then
               print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_matrixN(j,i)
@@ -431,11 +458,11 @@ module mycmim
         NPlant = NPlant + NPlant_tstep
 
         !"analytic":
-        Loss_termNP = Plant_lossN/a_NPlant
-        Loss_termCP = Plant_lossC/a_CPlant
+        !Loss_termNP = Plant_lossN/a_NPlant
+        !Loss_termCP = Plant_lossC/a_CPlant
       !  print*, "time", time, "Loss_termCP", Loss_termCP, "Loss_termNP", Loss_termNP
-        a_NPlant = a_Nplant*exp(-dt*Loss_termNP) + Plant_GainN*(1-exp(-dt*Loss_termNP))/Loss_termNP!
-        a_CPlant = a_Cplant*exp(-dt*Loss_termCP) + Plant_GainC*(1-exp(-dt*Loss_termCP))/Loss_termCP!
+        !a_NPlant = a_Nplant*exp(-dt*Loss_termNP) + Plant_GainN*(1-exp(-dt*Loss_termNP))/Loss_termNP!
+        !a_CPlant = a_Cplant*exp(-dt*Loss_termCP) + Plant_GainC*(1-exp(-dt*Loss_termCP))/Loss_termCP!
 
         !print*, '*Levetid nitrogen i plant pool: ', (1/Loss_termNP)/24, 'dager'
       !  print*, '*Levetid karbon i plant pool: ', (1/Loss_termCP)/24, 'dager'
@@ -472,18 +499,20 @@ module mycmim
 
         !Write end values to terminal
         if (t == nsteps) then
-          print*, 'Growth:  ', C_growth_rate, growth_rate_sum
-
+          !print*, 'Growth:  ', C_growth_rate, growth_rate_sum
           call disp("pool_matrixC gC/m3 ",pool_matrixC)
+          call disp("pool_matrixC gN/m3 ",pool_matrixN)
           Print*, NPlant, CPlant
         end if
 
       end do !t
 
-      call disp(HR_sum)
+      !call disp(HR_sum)
       !print*, 'HR mass acc', HR_mass_accumulated
       !call tot_mass_input(lit_inputC, som_inputC,myc_inputC, tot_input)!TODO: Need to multiply with dt! (current dt =1, so ok for now..09.06.20)
       !input_mass_accumulated = sum(tot_input)*nsteps!NOTE: ok as long as input does not change with time
       !call total_mass_conservation(sum_input= input_mass_accumulated, sum_respiration = HR_mass_accumulated, old = InitC, new = pool_matrixC)
     end subroutine decomp
+
+
 end module mycmim
