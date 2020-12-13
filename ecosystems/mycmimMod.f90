@@ -21,35 +21,49 @@ module mycmim
   use testMod
   implicit none
 
+
   contains
-    subroutine decomp(nsteps, run_name, isVertical, ecosystem,step_frac) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
+    subroutine decomp(nsteps, run_name,nlevdecomp, ecosystem,step_frac) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
                                                                         !
-      integer                        :: nsteps                               ! number of time steps to iterate over
+      integer                        :: nsteps                              ! number of time steps to iterate over
       character (len=*)              :: run_name                             ! used for naming outputfiles
-      logical                        :: isVertical                           ! True if we use vertical soil layers.
       character (len=*)              :: ecosystem                            ! 'Shrub', 'Heath' or 'Meadow' (For comparison with Sorensen et al)
       integer                        :: step_frac                            ! determines the size of the time step
+      integer             :: nlevdecomp                  ! number of vertical layers
 
+      logical                        :: isVertical                           ! True if we use vertical soil layers.
+      integer :: ncid,varid,timestep
       real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
       real(r8), dimension(nlevdecomp):: mass_HR                              ![gC/m2h]
       real(r8)                       :: HR_mass_accumulated, HR_mass, input_mass_accumulated
-
       real(r8)                       :: pool_matrixC(nlevdecomp,pool_types)     ! For storing C pool sizes [gC/m3]
       real(r8)                       :: mass_pool_matrixC(nlevdecomp,pool_types)! For storing C pool masses [gC/m2] (pool_matrixC*delta_z)
-      !real(r8)                       :: previous_conc(nlevdecomp,pool_types)    ! stores concentration at timestep. Used for comparing in subroutine test_mass_conservation
       real(r8)                       :: change_matrixC(nlevdecomp,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: a_matrixC(nlevdecomp, pool_types)        ! For storing the analytical solution
-      real(r8)                       :: InitC(nlevdecomp, pool_types)           ! Initial C concentration, determined in initMod.f90
       real(r8)                       :: pool_temporaryC(nlevdecomp,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
       real(r8)                       :: pool_temporaryN(nlevdecomp,pool_types+1)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
-
-                                                                                !The new value after the time step is then pool_matrixC = pool_temporaryC + vertical change
       real(r8)                       :: pool_matrixN(nlevdecomp,pool_types+1)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: mass_pool_matrixN(nlevdecomp,pool_types+1)! For storing N pool masses [gN/m2] (pool_matrixN*delta_z)
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types+1) ! For storing dC/dt for each time step [gN/(m3*hour)]
       real(r8)                       :: a_matrixN(nlevdecomp, pool_types+1)       ! For storing the analytical solution
-      real(r8)                       :: InitN(nlevdecomp, pool_types+1)         ! Initial N concentration, determined in initMod.f90
+
       !real(r8)                       :: pool_temporaryN(nlevdecomp,pool_types+1)
+      ! real(r8) ,allocatable                      :: pool_matrixC(:,:)     ! For storing C pool sizes [gC/m3]
+      ! !real(r8)                       :: mass_pool_matrixC(:,:)! For storing C pool masses [gC/m2] (pool_matrixC*delta_z)
+      ! !real(r8)                       :: previous_conc(:,:)    ! stores concentration at timestep. Used for comparing in subroutine test_mass_conservation
+      ! real(r8),allocatable                       :: change_matrixC(:,:)   ! For storing dC/dt for each time step [gC/(m3*hour)]
+      ! real(r8),allocatable                       :: a_matrixC(:,:)        ! For storing the analytical solution
+      ! !real(r8),allocatable                       :: InitC(nlevdecomp, pool_types)           ! Initial C concentration, determined in initMod.f90
+      ! real(r8),allocatable                       :: pool_temporaryC(:,:)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
+      ! real(r8),allocatable                       :: pool_temporaryN(:,:)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
+      !
+      !                                                                           !The new value after the time step is then pool_matrixC = pool_temporaryC + vertical change
+      ! real(r8),allocatable                       :: pool_matrixN(:,:)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
+      ! !real(r8)                       :: mass_pool_matrixN(:,:)! For storing N pool masses [gN/m2] (pool_matrixN*delta_z)
+      ! real(r8),allocatable                       :: change_matrixN(:,:) ! For storing dC/dt for each time step [gN/(m3*hour)]
+      ! real(r8),allocatable                       :: a_matrixN(:,:)       ! For storing the analytical solution
+      ! !real(r8),allocatable                       :: InitN(nlevdecomp, pool_types+1)         ! Initial N concentration, determined in initMod.f90
+      !real(r8)                       :: pool_temporaryN(:,:)
 
                                                                              !Shape of pool_matrixC/change_matrixC
                                                                              !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc |
@@ -103,6 +117,12 @@ module mycmim
 
       integer,parameter              :: write_hour= 1*24*7!How often output is written to file
 
+
+      if (nlevdecomp>1) then
+        isVertical = .True.
+      else
+        isVertical = .False.
+      end if
       !Assigning values: (Had to move from paramMod to here to be able to modify them during a run)
       MGE       = 0.25!(/0.3,0.3,0.3,0.4,0.4,0.4/)
 
@@ -134,6 +154,12 @@ module mycmim
       ! NPlant = P_init_N
       ! a_NPlant = P_init_N
       ! a_CPlant = P_init_C
+
+      if (.not. isVertical) then !So that delta_z will not be 1st on delta_z from parametersMod
+        delta_z=1.52             !TODO: This can be done better
+      end if
+      !---------
+
       change_matrixC = 0.0
       change_matrixN = 0.0
       a_matrixC      = InitC
@@ -150,15 +176,19 @@ module mycmim
       month_counter = 30
       HR_mass_accumulated = 0
       growth_rate_sum=0
+      print*,  "test"
 
       !open and prepare files to store results. Store initial value
-      call create_netcdf(run_name)
-      call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, a_matrixC,a_matrixN, HR_mass_accumulated, vertC_change_sum, write_hour,current_month, NPlant, CPlant,a_NPlant&
-      ,a_CPlant,TSOIL, r_moist, growth=0.d0)
+      call create_netcdf(run_name, nlevdecomp)
+      print*,  "test2"
+
+      call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
+                      a_matrixC,a_matrixN, HR_mass_accumulated, vertC_change_sum, write_hour,current_month, &
+                      NPlant, CPlant,a_NPlant,a_CPlant,TSOIL, r_moist, growth=0.d0,levsoi=nlevdecomp)
 
       !read temperature and moisture data from CLM file
-      call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month)
-      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)
+      call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month, nlevdecomp)
+      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
 
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
@@ -177,9 +207,11 @@ module mycmim
         ! end if
         !Update temp and moisture values monthly
         if (month_counter == days_in_month(current_month)*24) then
+          !print*, month_counter
           previous_month = current_month
           call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month)
-          call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)
+          call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month, nlevdecomp)
+          call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
           if (current_month == 12) then
             current_month = 1
           else
@@ -208,11 +240,13 @@ module mycmim
           k_mycsom  = (/1.4,1.4,1.4/)*10e-5!*r_moist(j)   ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
 
           !Calculate fluxes between pools in level j (file: fluxMod2.f90):
-          call calculate_fluxes(j, pool_matrixC, pool_matrixN, CPlant, NPlant)
+          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN, CPlant, NPlant,isVertical)
+
 
           !calculate the change of N and C in the plant based on the flux equations.  TODO: Needs better way to ensure reasonable values in these pools
           !CPlant_tstep and NPlant_tstep sum up the change from each layer, and will be used to update CPlant and NPlant at the end of the timestep.
           !(This will only be one value if isVertical = False)
+
           possible_N_change = (N_EcMPlant+  N_ErMPlant +  N_AMPlant + N_InPlant  &
           - N_PlantLITm - N_PlantLITs)*dt*delta_z(j) !gN/m2h
 
@@ -420,30 +454,27 @@ module mycmim
         Plant_CN = CPlant/NPlant
 
         !Store accumulated HR mass
-        call respired_mass(HR, HR_mass)
+        call respired_mass(HR, HR_mass,nlevdecomp)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
 
         if (isVertical) then
           call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC)
           call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN)
-          call disp(vertN)
-          call disp(vertC)
-
           pool_matrixC =  vertC*dt + pool_temporaryC
           pool_matrixN = vertN*dt + pool_temporaryN
         else
           pool_matrixC=pool_temporaryC
           pool_matrixN=pool_temporaryN
-
         end if!isVertical
 
         if (counter == write_hour) then
+          !print*, 'inside', write_hour, counter
           counter = 0
-        !  print*, "int time", int(time)
-        !call disp(pool_matrixN)
-          call fill_netcdf(run_name, int(time), pool_matrixC, change_sum, pool_matrixN,change_matrixN, a_matrixC,a_matrixN,HR_mass_accumulated,&
-           vertC_change_sum, write_hour,current_month, NPlant, CPlant,a_NPlant, a_CPlant, TSOIL, r_moist, growth_rate_sum)
+          call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
+           a_matrixC,a_matrixN,HR_mass_accumulated,vertC_change_sum, write_hour,current_month, NPlant,&
+           CPlant,a_NPlant, a_CPlant, TSOIL, r_moist, growth_rate_sum,nlevdecomp)
 
+          !call store_parameters(run_name)
           !HR_sum = 0.0
           change_sum = 0.0
           vertC_change_sum = 0.0

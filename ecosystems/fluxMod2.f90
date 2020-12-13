@@ -4,12 +4,14 @@ module fluxMod2
   implicit none
 
   contains
-    !testchange
-  subroutine calculate_fluxes(depth,C_pool_matrix,N_pool_matrix, C_plant, N_plant) !This subroutine calculates the fluxes in and out of the SOM pools.
+
+  subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix, C_plant, N_plant, isVert) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer :: depth!depth level
     real(r8) :: C_plant, N_plant
+    integer        :: nlevdecomp
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
-    real(r8),target :: N_pool_matrix(nlevdecomp, pool_types+1)
+    real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
+    logical         :: isVert
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
     C_SAPb, C_SAPf, N_LITm, N_LITs, N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb, N_SAPf, N_IN
@@ -36,6 +38,10 @@ module fluxMod2
     N_SOMc => N_pool_matrix(depth, 10)
     N_IN => N_pool_matrix(depth, 11)
 
+    !change depth to 1 m if single soil layer is used:
+    if (.not. isVert) then
+      delta_z=1!.52
+    end if
     !------------------CARBON FLUXES----------------------------:
     C_PR = gamma_rs*C_Plant/(1+gamma_rs) !Carbon in plant roots
     C_PS = C_plant/(1+ gamma_rs)!Carbon in plant shoots
@@ -49,9 +55,7 @@ module fluxMod2
       !P_N = 0.0
     end if
     !Plant growth rate
-    C_growth_rate = (1-delta)*P_N*N_PS                                 !NOTE Usikker paa enheter her
-  !  print*, 'C_growth_rate', C_growth_rate
-  !  print*, "C_PS", C_PS, "N_PS", N_PS
+    C_growth_rate = (1-delta)*P_N*N_PS!+0.01                                 !NOTE Usikker paa enheter her
 
     !Plant Carbon to mycorrhiza: = delta*P_N*N_PS                     !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
     C_PlantEcM = delta*0.4*P_N*N_PS/delta_z(depth)                        !NOTE: Deler pa lagdybde for a fordele inputen fra planten likt over alle lagene
@@ -223,12 +227,12 @@ module fluxMod2
 
       do depth = 1,max_depth(1)
         do pool =1, max_pool(1)
-          print*, "pool number: ", pool, "depth: ", depth
+          !print*, "pool number: ", pool, "depth: ", depth
           !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
           if (depth == 1) then
             upper_diffusion_flux= 0.0
             lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
-          elseif (depth==nlevdecomp) then
+          elseif (depth==max_depth(1)) then
             upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
             lower_diffusion_flux= 0.0
           else
@@ -244,10 +248,12 @@ module fluxMod2
 
   end subroutine vertical_diffusion
 
-  subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist)
+  subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist,nlevdecomp)
+    integer :: nlevdecomp
     real(r8), intent(out), dimension(nlevdecomp) :: r_moist
     real(r8), intent(in), dimension(nlevdecomp)  :: theta_l, theta_sat, theta_f
     real(r8), dimension(nlevdecomp)  :: theta_frzn, theta_liq, air_filled_porosity
+
 
 
       !FROM mimics_cycle.f90 in testbed:
