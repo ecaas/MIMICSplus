@@ -299,31 +299,31 @@ module mycmim
               C_Gain = e_s*(C_LITmSAPf + C_LITsSAPf &
                 + C_SOMaSAPf + 0.5*(Decomp_ecm + Decomp_erm + Decomp_am))
               C_Loss =  C_SAPfSOMp + C_SAPfSOMa + C_SAPfSOMc
-            !  N_Gain = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
-            !  N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMp + N_SAPfIN
-              N_Gain = e_s*U_sf/CN_ratio(4)
-              N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMc
+              N_Gain = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
+              N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMc + N_SAPfIN
+              !N_Gain = e_s*U_sf*pool_matrixN(j,i)/pool_matrixC(j,i)
+              !N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMc
             elseif (i==5) then !EcM
               C_Gain = e_m*C_PlantEcM
               C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc
-              !N_Gain = N_INEcM + N_SOMaEcM
-              !N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
-              N_Gain = e_m*C_PlantEcM/CN_ratio(5)
-              N_Loss = N_EcMSOMp + N_EcMSOMa + N_EcMSOMc
+              N_Gain = N_INEcM + N_SOMaEcM
+              N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
+              !N_Gain = e_m*C_PlantEcM*pool_matrixN(j,i)/pool_matrixC(j,i)
+              !N_Loss = N_EcMSOMp + N_EcMSOMa + N_EcMSOMc
             elseif (i==6) then !ErM
               C_Gain = e_m*C_PlantErM
               C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc
-              N_Gain = e_m*C_PlantErM/CN_ratio(6)
-              N_Loss = N_ErMSOMp + N_ErMSOMa + N_ErMSOMc
-              !N_Gain = N_INErM + N_SOMaErM
-              !N_Loss = N_ErMPlant + N_ErMSOMa + N_ErMSOMp + N_ErMSOMc
+              !N_Gain = e_m*C_PlantErM*pool_matrixN(j,i)/pool_matrixC(j,i)
+              !N_Loss = N_ErMSOMp + N_ErMSOMa + N_ErMSOMc
+              N_Gain = N_INErM + N_SOMaErM
+              N_Loss = N_ErMPlant + N_ErMSOMa + N_ErMSOMp + N_ErMSOMc
             elseif (i==7) then !AM
               C_Gain = e_m*C_PlantAM
               C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc
-              N_Gain = e_m*C_PlantAM/CN_ratio(7)
-              N_Loss = N_AMSOMp + N_AMSOMa + N_AMSOMc
-            !  N_Gain = N_INAM + N_SOMaAM
-            !  N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
+              !N_Gain = e_m*C_PlantAM*pool_matrixN(j,i)/pool_matrixC(j,i)
+              !N_Loss = N_AMSOMp + N_AMSOMa + N_AMSOMc
+              N_Gain = N_INAM + N_SOMaAM
+              N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
               !print*, N_Loss, "am"
             elseif (i==8) then !SOMp
               C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp
