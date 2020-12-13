@@ -288,10 +288,10 @@ module mycmim
               C_Gain = e_s*(C_LITmSAPb + C_LITsSAPb &
                 + C_SOMaSAPb + 0.5*(Decomp_ecm + Decomp_erm + Decomp_am))
               C_Loss =  C_SAPbSOMp + C_SAPbSOMa + C_SAPbSOMc
-              !N_Gain = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb
-              !N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMp + N_SAPbIN
-              N_Gain = e_s*U_sb/CN_ratio(3)
-              N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMc
+              N_Gain = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb
+              N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMc + N_SAPbIN
+              !N_Gain = e_s*U_sb*pool_matrixN(j,i)/pool_matrixC(j,i)
+              !N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMc
 
             elseif (i==4) then !SAPf
               !C_Gain = C_LITmSAPf*MGE(1) + C_LITsSAPf*MGE(2) &
