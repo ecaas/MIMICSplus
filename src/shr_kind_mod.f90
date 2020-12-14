@@ -1,4 +1,9 @@
-!Directly from CLM:  ctsm/tools/mkprocdata_map/src/shr_kind_mod.F90 ===============================================================================
+
+!===============================================================================
+! SVN $Id: shr_kind_mod.F90 11926 2008-09-25 21:10:40Z mvertens $
+! SVN $URL: https://svn-ccsm-models.cgd.ucar.edu/csm_share/branch_tags/cesm1_0_rel_tags/cesm1_0_rel01_share3_100616/shr/shr_kind_mod.F90 $
+!===============================================================================
+
 
 MODULE shr_kind_mod
 
@@ -17,3 +22,4 @@ MODULE shr_kind_mod
    integer,parameter :: SHR_KIND_CX = 512                    ! extra-long char
 
 END MODULE shr_kind_mod
+
