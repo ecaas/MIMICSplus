@@ -1,203 +1,238 @@
-module fluxMod
+module fluxMod2
   use paramMod
   use dispmodule !External module to pretty print matrices (mainly for testing purposes)
   implicit none
 
   contains
 
-  subroutine N_fluxes(depth, Npool_matrix, Cpool_matrix)
+  subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix, C_plant, N_plant, isVert) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer :: depth!depth level
-    real(r8),target :: Npool_matrix(nlevdecomp, pool_types+1)
-    real(r8),target :: Cpool_matrix(nlevdecomp, pool_types)
-    real(r8), pointer :: SAPb, SAPf, EcM, ErM, AM
-
-
-    SAPb => pool_matrix(depth, 3)
-    SAPf => pool_matrix(depth, 4)
-
-    !Inorganic Nitrogen
-    N_SAPbDIN  =
-    N_SAPfDIN  =
-    N_DINPlant =
-    N_DINEcM =
-    N_DINErM =
-    N_DINAM  =
-
-    !SOMa nitrogen (Organic, available N)
-    !Dead saprotrophs and mycorrhiza:
-    N_SAPbSOMa =
-    N_SAPfSOMa =
-    N_EcMSOMa =
-    N_ErMSOMa =
-    N_AMSOMa =
-    !Saprotrophs decompose SOMa:
-    N_SOMaSAPb =
-    N_SOMaSAPf =
-    !Mycorrhizal mining (N only):
-    N_SOMaEcM =
-    N_SOMaErM =
-    N_SOMaAM =
-
-    !SOMp nitrogen:
-    !Dead saprotrophs and mycorrhiza:
-    N_SAPbSOMp =
-    N_SAPfSOMp =
-    N_EcMSOMp =
-    N_ErMSOMp =
-    N_AMSOMp =
-
-    !SOMc nitrogen:
-    !Dead saprotrophs and mycorrhiza:
-    N_SAPbSOMc =
-    N_SAPfSOMc =
-    N_EcMSOMc =
-    N_ErMSOMc =
-    N_AMSOMc =
-
-    !Mycorrhizal nitrogen:
-    N_EcMPlant =
-    N_ErMPlant =
-    N_AMPlant =
-
-    !N in saprotrophs: N/C*MMK eq. for Carbon
-    N_LITmSAPb =
-    N_LITmSAPf =
-    N_LITsSAPb =
-    N_LITsSAPf =
-
-    !N in litter:
-    N_PlantLITm =
-    N_PlantLITs =
-
-
-  end subroutine DIN_fluxes
-
-
-  subroutine litter_fluxes(depth,pool_matrix) !This subroutine calculates the fluxes out of the litter pools. The input to litter pools comes from vegetation, and is not handeled in this subroutine.
-    !This is the total flux from the litter pools. A fraction (1-MGE) is lost to respiration before it reaches the SAP pools. This is handeled in the "decomp" subroutine.
-
-    integer :: depth!depth level
-    real(r8),target :: pool_matrix(nlevdecomp, pool_types)
+    real(r8) :: C_plant, N_plant
+    integer        :: nlevdecomp
+    real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
+    real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
+    logical         :: isVert
     !Creating these pointers improve readability of the flux equations.
-    real(r8), pointer :: SAPb, SAPf, LITm, LITs
-    SAPb => pool_matrix(depth, 3)
-    SAPf => pool_matrix(depth, 4)
-    LITm => pool_matrix(depth, 1)
-    LITs => pool_matrix(depth, 2)
+    real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
+    C_SAPb, C_SAPf, N_LITm, N_LITs, N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb, N_SAPf, N_IN
+    C_LITm => C_pool_matrix(depth, 1)
+    C_LITs => C_pool_matrix(depth, 2)
+    C_SAPb => C_pool_matrix(depth, 3)
+    C_SAPf => C_pool_matrix(depth, 4)
+    C_ErM =>  C_pool_matrix(depth, 6)
+    C_EcM =>  C_pool_matrix(depth, 5)
+    C_AM =>   C_pool_matrix(depth, 7)
+    C_SOMp => C_pool_matrix(depth, 8)
+    C_SOMa => C_pool_matrix(depth, 9)
+    C_SOMc => C_pool_matrix(depth, 10)
 
-    !From LIT to SAPb
-    LITmSAPb=SAPb*Vmax(1)*LITm/(Km(1)+LITm)
-    LITsSAPb=SAPb*Vmax(2)*LITs/(Km(2)+LITs)
+    N_LITm => N_pool_matrix(depth, 1)
+    N_LITs => N_pool_matrix(depth, 2)
+    N_SAPb => N_pool_matrix(depth, 3)
+    N_SAPf => N_pool_matrix(depth, 4)
+    N_EcM =>  N_pool_matrix(depth, 5)
+    N_ErM =>  N_pool_matrix(depth, 6)
+    N_AM =>   N_pool_matrix(depth, 7)
+    N_SOMp => N_pool_matrix(depth, 8)
+    N_SOMa => N_pool_matrix(depth, 9)
+    N_SOMc => N_pool_matrix(depth, 10)
+    N_IN => N_pool_matrix(depth, 11)
 
-    LITmSAPf=SAPf*Vmax(4)*LITm/(Km(4)+LITm)
-    LITsSAPf=SAPf*Vmax(5)*LITs/(Km(5)+LITs)
+    !change depth to 1 m if single soil layer is used:
+    if (.not. isVert) then
+      delta_z=1!.52
+    end if
+    !------------------CARBON FLUXES----------------------------:
+    C_PR = gamma_rs*C_Plant/(1+gamma_rs) !Carbon in plant roots
+    C_PS = C_plant/(1+ gamma_rs)!Carbon in plant shoots
 
-    !NOTE: These correspond to eq. A1,A5,A2,A6 in Wieder 2015
-    nullify(SAPb, SAPf, LITm,LITs)
-  end subroutine litter_fluxes
+    N_PR = gamma_rs*N_Plant/(1+gamma_rs) !N in plant roots
+    N_PS = N_plant/(1+ gamma_rs)!N in plant shoots
+    !print*, "N_PS, N_PR, N_Plant", N_PS, N_PR, N_Plant
+    P_N =  a-b*C_PS !Plant N productivity (as in Baskaran 2016, eq (12))
+    if (P_N < 0) then
+      print*, "P_N < 0: ", P_N
+      !P_N = 0.0
+    end if
+    !Plant growth rate
+    C_growth_rate = (1-delta)*P_N*N_PS!+0.01                                 !NOTE Usikker paa enheter her
 
-  subroutine som_fluxes(depth,pool_matrix) !This subroutine calculates the fluxes in and out of the SOM pools.
+    !Plant Carbon to mycorrhiza: = delta*P_N*N_PS                     !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
+    C_PlantEcM = delta*0.4*P_N*N_PS/delta_z(depth)                        !NOTE: Deler pa lagdybde for a fordele inputen fra planten likt over alle lagene
+    C_PlantErM = delta*0.3*P_N*N_PS/delta_z(depth)                        !gC/m3h  (?)
+    C_PlantAM = delta*0.3*P_N*N_PS/delta_z(depth)
 
-    integer :: depth!depth level
-    real(r8),target :: pool_matrix(nlevdecomp, pool_types)
-    !Creating these pointers improve readability of the flux equations.
-    real(r8), pointer :: SOMp,SOMa,SOMc,EcM,ErM,AM, SAPb, SAPf
-    SAPb => pool_matrix(depth, 3)
-    SAPf => pool_matrix(depth, 4)
-    EcM =>  pool_matrix(depth, 5)
-    ErM =>  pool_matrix(depth, 6)
-    AM =>   pool_matrix(depth, 7)
-    SOMp => pool_matrix(depth, 8)
-    SOMa => pool_matrix(depth, 9)
-    SOMc => pool_matrix(depth, 10)
-    !print*, 'EcM', EcM
+    !Used to calculate litter production in flux subroutine:
+    Total_plant_mortality = (my_shoot + gamma_rs*my_root)*(C_plant/(1+gamma_rs))!gC/m2h
+    !Plant mortality/litter production:
+    C_PlantLITm = fMET*Total_plant_mortality/delta_z(depth)                     !gC/m3h
+    C_PlantLITs =(1-fMET)*Total_plant_mortality/delta_z(depth)                  !TODO: Blir det riktig a bruke fMET for a dele opp totalproduksjonen?
+                                                                                !Tallene fra Baskaran
 
-    EcMSOMp=EcM*k_mycsom(1)*fEcMSOM(1)!somp
-    EcMSOMa=EcM*k_mycsom(1)*fEcMSOM(2)!soma
-    EcMSOMc=EcM*k_mycsom(1)*fEcMSOM(3)!somc
+    !Decomposition of LIT by SAP:
+    !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
+    C_LITmSAPb=C_SAPb*Vmax(1)*C_LITm/(Km(1)+C_LITm)
+    C_LITsSAPb=C_SAPb*Vmax(2)*C_LITs/(Km(2)+C_LITs)
+    C_LITmSAPf=C_SAPf*Vmax(4)*C_LITm/(Km(4)+C_LITm)
+    C_LITsSAPf=C_SAPf*Vmax(5)*C_LITs/(Km(5)+C_LITs)
 
-    ErMSOMp=ErM*k_mycsom(2)*fErMSOM(1)
-    ErMSOMa=ErM*k_mycsom(2)*fErMSOM(2)
-    ErMSOMc=ErM*k_mycsom(2)*fErMSOM(3)
+    !Decomposition of SOMa by SAP. Based on the equations from SOMa to microbial pools in mimics.
+    !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
+    C_SOMaSAPb=C_SAPb*Vmax(3)*C_SOMa/(Km(3)+C_SOMa)
+    C_SOMaSAPf=C_SAPf*Vmax(6)*C_SOMa/(Km(6)+C_SOMa)
 
-    AMSOMp=AM*k_mycsom(3)*fAMSOM(1)
-    AMSOMa=AM*k_mycsom(3)*fAMSOM(2)
-    AMSOMc=AM*k_mycsom(3)*fAMSOM(3)
+    !Dead mycorrhizal biomass enters the SOM pools:                             gC/m3h
+    C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp
+    C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(2)!soma
+    C_EcMSOMc=C_EcM*k_mycsom(1)*fEcMSOM(3)!somc
 
-    !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools.
-    !NOTE: correspond to eq A4,A8 in Wieder 2015
-    SAPbSOMp=SAPb*tau(1)*fPHYS(1)
-    SAPbSOMa=SAPb*tau(1)*fAVAIL(1)
-    SAPbSOMc=SAPb*tau(1)*fCHEM(1) !No arrow on illustration by Haavard and Ella
+    C_ErMSOMp=C_ErM*k_mycsom(2)*fErMSOM(1)
+    C_ErMSOMa=C_ErM*k_mycsom(2)*fErMSOM(2)
+    C_ErMSOMc=C_ErM*k_mycsom(2)*fErMSOM(3)
 
-    SAPfSOMp=SAPf*tau(2)*fPHYS(2)
-    SAPfSOMa=SAPf*tau(2)*fAVAIL(2)
-    SAPfSOMc=SAPf*tau(2)*fCHEM(2)
+    C_AMSOMp=C_AM*k_mycsom(3)*fAMSOM(1)
+    C_AMSOMa=C_AM*k_mycsom(3)*fAMSOM(2)
+    C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(3)
 
-    !Based on the equations from SOMa to microbial pools in mimics. On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
-    SOMaSAPb=SAPb*Vmax(3)*SOMa/(Km(3)+SOMa)
-    SOMaSAPf=SAPf*Vmax(6)*SOMa/(Km(6)+SOMa)
+    !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
+    C_SAPbSOMp=C_SAPb*tau(1)*fPHYS(1)                                           !gC/m3h
+    C_SAPbSOMa=C_SAPb*tau(1)*fAVAIL(1)
+    C_SAPbSOMc=C_SAPb*tau(1)*fCHEM(1)
 
-    !Between SOM pools
-    !Desorption of SOMp to SOMa, from Mimics model, eq A9
-    SOMpSOMa=SOMp*desorb
+    C_SAPfSOMp=C_SAPf*tau(2)*fPHYS(2)
+    C_SAPfSOMa=C_SAPf*tau(2)*fAVAIL(2)
+    C_SAPfSOMc=C_SAPf*tau(2)*fCHEM(2)
 
-    !---Oxidation from SOMc to SOMa
+    !Desorbtion controls transport from physically protected to available SOM
+    C_SOMpSOMa=C_SOMp*desorb
+
+    !Oxidation from SOMc to SOMa
     !From equations for decomposing structural litter in mimics,eq. A10
     !KO modifies Km which is used in the litter->SAP equations.
-    SOMcSOMa    = ( SAPb * Vmax(2) * SOMc / (KO(1)*Km(2) + SOMc)) + &
-                   (SAPf * Vmax(5) * SOMc / (KO(2)*Km(5) + SOMc))
+    C_SOMcSOMa    = ( C_SAPb * Vmax(2) * C_SOMc / (KO(1)*Km(2) + C_SOMc)) + &
+                   (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
-    nullify( SOMp,SOMa,SOMc,EcM,ErM,AM, SAPb,SAPf)
-  end subroutine som_fluxes
+    !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
+    Decomp_ecm = K_MO*delta_z(depth)*C_EcM*C_SOMa                               ![gC/m3h]
+    Decomp_erm = K_MO*delta_z(depth)*C_ErM*C_SOMa                                !TODO: Somehow incorporate this carbon into SAP pools (?)
+    Decomp_am  = K_MO*delta_z(depth)*C_AM*C_SOMa
 
-  !NOTE myc->sap Commented out for now, let all dead mycorrhiza go to SOMa. see Commit: 075363ec3c7b30471e717ca2a7c94585366cdf56
-  ! subroutine microbial_fluxes(depth,pool_matrix,level_max) !This subroutine calculates the fluxes between the microbial pools (Mycorrhiza and SAPotrophs).
-  !
-  !   integer :: depth,level_max !depth level
-  !   real(r8),target :: pool_matrix(level_max, pool_types)
-  !
-  !   !Creating these pointers improve readability of the flux equations.
-  !   real(r8), pointer :: EcM,ErM,AM
-  !   EcM => pool_matrix(depth, 5)
-  !   ErM => pool_matrix(depth, 6)
-  !   AM => pool_matrix(depth, 7)
-  !
-  !   From Mycorrhizal pools to SAProtroph pools
-  !   Mycorrhizal pool*fraction to SAP*fraction to SAP_r*decay constant for mycorrhizal pool.
-  !   EcMSAPf=EcM*MYC_SAPf*k_mycsap(1)
-  !   EcMSAPf=EcM*MYC_SAPb*k_mycsap(1)
-  !
-  !   ErMSAPf=ErM*MYC_SAPf*k_mycsap(2)
-  !   ErMSAPb=ErM*MYC_SAPb*k_mycsap(2)
-  !
-  !   AMSAPb=AM*MYC_SAPb*k_mycsap(3)
-  !   AMSAPf=AM*MYC_SAPf*k_mycsap(3)
-  !
-  !   nullify(EcM,ErM,AM)
-  ! end subroutine microbial_fluxes
+    !-----------------------------------NITROGEN FLUXES----------------------------:
+    !Nitrogen aquired bymycorrhiza via oxidation of SOMa                        gN/m3h
+    N_SOMaEcM = Decomp_ecm*N_SOMa/C_SOMa!/CN_ratio(9)
+    N_SOMaErM = Decomp_erm*N_SOMa/C_SOMa!/CN_ratio(9)
+    N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa!/CN_ratio(9)
 
-  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,t,counter,step_frac) !This subroutine calculates the vertical transport of carbon through the soil layers.
+    !Inorganic N taken up directly by plant roots                               !Usikker pa enheter
+    N_InPlant = V_max_plant*N_in*(1-delta)*(C_PR/(C_PR + Km_plant/delta_z(depth)))
+    !Deposition and leacing from the inorganic N pool
+    Deposition = Deposition_rate/delta_z(depth)                                          !Usikker pa enheter
+    Leaching = Leaching_rate*N_in/delta_z(depth)
 
-      integer               :: depth, pool,counter
-      real(r8)              :: pool_matrix(nlevdecomp, pool_types)
+    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/delta_z(depth)))            !Bor MMK parametere vaere spesifikke til mycorrhiza type?
+    N_INErM = V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))            !Usikker pa enheter
+    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
+
+    !Plant mortality
+    N_PlantLITm = C_PlantLITm*N_Plant/C_Plant
+    N_PlantLITs = C_PlantLITs*N_Plant/C_Plant
+
+    !Decomposition of LIT and SOMa by SAP
+    N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm!/CN_ratio(1)
+    N_LITsSAPb = C_LITsSAPb*N_LITs/C_LITs!/CN_ratio(2)
+
+    N_LITmSAPf = C_LITmSAPf*N_LITm/C_LITm!/CN_ratio(1)
+
+    N_LITsSAPf = C_LITsSAPf*N_LITs/C_LITs!/CN_ratio(2)
+    N_SOMaSAPb = C_SOMaSAPb*N_SOMa/C_SOMa!/CN_ratio(9)
+    N_SOMaSAPf = C_SOMaSAPf*N_SOMa/C_SOMa!/CN_ratio(9)
+
+    !Dead mycorrhizal biomass enters SOM pools
+    N_EcMSOMp = C_EcMSOMp*(N_EcM/C_EcM)!/CN_ratio(5)
+    N_EcMSOMa = C_EcMSOMa*(N_EcM/C_EcM)!/CN_ratio(5)
+    N_EcMSOMc = C_EcMSOMc*(N_EcM/C_EcM)!/CN_ratio(5)
+    N_ErMSOMp = C_ErMSOMp*(N_ErM/C_ErM)!/CN_ratio(6)
+    N_ErMSOMa = C_ErMSOMa*(N_ErM/C_ErM)!/CN_ratio(6)
+    N_ErMSOMc = C_ErMSOMc*(N_ErM/C_ErM)!/CN_ratio(6)
+    N_AMSOMp = C_AMSOMp*(N_AM/C_AM)!/CN_ratio(7)
+    N_AMSOMa = C_AMSOMa*(N_AM/C_AM)!/CN_ratio(7)
+    N_AMSOMc = C_AMSOMc*(N_AM/C_AM)!/CN_ratio(7)
+
+    !Dead saphrotroph biomass enters SOM pools
+    N_SAPbSOMp = C_SAPbSOMp*N_SAPb/C_SAPb!/CN_ratio(3)
+    N_SAPbSOMa = C_SAPbSOMa*N_SAPb/C_SAPb!CN_ratio(3)
+    N_SAPbSOMc = C_SAPbSOMc*N_SAPb/C_SAPb!/CN_ratio(3)
+    N_SAPfSOMp = C_SAPfSOMp*N_SAPf/C_SAPf!/CN_ratio(4)
+    N_SAPfSOMa = C_SAPfSOMa*N_SAPf/C_SAPf!/CN_ratio(4)
+    N_SAPfSOMc = C_SAPfSOMc*N_SAPf/C_SAPf!/CN_ratio(4)
+
+    !Desorption of SOMp to SOMa
+    N_SOMpSOMa = C_SOMpSOMa*N_SOMp/C_SOMp!/CN_ratio(8)
+
+    !Transport from SOMc to SOMa:
+    N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc!/CN_ratio(10)
+
+    !"Leftover" N in saprotrophs. Given to inorganic pool to ensure constant C:N ratios:
+    f = 0.5                                                                     !NOTE: A fraction, f, of the C made available by myc is decomposed by SAPb, the rest by SAPf
+    U_sb = (C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb+f*(Decomp_ecm + Decomp_erm + Decomp_am))    !The saprotrophs decompose the carbon that is made more available when the mycorrhiza take N from SOM.
+    U_sf = (C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf+ (1-f)*(Decomp_ecm + Decomp_erm + Decomp_am))
+    !print*, "Saprotrophic uptake of C:", U_sb
+    N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb*N_SAPb/C_SAPb
+    N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*N_SAPf/C_SAPf
+    !If nothing is leftover, nothing is given:
+    ! if (N_SAPbIN <= 0) then
+    !   N_SAPbIN = 0
+    ! end if
+    ! if (N_SAPfIN <=0) then
+    !   N_SAPfIN = 0
+    ! end if
+
+    !All N the Mycorrhiza dont need for its own, it gives to the plant:
+    N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*N_EcM/C_EcM !gN/m3h
+    N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*N_ErM/C_ErM
+    N_AMPlant = N_INAM + N_SOMaErM - e_m*C_PlantAM*N_AM/C_AM
+    !If not enough N to cover the internal need, nothing is given to the plant
+    ! if (N_EcMPlant <= 0) then
+    !   N_EcMPlant = 0
+    ! end if
+    ! if (N_ErMPlant <= 0) then
+    !   N_ErMPlant = 0
+    ! end if
+    ! if (N_AMPlant <= 0) then
+    !   N_AMPlant = 0
+    ! end if
+
+    nullify( C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
+  end subroutine calculate_fluxes
+
+
+  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert) !This subroutine calculates the vertical transport of carbon through the soil layers.
+
+      real(r8),intent(in)   :: pool_matrix(:,:)
       real(r8),intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
-      real(r8), intent(out) :: tot_diffusion_dummy ![gC/day]
-      real(r8),intent(out)  :: vert(nlevdecomp, pool_types)
-      real(r8)              :: t !t*dt in main routine
+      real(r8), intent(out) :: tot_diffusion_dummy ![gC/h]
+      real(r8), allocatable, intent(out)  :: vert(:,:)
       real(r8)              :: sum_day=0.0
-      real(r8)              :: step_frac
+      integer               :: depth, pool !For iteration
+      integer,dimension(1)  :: max_pool, max_depth !For iteration
+
+      allocate (vert, mold = pool_matrix)
+
+      !Get how many depth levels and pools we will loop over.
+      max_depth=shape(pool_matrix(:,1)) !TODO: Easier way to do this?
+      max_pool=shape(pool_matrix(1,:))
 
       !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
       !pool_matrix is used here to calculate the diffusion.
-      do depth = 1,nlevdecomp
-        do pool =1, pool_types
 
+      do depth = 1,max_depth(1)
+        do pool =1, max_pool(1)
+          !print*, "pool number: ", pool, "depth: ", depth
           !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
           if (depth == 1) then
             upper_diffusion_flux= 0.0
             lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
-          elseif (depth==nlevdecomp) then
+          elseif (depth==max_depth(1)) then
             upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
             lower_diffusion_flux= 0.0
           else
@@ -213,10 +248,12 @@ module fluxMod
 
   end subroutine vertical_diffusion
 
-  subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist)
+  subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist,nlevdecomp)
+    integer :: nlevdecomp
     real(r8), intent(out), dimension(nlevdecomp) :: r_moist
     real(r8), intent(in), dimension(nlevdecomp)  :: theta_l, theta_sat, theta_f
     real(r8), dimension(nlevdecomp)  :: theta_frzn, theta_liq, air_filled_porosity
+
 
 
       !FROM mimics_cycle.f90 in testbed:
@@ -239,4 +276,4 @@ module fluxMod
     r_moist = max(0.05, r_moist)
 
   end subroutine moisture_func
-end module fluxMod
+end module fluxMod2

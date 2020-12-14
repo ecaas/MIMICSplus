@@ -1,12 +1,11 @@
 
-# Makefile for DLSODAR_F95 example driver.
 #-------------------------------------------------------------------------------
 
 PROG = ./run_script
-LIB_NETCDF = /home/ecaas/anaconda3/envs/nc-fortran/lib
+LIB = /home/ecaas/anaconda3/envs/nc-fortran/lib
 INCS = /home/ecaas/anaconda3/envs/nc-fortran/include
 
-OBJ = test_script.o mycmimMod.o fluxMod2.o initMod.o \
+OBJ = main.o mycmimMod.o fluxMod.o initMod.o \
 	testMod.o writeMod.o paramMod.o dispmodule.o
 #-------------------------------------------------------------------------------
 FC = gfortran
@@ -17,31 +16,31 @@ FINCLUDES = -I$(INCS)
 
 $(PROG): $(OBJ)
 	$(FC) $(FFLAGS) $(OBJ) \
-	-L$(LIB_NETCDF) -lnetcdff -lnetcdf -lmfhdf -ldf -lhdf5_hl -lhdf5 -lrt -lpthread -lz -ldl -lm -lcurl \
+	-L$(LIB) -lnetcdff -lnetcdf -lmfhdf -ldf -lhdf5_hl -lhdf5 -lrt -lpthread -lz -ldl -lm -lcurl \
 	-o $(PROG)
 
 
 
-mycmimMod.o: mycmimMod.f90 paramMod.o dispmodule.o fluxMod2.o initMod.o writeMod.o \
+mycmimMod.o: mycmimMod.f90 paramMod.o dispmodule.o fluxMod.o initMod.o writeMod.o \
 testMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) mycmimMod.f90
 
-fluxMod2.o: fluxMod2.f90 paramMod.o dispmodule.o 
-	$(FC) $(FFLAGS) -c $(FINCLUDES) fluxMod2.f90
+fluxMod.o: fluxMod.f90 paramMod.o dispmodule.o
+	$(FC) $(FFLAGS) -c $(FINCLUDES) fluxMod.f90
 
-initMod.o: initMod.f90 paramMod.o dispmodule.o 
+initMod.o: initMod.f90 paramMod.o dispmodule.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) initMod.f90
 
-testMod.o: testMod.f90 paramMod.o dispmodule.o 
+testMod.o: testMod.f90 paramMod.o dispmodule.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) testMod.f90
 
-writeMod.o: writeMod.f90 paramMod.o dispmodule.o 
+writeMod.o: writeMod.f90 paramMod.o dispmodule.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) writeMod.f90
 
-test_script.o: test_script.f90 mycmimMod.o
-	 $(FC) $(FFLAGS) -c $(FINCLUDES) test_script.f90
+main.o: main.f90 mycmimMod.o
+	 $(FC) $(FFLAGS) -c $(FINCLUDES) main.f90
 
-paramMod.o: paramMod.f90 
+paramMod.o: paramMod.f90
 	$(FC) $(FFLAGS) -c $(FINCLUDES) paramMod.f90
 
 dispmodule.o: dispmodule.f90
@@ -55,7 +54,3 @@ strip:
 clean: strip
 	rm -f $(PROG)
 #-------------------------------------------------------------------------------
-
-
-
-
