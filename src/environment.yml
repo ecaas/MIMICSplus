@@ -1,0 +1,9 @@
+name: nc-fortran
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - netcdf-fortran=4.5.3
+  - xarray
+  - notebook
+prefix: /home/ecaas/anaconda3/envs/nc-fortran
