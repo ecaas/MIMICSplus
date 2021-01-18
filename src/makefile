@@ -6,10 +6,11 @@ LIB = /home/ecaas/anaconda3/envs/nc-fortran/lib
 INCS = /home/ecaas/anaconda3/envs/nc-fortran/include
 
 OBJ = main.o mycmimMod.o fluxMod.o initMod.o \
-	testMod.o writeMod.o paramMod.o dispmodule.o
+	testMod.o writeMod.o paramMod.o dispmodule.o \
+	shr_kind_mod.o
 #-------------------------------------------------------------------------------
 FC = gfortran
-FFLAGS = -g -fcheck=all -fbacktrace -ffpe-trap=zero -O0 -Wall -ffree-line-length-'none'
+FFLAGS = -g -fcheck=all -fbacktrace -ffpe-trap=zero,invalid,overflow,underflow -O0 -Wall -ffree-line-length-'none'
 
 EXTRAFFLAGS =  -Wno-unused-dummy-argument -Wno-unused-parameter
 FINCLUDES = -I$(INCS)
@@ -18,8 +19,6 @@ $(PROG): $(OBJ)
 	$(FC) $(FFLAGS) $(OBJ) \
 	-L$(LIB) -lnetcdff -lnetcdf -lmfhdf -ldf -lhdf5_hl -lhdf5 -lrt -lpthread -lz -ldl -lm -lcurl \
 	-o $(PROG)
-
-
 
 mycmimMod.o: mycmimMod.f90 paramMod.o dispmodule.o fluxMod.o initMod.o writeMod.o \
 testMod.o
@@ -45,6 +44,9 @@ paramMod.o: paramMod.f90
 
 dispmodule.o: dispmodule.f90
 	$(FC) $(FFLAGS) -c $(FINCLUDES) dispmodule.f90
+
+shr_kind_mod.o: shr_kind_mod.f90
+	$(FC) $(FFLAGS) -c $(FINCLUDES) shr_kind_mod.f90
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 strip:
