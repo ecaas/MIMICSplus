@@ -204,18 +204,12 @@ module mycmim
           !CPlant_tstep and NPlant_tstep sum up the change from each layer, and will be used to update CPlant and NPlant at the end of the timestep.
           !(This will only be one value if isVertical = False)
           possible_N_change = (N_EcMPlant+  N_ErMPlant +  N_AMPlant + N_InPlant  &
-          - N_PlantLITm - N_PlantLITs)*dt*delta_z(j) !gN/m2h
+          - N_PlantLITm - N_PlantLITs)*dt*delta_z(j) !gN/m2
 
-          Plant_lossN = (N_PlantLITm + N_PlantLITs)*delta_z(j)
-          Plant_gainN = (N_EcMPlant+  N_ErMPlant +  N_AMPlant + N_InPlant)*delta_z(j)
+          possible_C_change = C_growth_rate*dt-(  C_PlantLITm + C_PlantLITs + &
+           C_PlantEcM + C_PlantErM + C_PlantAM)*dt*delta_z(j)!gC/m2
 
-          possible_C_change = (C_growth_rate - C_PlantLITm - C_PlantLITs - &
-           C_PlantEcM - C_PlantErM - C_PlantAM)*dt*delta_z(j)!gC/m2h
-
-          Plant_lossC = (C_PlantLITm + C_PlantLITs + C_PlantEcM + C_PlantErM + C_PlantAM)*delta_z(j)
-          Plant_gainC = C_growth_rate!*delta_z(j) !TODO:: Skal ikke ganges med delta_z her??
           growth_rate_sum = growth_rate_sum + C_growth_rate
-
 
           NPlant_tstep = NPlant_tstep + possible_N_change
           CPlant_tstep = CPlant_tstep + possible_C_change
