@@ -39,7 +39,7 @@ writeMod.o: writeMod.f90 paramMod.o dispmodule.o
 main.o: main.f90 mycmimMod.o
 	 $(FC) $(FFLAGS) -c $(FINCLUDES) main.f90
 
-paramMod.o: paramMod.f90
+paramMod.o: paramMod.f90 shr_kind_mod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) paramMod.f90
 
 dispmodule.o: dispmodule.f90
