@@ -43,6 +43,12 @@ module mycmim
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types+1) ! For storing dC/dt for each time step [gN/(m3*hour)]
       real(r8)                       :: a_matrixN(nlevdecomp, pool_types+1)     ! For storing the analytical solution
 
+      real(r8)                       :: mass_N(nlevdecomp, pool_types+1)     ! gN/m2
+      real(r8)                       :: mass_C(nlevdecomp, pool_types)     ! gC/m2
+
+
+
+
      !Shape of pool_matrixC/change_matrixC
      !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc |
      !|level1   1   2    3    4   5   6   7   8    9    10  |
@@ -331,7 +337,7 @@ module mycmim
         end do !j, depth_level
 
         !Update Plant pools with the total change from all the layers
-        CPlant = CPlant + CPlant_tstep!Numerial
+        CPlant = CPlant + CPlant_tstep
         NPlant = NPlant + NPlant_tstep
 
         !Store accumulated HR mass
