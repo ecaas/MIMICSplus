@@ -39,9 +39,9 @@ module fluxMod
     N_SOMc => N_pool_matrix(depth, 10)
     N_IN => N_pool_matrix(depth, 11)
 
-    !change depth to 1 m if single soil layer is used:
+    !change depth to soil_depth if single soil layer is used:
     if (.not. isVert) then
-      delta_z=1.0
+      delta_z=soil_depth
     end if
     !------------------CARBON FLUXES----------------------------:
     C_PR = gamma_rs*C_Plant/(1+gamma_rs) !Carbon in plant roots (Baskaran et al)
