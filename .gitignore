@@ -156,17 +156,8 @@ dmypy.json
 
 # End of https://www.gitignore.io/api/python,fortran,jupyternotebooks
 .Rhistory
-dispmodule.f90
 src/.Rhistory
 src/For_EGU_presentation.ipynb
-src/Heath_comp-1.png
-src/Heath_comp.pdf
-src/Meadow_comp-1.png
-src/Meadow_comp.pdf
-src/Meadow_comp2.pdf
-src/Shrub_comp-1.png
-src/Shrub_comp.pdf
-src/Shrub_comp2.pdf
 src/Untitled.ipynb
 src/auto_run.bash
 src/disp_i1mod.f90
@@ -177,7 +168,6 @@ src/disp_i8mod.f90
 src/disp_l1mod.f90
 src/disp_r16mod.f90
 src/dispmodule-master/
-src/dispmodule.f90
 src/dispmodule_absoft.f90
 src/dispmodule_util.f90
 src/fort.10
