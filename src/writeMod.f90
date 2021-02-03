@@ -171,14 +171,16 @@ module writeMod
 
 
    !NOTE: This should maybe be somwhere else?
-    subroutine read_clmdata(clm_history_file, TSOI, SOILLIQ,SOILICE,WATSAT,month, nlevdecomp)
+    subroutine read_clmdata(clm_history_file, TSOI, SOILLIQ,SOILICE,WATSAT,W_SCALAR,month, nlevdecomp)
       integer,intent(in)            :: nlevdecomp
       character (len = *),intent(in):: clm_history_file
       real(r8),intent(out), dimension(nlevdecomp)          :: TSOI
       real(r8),intent(out), dimension(nlevdecomp)          :: SOILLIQ
       real(r8), intent(out),dimension(nlevdecomp)          :: SOILICE
       real(r8), intent(out),dimension(nlevdecomp)          :: WATSAT
-      integer            :: ncid, WATSATid, TSOIid, SOILICEid, SOILLIQid, month
+      real(r8), intent(out),dimension(nlevdecomp)          :: W_SCALAR
+
+      integer            :: ncid, WATSATid, TSOIid, SOILICEid, SOILLIQid,W_SCALARid, month
       WATSAT=0.0
       TSOI= 0.0
 
@@ -196,6 +198,8 @@ module writeMod
       call check(nf90_inq_varid(ncid, 'SOILICE', SOILICEid))
       call check(nf90_get_var(ncid, SOILICEid, SOILICE, start=(/1,1,1, month/), count=(/1,1,nlevdecomp,1/)))
 
+      call check(nf90_inq_varid(ncid, 'W_SCALAR', W_SCALARid))
+      call check(nf90_get_var(ncid, W_SCALARid, W_SCALAR, start=(/1,1,1, month/), count=(/1,1,nlevdecomp,1/)))
       !Unit conversions:
       TSOI = TSOI - 273.15 !Kelvin to Celcius
       do i = 1, nlevdecomp

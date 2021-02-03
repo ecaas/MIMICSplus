@@ -87,6 +87,7 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: SOILLIQ
       real(r8), dimension(nlevdecomp)          :: SOILICE
       real(r8), dimension(nlevdecomp)          :: WATSAT
+      real(r8), dimension(nlevdecomp)          :: W_SCALAR
       real(r8), dimension(nlevdecomp)          :: r_moist
 
 
@@ -162,7 +163,7 @@ module mycmim
         !Update temp and moisture values monthly
         if (month_counter == days_in_month(current_month)*24) then
           previous_month = current_month
-          call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month, nlevdecomp)
+          call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,W_SCALAR,current_month, nlevdecomp)
           call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
           if (current_month == 12) then
             current_month = 1
@@ -187,10 +188,10 @@ module mycmim
 
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
           !Michaelis Menten parameters:
-          Km      = exp(Kslope*TSOI + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
-          Vmax    = exp(Vslope*TSOI + Vint)*a_v*Vmod!*r_moist(j)   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+          Km      = exp(Kslope*TSOIL(j) + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
+          Vmax    = exp(Vslope*TSOIL(j) + Vint)*a_v*Vmod!*W_SCALAR(j)   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
 
-          k_mycsom  = (/1.4,1.4,1.4/)*10e-5!*r_moist(j)   ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
+          k_mycsom  = (/1.4,1.4,1.4/)*10e-5!*W_SCALAR(j)  ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN, CPlant, NPlant,isVertical)
