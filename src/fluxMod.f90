@@ -121,13 +121,13 @@ module fluxMod
 
     !-----------------------------------NITROGEN FLUXES----------------------------:
     !Nitrogen aquired bymycorrhiza via oxidation of SOMa  gN/m3h
-    N_SOMaEcM = Decomp_ecm*N_SOMa/C_SOMa!/CN_ratio(9)
-    N_SOMaErM = Decomp_erm*N_SOMa/C_SOMa!/CN_ratio(9)
-    N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa!/CN_ratio(9)
+    N_SOMaEcM = Decomp_ecm*N_SOMa/C_SOMa
+    N_SOMaErM = Decomp_erm*N_SOMa/C_SOMa
+    N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa
 
     !Inorganic N taken up directly by plant roots   !Unsure about units!
     N_InPlant = V_max_plant*N_in*(1-delta)*(C_PR/(C_PR + Km_plant/delta_z(depth)))
-    !Deposition and leacing from the inorganic N pool
+    !Deposition and leaching from the inorganic N pool
     Deposition = Deposition_rate/delta_z(depth)     !Unsure about units!
     Leaching = Leaching_rate*N_in/delta_z(depth)
 
