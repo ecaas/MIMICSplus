@@ -305,14 +305,14 @@ module mycmim
 
             pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt
 
-            if (isnan(pool_matrixN(j,i))) then
-              print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_matrixN(j,i)
+            if (isnan(pool_temporaryN(j,i))) then
+              print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
               stop
             end if
 
             if (i /=11 ) then
-              if (isnan(pool_matrixC(j,i))) then
-                print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_matrixC(j,i)
+              if (isnan(pool_temporaryC(j,i))) then
+                print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
                 stop
               end if
             end if
