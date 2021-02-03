@@ -32,7 +32,7 @@ module mycmim
 
       logical                        :: isVertical                           ! True if we use vertical soil layers.
       real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
-      real(r8)                       :: HR_mass_accumulated, HR_mass
+      real(r8)                       :: HR_mass_accumulated, HR_mass,growth_sum
       real(r8)                       :: pool_matrixC(nlevdecomp,pool_types)     ! For storing C pool sizes [gC/m3]
       real(r8)                       :: change_matrixC(nlevdecomp,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: a_matrixC(nlevdecomp, pool_types)       ! For storing the analytical solution
@@ -126,12 +126,11 @@ module mycmim
       change_matrixN = 0.0
       HR            = 0.0
       vertC_change_sum=0.0
-!      vertN_change_sum=0.0
       counter = 0
       ycounter = 0
       HR_sum   = 0.0 !For summing up the total respiration between two output times
       HR_mass_accumulated = 0
-      growth_rate_sum=0
+      growth_sum=0
 
       a_matrixC      = pool_matrixC
       a_matrixN      = pool_matrixN
@@ -144,11 +143,11 @@ module mycmim
       !open and prepare files to store results. Store initial values
       call create_netcdf(run_name, nlevdecomp)
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
-                       HR_mass_accumulated, vertC_change_sum, write_hour,current_month, &
-                      NPlant, CPlant,TSOIL, r_moist, growth=0.d0,levsoi=nlevdecomp)
+                       HR_mass_accumulated,HR, vertC_change_sum, write_hour,current_month, &
+                      NPlant, CPlant,TSOIL, r_moist, growth_sum = growth_sum,levsoi=nlevdecomp)
 
       !read temperature and moisture data from CLM file
-      call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month, nlevdecomp)
+      call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,W_SCALAR,current_month, nlevdecomp)
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
 
       !----------------------------------------------------------------------------------------------------------------
@@ -200,6 +199,9 @@ module mycmim
            call fluxes_netcdf(int(time), write_hour, j, run_name)
           end if !write fluxes
 
+          growth_sum = growth_sum + C_growth_rate*dt
+
+
           !calculate the change of N and C in the plant based on the flux equations.  TODO: Needs better way to ensure reasonable values in these pools
           !CPlant_tstep and NPlant_tstep sum up the change from each layer, and will be used to update CPlant and NPlant at the end of the timestep.
           !(This will only be one value if isVertical = False)
@@ -208,8 +210,6 @@ module mycmim
 
           possible_C_change = C_growth_rate*dt-(  C_PlantLITm + C_PlantLITs + &
            C_PlantEcM + C_PlantErM + C_PlantAM)*dt*delta_z(j)!gC/m2
-
-          growth_rate_sum = growth_rate_sum + C_growth_rate
 
           NPlant_tstep = NPlant_tstep + possible_N_change
           CPlant_tstep = CPlant_tstep + possible_C_change
@@ -350,8 +350,8 @@ module mycmim
         if (counter == write_hour) then
           counter = 0
           call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
-           HR_mass_accumulated,vertC_change_sum, write_hour,current_month, NPlant,&
-           CPlant, TSOIL, r_moist, growth_rate_sum,nlevdecomp)
+           HR_mass_accumulated,HR,vertC_change_sum, write_hour,current_month, NPlant,&
+           CPlant, TSOIL, r_moist, growth_sum,nlevdecomp)
           change_sum = 0.0
           vertC_change_sum = 0.0
         end if!writing
