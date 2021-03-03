@@ -10,8 +10,9 @@ contains
     real(r8), intent(inout):: pools_C(:,:), pools_N(:,:)
     real(r8), intent(out)  :: Init_PlantC, Init_PlantN
     integer                :: j
-    pools_C=500
-    pools_C(1,:) = 500 !TODO: Find better initial values?
+    real(r8),parameter     :: C_tot=5000
+    pools_C=C_tot/(nlevdecomp*pool_types)
+    !TODO: Find better initial values!
     do j=1,nlevdecomp
       pools_N(j,1:10) = pools_C(j,1:10)/CN_ratio
     end do

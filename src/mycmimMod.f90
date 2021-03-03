@@ -32,7 +32,7 @@ module mycmim
 
       logical                        :: isVertical                           ! True if we use vertical soil layers.
       real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
-      real(r8)                       :: HR_mass_accumulated, HR_mass
+      real(r8)                       :: HR_mass_accumulated, HR_mass,growth_sum
       real(r8)                       :: pool_matrixC(nlevdecomp,pool_types)     ! For storing C pool sizes [gC/m3]
       real(r8)                       :: change_matrixC(nlevdecomp,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: a_matrixC(nlevdecomp, pool_types)       ! For storing the analytical solution
@@ -42,6 +42,12 @@ module mycmim
       real(r8)                       :: pool_matrixN(nlevdecomp,pool_types+1)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types+1) ! For storing dC/dt for each time step [gN/(m3*hour)]
       real(r8)                       :: a_matrixN(nlevdecomp, pool_types+1)     ! For storing the analytical solution
+
+      real(r8)                       :: mass_N(nlevdecomp, pool_types+1)     ! gN/m2
+      real(r8)                       :: mass_C(nlevdecomp, pool_types)     ! gC/m2
+
+
+
 
      !Shape of pool_matrixC/change_matrixC
      !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc |
@@ -87,6 +93,7 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: SOILLIQ
       real(r8), dimension(nlevdecomp)          :: SOILICE
       real(r8), dimension(nlevdecomp)          :: WATSAT
+      real(r8), dimension(nlevdecomp)          :: W_SCALAR
       real(r8), dimension(nlevdecomp)          :: r_moist
 
 
@@ -126,12 +133,11 @@ module mycmim
       change_matrixN = 0.0
       HR            = 0.0
       vertC_change_sum=0.0
-!      vertN_change_sum=0.0
       counter = 0
       ycounter = 0
       HR_sum   = 0.0 !For summing up the total respiration between two output times
       HR_mass_accumulated = 0
-      growth_rate_sum=0
+      growth_sum=0
 
       a_matrixC      = pool_matrixC
       a_matrixN      = pool_matrixN
@@ -144,11 +150,11 @@ module mycmim
       !open and prepare files to store results. Store initial values
       call create_netcdf(run_name, nlevdecomp)
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
-                       HR_mass_accumulated, vertC_change_sum, write_hour,current_month, &
-                      NPlant, CPlant,TSOIL, r_moist, growth=0.d0,levsoi=nlevdecomp)
+                       HR_mass_accumulated,HR, vertC_change_sum, write_hour,current_month, &
+                      NPlant, CPlant,TSOIL, r_moist, growth_sum = growth_sum,levsoi=nlevdecomp)
 
       !read temperature and moisture data from CLM file
-      call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month, nlevdecomp)
+      call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,W_SCALAR,current_month, nlevdecomp)
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
 
       !----------------------------------------------------------------------------------------------------------------
@@ -163,7 +169,7 @@ module mycmim
         !Update temp and moisture values monthly
         if (month_counter == days_in_month(current_month)*24) then
           previous_month = current_month
-          call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,current_month, nlevdecomp)
+          call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,W_SCALAR,current_month, nlevdecomp)
           call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
           if (current_month == 12) then
             current_month = 1
@@ -188,10 +194,10 @@ module mycmim
 
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
           !Michaelis Menten parameters:
-          Km      = exp(Kslope*TSOI + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
-          Vmax    = exp(Vslope*TSOI + Vint)*a_v*Vmod!*r_moist(j)   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+          Km      = exp(Kslope*TSOIL(j) + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
+          Vmax    = exp(Vslope*TSOIL(j) + Vint)*a_v*Vmod!*W_SCALAR(j)   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
 
-          k_mycsom  = (/1.4,1.4,1.4/)*10e-5!*r_moist(j)   ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
+          k_mycsom  = (/1.4,1.4,1.4/)*10e-5!*W_SCALAR(j)  ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN, CPlant, NPlant,isVertical)
@@ -199,6 +205,9 @@ module mycmim
           if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
            call fluxes_netcdf(int(time), write_hour, j, run_name)
           end if !write fluxes
+
+          growth_sum = growth_sum + C_growth_rate*dt
+
 
           !calculate the change of N and C in the plant based on the flux equations.  TODO: Needs better way to ensure reasonable values in these pools
           !CPlant_tstep and NPlant_tstep sum up the change from each layer, and will be used to update CPlant and NPlant at the end of the timestep.
@@ -208,8 +217,6 @@ module mycmim
 
           possible_C_change = C_growth_rate*dt-(  C_PlantLITm + C_PlantLITs + &
            C_PlantEcM + C_PlantErM + C_PlantAM)*dt*delta_z(j)!gC/m2
-
-          growth_rate_sum = growth_rate_sum + C_growth_rate
 
           NPlant_tstep = NPlant_tstep + possible_N_change
           CPlant_tstep = CPlant_tstep + possible_C_change
@@ -304,14 +311,14 @@ module mycmim
 
             pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt
 
-            if (isnan(pool_matrixN(j,i))) then
-              print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_matrixN(j,i)
+            if (isnan(pool_temporaryN(j,i))) then
+              print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
               stop
             end if
 
             if (i /=11 ) then
-              if (isnan(pool_matrixC(j,i))) then
-                print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_matrixC(j,i)
+              if (isnan(pool_temporaryC(j,i))) then
+                print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
                 stop
               end if
             end if
@@ -330,7 +337,7 @@ module mycmim
         end do !j, depth_level
 
         !Update Plant pools with the total change from all the layers
-        CPlant = CPlant + CPlant_tstep!Numerial
+        CPlant = CPlant + CPlant_tstep
         NPlant = NPlant + NPlant_tstep
 
         !Store accumulated HR mass
@@ -350,8 +357,8 @@ module mycmim
         if (counter == write_hour) then
           counter = 0
           call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
-           HR_mass_accumulated,vertC_change_sum, write_hour,current_month, NPlant,&
-           CPlant, TSOIL, r_moist, growth_rate_sum,nlevdecomp)
+           HR_mass_accumulated,HR,vertC_change_sum, write_hour,current_month, NPlant,&
+           CPlant, TSOIL, r_moist, growth_sum,nlevdecomp)
           change_sum = 0.0
           vertC_change_sum = 0.0
         end if!writing
