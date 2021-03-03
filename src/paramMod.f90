@@ -4,9 +4,9 @@ use shr_kind_mod   , only : r8 => shr_kind_r8
 implicit none
 
 !Define variables
-real(kind=r8)                                :: TSOI =5.18                      ![degC]
+real(kind=r8)                                :: TSOI =5.7                      ![degC]
 real(kind=r8)                                :: GEP                             ![gC/(m2 h)] Gross ecosystem productivity
-real(kind=r8),parameter                      :: fCLAY  = 0.30                   ![-] fraction of clay in soil
+real(kind=r8),parameter                      :: fCLAY  = 0.20                   ![-] fraction of clay in soil
 real(kind=r8),dimension(3)                   :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
 
 
