@@ -55,8 +55,8 @@ contains
 
   subroutine respired_mass(HR_conc_vr, HR_mass_tot,nlevdecomp) !Calculates the total mass of carbon that is respired (in a time step)
     integer:: nlevdecomp
-    real(r8), intent(in), dimension(nlevdecomp) :: HR_conc_vr
-    real(r8), intent(out) :: HR_mass_tot
+    real(r8), intent(in), dimension(nlevdecomp) :: HR_conc_vr ![gC/m3]
+    real(r8), intent(out) :: HR_mass_tot ![gC/m2]
     real(r8), dimension(nlevdecomp):: HR_mass_vr
 
     do i = 1,nlevdecomp

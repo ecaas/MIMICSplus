@@ -10,7 +10,8 @@ OBJ = main.o mycmimMod.o fluxMod.o initMod.o \
 	shr_kind_mod.o
 #-------------------------------------------------------------------------------
 FC = gfortran
-FFLAGS = -g -fcheck=all -fbacktrace -ffpe-trap=zero,invalid,overflow,underflow -O0 -Wall -ffree-line-length-'none'
+FFLAGS = -g -fcheck=all -fbacktrace -ffpe-trap=zero,invalid,overflow,underflow -O0 -Wall -Wextra -ffree-line-length-'none'\
+-Wl,-rpath=$(LIB)
 
 EXTRAFFLAGS =  -Wno-unused-dummy-argument -Wno-unused-parameter
 FINCLUDES = -I$(INCS)
@@ -50,7 +51,7 @@ shr_kind_mod.o: shr_kind_mod.f90
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 strip:
-	rm -f *.o
+	rm -f *.o *.mod
 
 #-------------------------------------------------------------------------------
 clean: strip
