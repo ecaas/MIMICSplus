@@ -127,9 +127,9 @@ module writeMod
           call check(nf90_put_var(ncid, varidchange, Nchange_matrix(j,i), start = (/ timestep, j /)))
           call check(nf90_inq_varid(ncid, "vert_change", vertid))
           call check(nf90_put_var(ncid, vertid, vert_sum(j,i), start = (/timestep,j/)))
-        end do
-      end do
-      call check(nf90_close(ncid))
+        end do !pool_types
+      end do ! levels
+      call check(nf90_close(ncid))  
     end subroutine fill_netcdf
 
    subroutine store_parameters(run_name)

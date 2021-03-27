@@ -116,7 +116,7 @@ module fluxMod
 
     !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
     Decomp_ecm = K_MO*delta_z(depth)*C_EcM*C_SOMa   ![gC/m3h]
-    Decomp_erm = K_MO*delta_z(depth)*C_ErM*C_SOMa   !TODO: Somehow incorporate this carbon into SAP pools (?)
+    Decomp_erm = K_MO*delta_z(depth)*C_ErM*C_SOMa
     Decomp_am  = K_MO*delta_z(depth)*C_AM*C_SOMa
 
     !-----------------------------------NITROGEN FLUXES----------------------------:
