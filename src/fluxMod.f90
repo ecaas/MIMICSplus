@@ -180,14 +180,36 @@ module fluxMod
     Decomp_erm + Decomp_am))    !The saprotrophs decompose the carbon that is made more available when the mycorrhiza take N from SOM.
     U_sf = (C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf+ (1-f)*(Decomp_ecm + &
     Decomp_erm + Decomp_am))
-
-    N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb*N_SAPb/C_SAPb
-    N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*N_SAPf/C_SAPf
+    if (Decomp_am<0) then
+      print*, Decomp_am, Decomp_erm, Decomp_ecm
+    end if
+    if  ((N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) > e_s*U_sb*CN_ratio(3)) then
+      N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb*CN_ratio(3)
+    else
+      N_SAPbIN = 0.0
+    end if
+    if  ((N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf) > e_s*U_sf*CN_ratio(4)) then
+      N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*CN_ratio(4)
+    else
+      N_SAPfIN = 0.0
+    end if
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*N_EcM/C_EcM !gN/m3h
-    N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*N_ErM/C_ErM
-    N_AMPlant = N_INAM + N_SOMaErM - e_m*C_PlantAM*N_AM/C_AM
+    if ((N_INEcM + N_SOMaEcM) > e_m*C_PlantEcM*CN_ratio(5) ) then
+      N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*CN_ratio(5) !gN/m3h
+    else
+      N_EcMPlant = 0.0
+    end if
+    if ((N_INErM + N_SOMaErM) > e_m*C_PlantErM*CN_ratio(6) ) then
+      N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*CN_ratio(6) !gN/m3h
+    else
+      N_ErMPlant = 0.0
+    end if
+    if ((N_INAM + N_SOMaAM) > e_m*C_PlantAM*CN_ratio(7) ) then
+      N_AMPlant = N_INAM + N_SOMaAM - e_m*C_PlantAM*CN_ratio(7) !gN/m3h
+    else
+      N_AMPlant = 0.0
+    end if
 
     nullify( C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
   end subroutine calculate_fluxes
