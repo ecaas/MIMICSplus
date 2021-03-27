@@ -97,7 +97,7 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: r_moist
 
 
-      integer,parameter              :: write_hour= 1*24*14!How often output is written to file
+      integer,parameter              :: write_hour= 1*24*365!How often output is written to file
                                       !TODO: This should be input to the subroutine!
 
       !ALLOCATIONS:
@@ -194,8 +194,8 @@ module mycmim
 
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
           !Michaelis Menten parameters:
-          Km      = exp(Kslope*TSOIL(j) + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
-          Vmax    = exp(Vslope*TSOIL(j) + Vint)*a_v*Vmod!*W_SCALAR(j)   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+          Km      = exp(Kslope*TSOI + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
+          Vmax    = exp(Vslope*TSOI + Vint)*a_v*Vmod!*W_SCALAR(j)   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
 
           k_mycsom  = (/1.4,1.4,1.4/)*10e-5!*W_SCALAR(j)  ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
 
@@ -315,10 +315,18 @@ module mycmim
               print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
               stop
             end if
+            if (pool_temporaryN(j,i) < 0.001) then
+              print*, 'Too small pool size: NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
+              pool_temporaryN(j,i)=0.01
+            end if
 
             if (i /=11 ) then
               if (isnan(pool_temporaryC(j,i))) then
                 print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
+                stop
+              end if
+              if (pool_temporaryC(j,i) < 0.001) then
+                print*, 'Too small pool size: CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
                 stop
               end if
             end if
@@ -339,6 +347,13 @@ module mycmim
         !Update Plant pools with the total change from all the layers
         CPlant = CPlant + CPlant_tstep
         NPlant = NPlant + NPlant_tstep
+
+        if (CPlant < 0.001 .or. NPlant < 0.001) then
+          print*, 'Too small pool size: CARBON value at t',t,'CPlant:', CPlant
+          print*, 'Too small pool size: Nitrogen value at t',t,'NPlant:', NPlant
+
+          stop
+        end if
 
         !Store accumulated HR mass
         call respired_mass(HR, HR_mass,nlevdecomp)
@@ -365,7 +380,7 @@ module mycmim
 
         !Write end values to terminal
         if (t == nsteps) then
-
+          call store_parameters(run_name)
           call disp("pool_matrixC gC/m3 ",pool_matrixC)
           call disp("pool_matrixC gN/m3 ",pool_matrixN)
           Print*, NPlant, CPlant
