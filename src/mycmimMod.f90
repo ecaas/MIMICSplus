@@ -104,14 +104,18 @@ module mycmim
       allocate(HR_sum(nlevdecomp))
 
       dt= 1.0/step_frac !Setting the time step
-
+      
       if (nlevdecomp>1) then
+        soil_depth=sum(delta_z(1:nlevdecomp))
         isVertical = .True.
       else
+        soil_depth=1.0
         isVertical = .False.
         delta_z=soil_depth !So that delta_z will not be 1st on delta_z from parametersMod
                      !TODO: This can be done better
       end if
+
+      print*, soil_depth
 
       ! Fracions of SAP that goes to different SOM pools
       fPHYS = (/ 0.3 * exp(fCLAY), 0.2 * exp(0.8*fCLAY) /)

@@ -45,7 +45,7 @@ real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
 real(r8)                                :: desorb = 3e-4*exp(-4*(sqrt(fclay)))![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Depth & vertical transport
-real(r8),parameter                   :: soil_depth = 1.52            ![m] used if isVertical is False (sum(delta_z))
+real(r8)                  :: soil_depth           ![m] used if isVertical is False (sum(delta_z))
 real(r8),dimension(10),parameter     :: node_z = (/0.01,0.04,0.09,0.16,0.26,0.40,0.587,0.80,1.06,1.36/) ![m] Depth of center in each soil layer. Same as the first layers of default CLM5 with vertical resolution.
 real(r8),dimension(10)               :: delta_z = (/0.02, 0.04, 0.06, 0.08,0.12,0.16,0.20,0.24,0.28,0.32/)![m] Thickness of each soil of the top layers in default clm5.
 real(r8),parameter                   :: D = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
