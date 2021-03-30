@@ -44,32 +44,14 @@ module fluxMod
       delta_z=soil_depth
     end if
     !------------------CARBON FLUXES----------------------------:
-    C_PR = gamma_rs*C_Plant/(1+gamma_rs) !Carbon in plant roots (Baskaran et al)
-    C_PS = C_plant/(1+ gamma_rs)         !Carbon in plant shoots
-    N_PR = gamma_rs*N_Plant/(1+gamma_rs) !N in plant roots
-    N_PS = N_plant/(1+ gamma_rs)         !N in plant shoots
 
-    P_N =  a-b*C_PS !Plant N productivity (as in Baskaran 2016, eq (12))
-
-    if (P_N < 0) then
-      print*, "P_N < 0: ", P_N
-    end if
-    !Plant growth rate
-    C_growth_rate = (1-delta)*P_N*N_PS                !NOTE Usikker paa enheter her
-
-    !Plant Carbon to mycorrhiza: = delta*P_N*N_PS     !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
-                                                      !NOTE: Divide by layer depth to distrubute input from plant between the layers.
-    C_PlantEcM = delta*0.4*P_N*N_PS/delta_z(depth)
-    C_PlantErM = delta*0.3*P_N*N_PS/delta_z(depth)    !gC/m3h  (?)
-    C_PlantAM = delta*0.3*P_N*N_PS/delta_z(depth)
-
-    !Used to calculate litter production in flux subroutine:
-    Total_plant_mortality = (my_shoot + gamma_rs*my_root)*(C_plant/(1+gamma_rs))!gC/m2h
+    C_PlantEcM = 0.01
+    C_PlantErM = 0.01    !gC/m3h
+    C_PlantAM = 0.01
 
     !Plant mortality/litter production:
-    C_PlantLITm = fMET*Total_plant_mortality/delta_z(depth)     !gC/m3h
-    C_PlantLITs =(1-fMET)*Total_plant_mortality/delta_z(depth)  !TODO: Blir det riktig a bruke fMET for a dele opp totalproduksjonen?
-                                                                !Tallene fra Baskaran
+    C_PlantLITm = 0.05  !gC/m3h
+    C_PlantLITs =0.05
 
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
@@ -126,7 +108,7 @@ module fluxMod
     N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa
 
     !Inorganic N taken up directly by plant roots   !Unsure about units!
-    N_InPlant = V_max_plant*N_in*(1-delta)*(C_PR/(C_PR + Km_plant/delta_z(depth)))
+    N_InPlant = 0.0
     !Deposition and leaching from the inorganic N pool
     Deposition = Deposition_rate/delta_z(depth)     !Unsure about units!
     Leaching = Leaching_rate*N_in/delta_z(depth)

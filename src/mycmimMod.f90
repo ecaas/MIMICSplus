@@ -142,6 +142,8 @@ module mycmim
       HR_sum   = 0.0 !For summing up the total respiration between two output times
       HR_mass_accumulated = 0
       growth_sum=0
+      Cplant = 0.0
+      Nplant=0.0
 
       a_matrixC      = pool_matrixC
       a_matrixN      = pool_matrixN
@@ -167,8 +169,6 @@ module mycmim
         counter  = counter + 1
         ycounter = ycounter + 1
         month_counter = month_counter + 1
-        NPlant_tstep=0
-        CPlant_tstep=0
 
         !Update temp and moisture values monthly
         if (month_counter == days_in_month(current_month)*24) then
@@ -192,8 +192,6 @@ module mycmim
         if (t == 1) then
           call disp("InitC", pool_matrixC)
           call disp("InitN", pool_matrixN)
-          print*, "C plant", CPlant
-          print*, "N plant", NPlant
         end if
 
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
@@ -209,21 +207,6 @@ module mycmim
           if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
            call fluxes_netcdf(int(time), write_hour, j, run_name)
           end if !write fluxes
-
-          growth_sum = growth_sum + C_growth_rate*dt
-
-
-          !calculate the change of N and C in the plant based on the flux equations.  TODO: Needs better way to ensure reasonable values in these pools
-          !CPlant_tstep and NPlant_tstep sum up the change from each layer, and will be used to update CPlant and NPlant at the end of the timestep.
-          !(This will only be one value if isVertical = False)
-          possible_N_change = (N_EcMPlant+  N_ErMPlant +  N_AMPlant + N_InPlant  &
-          - N_PlantLITm - N_PlantLITs)*dt*delta_z(j) !gN/m2
-
-          possible_C_change = C_growth_rate*dt-(  C_PlantLITm + C_PlantLITs + &
-           C_PlantEcM + C_PlantErM + C_PlantAM)*dt*delta_z(j)!gC/m2
-
-          NPlant_tstep = NPlant_tstep + possible_N_change
-          CPlant_tstep = CPlant_tstep + possible_C_change
 
           do i = 1,pool_types + 1 !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
@@ -348,16 +331,6 @@ module mycmim
 
         end do !j, depth_level
 
-        !Update Plant pools with the total change from all the layers
-        CPlant = CPlant + CPlant_tstep
-        NPlant = NPlant + NPlant_tstep
-
-        if (CPlant < 0.001 .or. NPlant < 0.001) then
-          print*, 'Too small pool size: CARBON value at t',t,'CPlant:', CPlant
-          print*, 'Too small pool size: Nitrogen value at t',t,'NPlant:', NPlant
-
-          stop
-        end if
 
         !Store accumulated HR mass
         call respired_mass(HR, HR_mass,nlevdecomp)
@@ -387,7 +360,7 @@ module mycmim
           call store_parameters(run_name)
           call disp("pool_matrixC gC/m3 ",pool_matrixC)
           call disp("pool_matrixC gN/m3 ",pool_matrixN)
-          Print*, NPlant, CPlant
+
         end if
 
       end do !t
