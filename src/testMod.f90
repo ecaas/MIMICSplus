@@ -8,15 +8,15 @@ module testMod
 
 contains
 
-  ! subroutine cons_to_mass(matrix, mass_matrix,nlevdecomp) !Convert from g/m3 to g/m2
-  !   integer:: nlevdecomp
-  !   real(r8), intent(in), dimension(nlevdecomp, pool_types) :: matrix
-  !   real(r8), intent(out), dimension(nlevdecomp, pool_types) :: mass_matrix
-  !   do i = 1,pool_types
-  !     mass_matrix(:,i) = matrix(:,i)*delta_z
-  !   end do
-  ! end subroutine cons_to_mass
-  !
+  subroutine cons_to_mass(matrix, mass_matrix,nlevdecomp) !Convert from g/m3 to g/m2
+    integer:: nlevdecomp
+    real(r8), intent(in), dimension(nlevdecomp, pool_types) :: matrix
+    real(r8), intent(out), dimension(nlevdecomp, pool_types) :: mass_matrix
+    do i = 1,pool_types
+      mass_matrix(:,i) = matrix(:,i)*delta_z
+    end do
+  end subroutine cons_to_mass
+
   ! subroutine tot_mass_input(lit, som, myc, tot_input,nlevdecomp) !Merge input arrays and calculate the total mass of the input in the different layers
   !   integer::nlevdecomp
   !   real(r8), intent(out), dimension(nlevdecomp, 7) :: tot_input
@@ -67,55 +67,55 @@ contains
 
   end subroutine respired_mass
 
-  ! subroutine test_mass_conservation(mass_input, mass_respiration, old, new,nlevdecomp) !Checking that mass is conserved during a time step
-  !   integer:: nlevdecomp
-  !   real(r8), intent(in), dimension(nlevdecomp, pool_types) :: old, new
-  !   real(r8), intent(in), dimension(nlevdecomp)   :: mass_respiration
-  !   real(r8), intent(in), dimension(nlevdecomp,7)   :: mass_input
-  !   real(r8), dimension(nlevdecomp, pool_types) :: mass_old, mass_new
-  !   real(r8) :: sum_old, sum_new, sum_respiration, sum_input, diff, goal
-  !
-  !   call cons_to_mass(old, mass_old,nlevdecomp)
-  !   call cons_to_mass(new, mass_new,nlevdecomp)
-  !
-  !   sum_old = sum(mass_old)
-  !   sum_new = sum(mass_new)
-  !   sum_respiration = sum(mass_respiration)
-  !   sum_input = sum(mass_input)
-  !
-  !   goal = sum_old + sum_input - sum_respiration
-  !   diff = sum_new-goal
-  !   print*, '-----------------------------------------------------------'
-  !   print*, '(mass at t+dt) - (mass at t + Input - respiration): ', diff
-  !   print*, 'sum of respired mass: ', sum_respiration
-  !   print*, 'sum of input: ', sum_input
-  !   print*, 'diff: ', diff, 'HR-Input: ', sum_respiration - sum_input
-  !   print*, 'diff-HR-Input: ', diff - (sum_respiration - sum_input)
-  ! end subroutine test_mass_conservation
+  subroutine test_mass_conservation(mass_input, mass_respiration, old, new,nlevdecomp) !Checking that mass is conserved during a time step
+    integer:: nlevdecomp
+    real(r8), intent(in), dimension(nlevdecomp, pool_types) :: old, new
+    real(r8), intent(in), dimension(nlevdecomp)   :: mass_respiration
+    real(r8), intent(in), dimension(nlevdecomp,7)   :: mass_input
+    real(r8), dimension(nlevdecomp, pool_types) :: mass_old, mass_new
+    real(r8) :: sum_old, sum_new, sum_respiration, sum_input, diff, goal
 
-  ! subroutine total_mass_conservation(sum_input, sum_respiration, old, new,nlevdecomp) !Checking that mass is conserved over the whole time period
-  !   integer :: nlevdecomp
-  !   real(r8), intent(in), dimension(nlevdecomp, pool_types) :: old, new
-  !   real(r8), dimension(nlevdecomp, pool_types) :: mass_old, mass_new
-  !   real(r8) :: sum_old, sum_new, sum_respiration, sum_input, diff, goal
-  !
-  !   call cons_to_mass(old, mass_old,nlevdecomp)
-  !   call cons_to_mass(new, mass_new,nlevdecomp)
-  !
-  !   sum_old = sum(mass_old)
-  !   sum_new = sum(mass_new)
-  !
-  !   goal = sum_old + sum_input - sum_respiration
-  !   diff = sum_new-goal
-  !
-  !   if (abs(diff) > 1e-4) then
-  !     print*, 'Mass conservation is not fulfilled: '
-  !     print*, 'diff: ', diff
-  !     print*, 'sum of respired mass: ', sum_respiration
-  !     print*, 'sum of input: ', sum_input
-  !     print*, 'sum_old: ', sum_old, 'sum_new: ', sum_new
-  !   end if
-  ! end subroutine total_mass_conservation
+    call cons_to_mass(old, mass_old,nlevdecomp)
+    call cons_to_mass(new, mass_new,nlevdecomp)
+
+    sum_old = sum(mass_old)
+    sum_new = sum(mass_new)
+    sum_respiration = sum(mass_respiration)
+    sum_input = sum(mass_input)
+
+    goal = sum_old + sum_input - sum_respiration
+    diff = sum_new-goal
+    print*, '-----------------------------------------------------------'
+    print*, '(mass at t+dt) - (mass at t + Input - respiration): ', diff
+    print*, 'sum of respired mass: ', sum_respiration
+    print*, 'sum of input: ', sum_input
+    print*, 'diff: ', diff, 'HR-Input: ', sum_respiration - sum_input
+    print*, 'diff-HR-Input: ', diff - (sum_respiration - sum_input)
+  end subroutine test_mass_conservation
+
+  subroutine total_mass_conservation(sum_input, sum_respiration, old, new,nlevdecomp) !Checking that mass is conserved over the whole time period
+    integer :: nlevdecomp
+    real(r8), intent(in), dimension(nlevdecomp, pool_types) :: old, new
+    real(r8), dimension(nlevdecomp, pool_types) :: mass_old, mass_new
+    real(r8) :: sum_old, sum_new, sum_respiration, sum_input, diff, goal
+
+    call cons_to_mass(old, mass_old,nlevdecomp)
+    call cons_to_mass(new, mass_new,nlevdecomp)
+
+    sum_old = sum(mass_old)
+    sum_new = sum(mass_new)
+
+    goal = sum_old + sum_input - sum_respiration
+    diff = sum_new-goal
+
+    if (abs(diff) > 1e-4) then
+      print*, 'Mass conservation is not fulfilled: '
+      print*, 'diff: ', diff
+      print*, 'sum of respired mass: ', sum_respiration
+      print*, 'sum of input: ', sum_input
+      print*, 'sum_old: ', sum_old, 'sum_new: ', sum_new
+    end if
+  end subroutine total_mass_conservation
 
 
 end module testMod
