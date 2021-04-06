@@ -161,33 +161,32 @@ module fluxMod
     Decomp_erm + Decomp_am))    !The saprotrophs decompose the carbon that is made more available when the mycorrhiza take N from SOM.
     U_sf = (C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf+ (1-f)*(Decomp_ecm + &
     Decomp_erm + Decomp_am))
-    if (Decomp_am<0) then
-      print*, Decomp_am, Decomp_erm, Decomp_ecm
-    end if
-    if  ((N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) > e_s*U_sb*CN_ratio(3)) then
-      N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb*CN_ratio(3)
+
+    if  ((N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) > e_s*U_sb*N_SAPb/C_SAPb )then
+      N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb*N_SAPb/C_SAPb
     else
       N_SAPbIN = 0.0
     end if
-    if  ((N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf) > e_s*U_sf*CN_ratio(4)) then
-      N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*CN_ratio(4)
+    if  ((N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf) > e_s*U_sf*N_SAPf/C_SAPf )then
+      N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*N_SAPf/C_SAPf
     else
       N_SAPfIN = 0.0
+
     end if
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    if ((N_INEcM + N_SOMaEcM) > e_m*C_PlantEcM*CN_ratio(5) ) then
-      N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*CN_ratio(5) !gN/m3h
+    if ((N_INEcM + N_SOMaEcM) > e_m*C_PlantEcM/CN_ratio(5) ) then
+      N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM/CN_ratio(5) !gN/m3h
     else
       N_EcMPlant = 0.0
     end if
-    if ((N_INErM + N_SOMaErM) > e_m*C_PlantErM*CN_ratio(6) ) then
-      N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*CN_ratio(6) !gN/m3h
+    if ((N_INErM + N_SOMaErM) > e_m*C_PlantErM/CN_ratio(6) ) then
+      N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM/CN_ratio(6) !gN/m3h
     else
       N_ErMPlant = 0.0
     end if
-    if ((N_INAM + N_SOMaAM) > e_m*C_PlantAM*CN_ratio(7) ) then
-      N_AMPlant = N_INAM + N_SOMaAM - e_m*C_PlantAM*CN_ratio(7) !gN/m3h
+    if ((N_INAM + N_SOMaAM) > e_m*C_PlantAM/CN_ratio(7) ) then
+      N_AMPlant = N_INAM + N_SOMaAM - e_m*C_PlantAM/CN_ratio(7) !gN/m3h
     else
       N_AMPlant = 0.0
     end if
