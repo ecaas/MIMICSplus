@@ -202,7 +202,8 @@ module fluxMod
       real(r8), intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
       real(r8), intent(out)  :: tot_diffusion_dummy ![gC/h]
       real(r8), allocatable, intent(out)  :: vert(:,:)
-      real(r8)               :: sum_day=0.0
+
+      !Local
       integer                :: depth, pool !For iteration
       integer,dimension(1)   :: max_pool, max_depth !For iteration
 
@@ -211,7 +212,6 @@ module fluxMod
       !Get how many depth levels and pools we will loop over.
       max_depth=shape(pool_matrix(:,1)) !TODO: Easier way to do this?
       max_pool=shape(pool_matrix(1,:))
-
       !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
       !pool_matrix is used here to calculate the diffusion.
 
@@ -231,9 +231,9 @@ module fluxMod
 
           tot_diffusion_dummy=(upper_diffusion_flux-lower_diffusion_flux)/delta_z(depth)
           vert(depth,pool) = tot_diffusion_dummy
-          sum_day=sum_day+tot_diffusion_dummy
         end do !pool
       end do !depth
+
 
   end subroutine vertical_diffusion
 

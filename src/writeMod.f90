@@ -33,8 +33,11 @@ module writeMod
       do v = 1, size(variables)
         call check(nf90_def_var(ncid, trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
         call check(nf90_def_var(ncid, "change"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, "vert_change"//trim(variables(v)), NF90_DOUBLE, (/t_dimid, lev_dimid/), varid))
         call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
         call check(nf90_def_var(ncid, "N_change"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, "N_vert_change"//trim(variables(v)), NF90_DOUBLE, (/t_dimid, lev_dimid/), varid))
+
       end do
       call check(nf90_def_var(ncid, "N_inorganic", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "N_plant", NF90_DOUBle, (/t_dimid/),varid))
@@ -43,7 +46,6 @@ module writeMod
       call check(nf90_def_var(ncid, "C_Growth_flux", NF90_DOUBle, (/t_dimid/),varid))
       call check(nf90_def_var(ncid,"HR_sum", NF90_DOUBLE, (/t_dimid /), varid ))
       call check(nf90_def_var(ncid,"HR_flux", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
-      call check(nf90_def_var(ncid, "vert_change", NF90_DOUBLE, (/t_dimid, lev_dimid/), varid))
       call check(nf90_def_var(ncid, "Temp", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "Moisture", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "N_changeinorganic", NF90_DOUBLE,(/t_dimid, lev_dimid/), varid))
@@ -64,7 +66,7 @@ module writeMod
     end subroutine create_netcdf
 
     subroutine fill_netcdf(run_name, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, &
-      HR_sum, HR_flux, vert_sum, write_hour,month, N_plant, C_plant, TSOIL, MOIST,growth_sum,levsoi)
+      HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, N_plant, C_plant, TSOIL, MOIST,growth_sum,levsoi)
       character (len = *):: run_name
       integer:: levsoi
       integer :: time, i , j, varidchange,varid,ncid, timestep,vertid,write_hour
@@ -72,6 +74,8 @@ module writeMod
       real(r8), intent(in)                       :: N_plant, C_plant,growth_sum
       real(r8), intent(in)                       :: change_matrix(levsoi,pool_types), Nchange_matrix(levsoi,pool_types_N) ! For storing dC/dt for each time step [gC/(m3*day)]
       real(r8), intent(in)                       :: vert_sum(levsoi,pool_types)
+      real(r8), intent(in)                       :: Nvert_sum(levsoi,pool_types)
+
       integer, intent(in)                        :: month
       real(r8)                                   :: HR_sum
       real(r8) ,dimension(levsoi)                :: HR_flux!(levsoi) !HR_mass_accumulated
@@ -122,14 +126,16 @@ module writeMod
           !C change:
           call check(nf90_inq_varid(ncid, trim(change_variables(i)), varidchange))
           call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ timestep, j /)))
+          call check(nf90_inq_varid(ncid, "vert_change"//trim(variables(i)), vertid))
+          call check(nf90_put_var(ncid, vertid, vert_sum(j,i), start = (/timestep,j/)))
           !N change:
           call check(nf90_inq_varid(ncid, "N_"//trim(change_variables(i)), varidchange))
           call check(nf90_put_var(ncid, varidchange, Nchange_matrix(j,i), start = (/ timestep, j /)))
-          call check(nf90_inq_varid(ncid, "vert_change", vertid))
-          call check(nf90_put_var(ncid, vertid, vert_sum(j,i), start = (/timestep,j/)))
+          call check(nf90_inq_varid(ncid, "N_vert_change"//trim(variables(i)), vertid))
+          call check(nf90_put_var(ncid, vertid, Nvert_sum(j,i), start = (/timestep,j/)))
         end do !pool_types
       end do ! levels
-      call check(nf90_close(ncid))  
+      call check(nf90_close(ncid))
     end subroutine fill_netcdf
 
    subroutine store_parameters(run_name)

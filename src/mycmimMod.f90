@@ -156,7 +156,7 @@ module mycmim
       !open and prepare files to store results. Store initial values
       call create_netcdf(run_name, nlevdecomp)
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
-                       HR_mass_accumulated,HR, vertC_change_sum, write_hour,current_month, &
+                       HR_mass_accumulated,HR, change_matrixC,change_matrixN, write_hour,current_month, &
                       NPlant, CPlant,TSOIL, r_moist, growth_sum = growth_sum,levsoi=nlevdecomp)
 
       !read temperature and moisture data from CLM file
@@ -349,10 +349,10 @@ module mycmim
         if (counter == write_hour) then
           counter = 0
           call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
-           HR_mass_accumulated,HR,vertC_change_sum, write_hour,current_month, NPlant,&
+           HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, NPlant,&
            CPlant, TSOIL, r_moist, growth_sum,nlevdecomp)
-          change_sum = 0.0
-          vertC_change_sum = 0.0
+           change_sum = 0.0
+          !vertC_change_sum = 0.0
         end if!writing
 
         !Write end values to terminal
