@@ -127,7 +127,7 @@ module mycmim
       ! colapse in frozen soils...
       !mimicsbiome%tauR(npt) = mimicsbiome%tauR(npt) * fW
       !mimicsbiome%tauK(npt) = mimicsbiome%tauK(npt) * fW
-      tau = (/ 5e-4*exp(0.3*fMET), 5e-4*exp(0.1*fMET)/)![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
+      ![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
 
       !Set initial concentration values:
       call initialize(pool_matrixC,pool_matrixN,CPlant,NPlant,nlevdecomp)
