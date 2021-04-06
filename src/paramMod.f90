@@ -8,7 +8,7 @@ real(kind=r8)                                :: TSOI =5.7                      !
 real(kind=r8)                                :: GEP                             ![gC/(m2 h)] Gross ecosystem productivity
 real(kind=r8),parameter                      :: fCLAY  = 0.20                   ![-] fraction of clay in soil
 real(kind=r8),dimension(3)                   :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
-
+real(kind=r8)                                :: I_tot
 
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
 integer, parameter                           :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters

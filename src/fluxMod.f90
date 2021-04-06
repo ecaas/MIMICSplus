@@ -44,14 +44,14 @@ module fluxMod
       delta_z=soil_depth
     end if
     !------------------CARBON FLUXES----------------------------:
-
-    C_PlantEcM = 0.01
-    C_PlantErM = 0.01    !gC/m3h
-    C_PlantAM = 0.01
+    I_tot = 0.04
+    C_PlantEcM = I_tot*delta*0.4
+    C_PlantErM = I_tot*delta*0.3  !gC/m3h
+    C_PlantAM = I_tot*delta*0.3
 
     !Plant mortality/litter production:
-    C_PlantLITm = 0.05  !gC/m3h
-    C_PlantLITs =0.05
+    C_PlantLITm = I_tot*(1-delta)*fMET !gC/m3h
+    C_PlantLITs =I_tot*(1-delta)*(1-fMET)
 
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
@@ -107,8 +107,7 @@ module fluxMod
     N_SOMaErM = Decomp_erm*N_SOMa/C_SOMa
     N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa
 
-    !Inorganic N taken up directly by plant roots   !Unsure about units!
-    N_InPlant = 0.0
+
     !Deposition and leaching from the inorganic N pool
     Deposition = Deposition_rate/delta_z(depth)     !Unsure about units!
     Leaching = Leaching_rate*N_in/delta_z(depth)
@@ -118,8 +117,8 @@ module fluxMod
     N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
 
     !Plant mortality
-    N_PlantLITm = C_PlantLITm*N_Plant/C_Plant
-    N_PlantLITs = C_PlantLITs*N_Plant/C_Plant
+    N_PlantLITm = C_PlantLITm/CN_ratio(1)
+    N_PlantLITs = C_PlantLITs/CN_ratio(2)
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
