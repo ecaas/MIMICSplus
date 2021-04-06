@@ -155,6 +155,7 @@ dmypy.json
 .pyre/
 
 # End of https://www.gitignore.io/api/python,fortran,jupyternotebooks
+.tags*
 .Rhistory
 src/.Rhistory
 src/For_EGU_presentation.ipynb
