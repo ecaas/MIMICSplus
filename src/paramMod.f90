@@ -72,9 +72,9 @@ real(r8), parameter :: Km_plant = 0.6           ![gNm-2] Half saturation constan
 real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article)
 real(r8), parameter :: V_max_plant = 1.8/hr_pr_yr![g g-1 hr-1] Max plant root uptake of inorganic N (called K_pn in article)
 real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article)
-real(r8)  :: Leaching_rate = 3/hr_pr_yr          ![hr-1] Leaching rate
+real(r8)  :: Leaching_rate = 1/hr_pr_yr          ![hr-1] Leaching rate
 real(r8)  :: Deposition_rate =3/hr_pr_yr         ![gNm-2hr-1] Deposition rate  NOTE: varied from 0.3-3 in article
-real(r8), parameter :: e_s = 0.25                !Growth efficiency of saprotrophs        TODO: Compare these to the efficiencies from Mimics
+real(r8), parameter :: e_s = 0.5                !Growth efficiency of saprotrophs        TODO: Compare these to the efficiencies from Mimics
 real(r8), parameter :: e_m = 0.25                !Growth efficiency of mycorrhiza NOTE: If efficiency is too high, SAPbIN will become negative bc.  e_s*U_sb/CN_ratio(3) will be too large. Problem??
 !Decomposition rates:
 real(r8), parameter :: K_SH = 0.006/hr_pr_yr ![m2gC-1hr-1] Saprotrophic decay rate constant for hydrolizable store. TODO: review these

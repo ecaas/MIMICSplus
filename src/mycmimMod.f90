@@ -97,14 +97,14 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: r_moist
 
 
-      integer,parameter              :: write_hour= 1*24*365!How often output is written to file
+      integer,parameter              :: write_hour= 1*24*365*1!How often output is written to file
                                       !TODO: This should be input to the subroutine!
 
       !ALLOCATIONS:
       allocate(HR_sum(nlevdecomp))
 
       dt= 1.0/step_frac !Setting the time step
-      
+
       if (nlevdecomp>1) then
         soil_depth=sum(delta_z(1:nlevdecomp))
         isVertical = .True.
@@ -301,7 +301,7 @@ module mycmim
               print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
               stop
             end if
-            if (pool_temporaryN(j,i) < 0.001) then
+            if (pool_temporaryN(j,i) < 0.0001) then
               print*, 'Too small pool size: NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
               pool_temporaryN(j,i)=0.01
             end if
@@ -311,7 +311,7 @@ module mycmim
                 print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
                 stop
               end if
-              if (pool_temporaryC(j,i) < 0.001) then
+              if (pool_temporaryC(j,i) < 0.0001) then
                 print*, 'Too small pool size: CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
                 stop
               end if
