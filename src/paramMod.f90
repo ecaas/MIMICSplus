@@ -12,15 +12,15 @@ real(kind=r8)                                :: I_tot
 
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
 integer, parameter                           :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters
-real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = (/0.017, 0.027, 0.017, 0.017, 0.027, 0.017/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = 0.017!(/0.017, 0.027, 0.017, 0.017, 0.027, 0.017/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),dimension(MM_eqs),parameter    :: Vslope  = (/0.063, 0.063, 0.063, 0.063, 0.063, 0.063/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),dimension(MM_eqs),parameter    :: Kint    = 3.19      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (10 mg/cm3 from german et al 2012)
 real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
 real(kind=r8),parameter                      :: pscalar = 1.0/(2*exp(-2.0*dsqrt(fCLAY))) !Value range:  0.5-3.7
-real(kind=r8),dimension(MM_eqs)              :: Kmod    = (/0.125d0, 0.5d0, 0.25d0*pscalar, 0.5d0, 0.25d0, 0.167d0*pscalar/)!LITm, LITs, SOMa entering SAPb, sapf
-real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0,  10.0, 10.0, 3.0, 10.0, 2.0/)            !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs)              :: Kmod    = 0.4!(/0.125d0, 0.5d0, 0.25d0*pscalar, 0.5d0, 0.25d0, 0.167d0*pscalar/)!LITm, LITs, SOMa entering SAPb, sapf
+real(kind=r8),dimension(MM_eqs)              :: Vmod    = 10!(/10.0,  10.0, 10.0, 10.0, 10.0, 2.0/)            !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter, dimension(2)        :: KO      =  4                    ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
 real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*10e3=[gC/m3]
 real(kind=r8),dimension(MM_eqs)              :: Vmax                            ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
@@ -37,7 +37,7 @@ integer, parameter                           :: pool_types_N = pool_types+1
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
 real(r8),parameter                               :: fMET =0.4                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
-real(r8), dimension(no_of_sap_pools),parameter    :: tau = (/ 5e-4*exp(0.3*fMET), 5e-4*exp(0.1*fMET)/)                            ![1/h]
+real(r8), dimension(no_of_sap_pools),parameter    :: tau = (/ 5e-4*exp(0.1*fMET), 5e-4*exp(0.1*fMET)/)                            ![1/h]
 
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.3,0.4,0.3/)

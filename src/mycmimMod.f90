@@ -115,11 +115,10 @@ module mycmim
                      !TODO: This can be done better
       end if
 
-      print*, soil_depth
 
       ! Fracions of SAP that goes to different SOM pools
-      fPHYS = (/ 0.3 * exp(fCLAY), 0.2 * exp(0.8*fCLAY) /)
-      fCHEM =  (/0.1 * exp(-3.0*fMET), 0.3 * exp(-3*fMET) /)
+      fPHYS = (/ 0.3 * exp(fCLAY), 0.3 * exp(fCLAY) /)
+      fCHEM =  (/0.1 * exp(-3.0*fMET), 0.1 * exp(-3.0*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
 
       !TODO FROM MIMICS_CYCLE_CN:
