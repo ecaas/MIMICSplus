@@ -151,7 +151,7 @@ module mycmim
       current_month = 1
       month_counter = 30
 
-
+      I_tot = 0.08
       !open and prepare files to store results. Store initial values
       call create_netcdf(run_name, nlevdecomp)
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &

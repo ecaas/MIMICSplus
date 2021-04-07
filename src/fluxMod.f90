@@ -13,6 +13,9 @@ module fluxMod
     real(r8)        :: C_plant, N_plant
     logical         :: isVert
 
+    !local:
+    real(r8)        :: I_layer !Total input/nlevdecomp
+
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
     C_SAPb, C_SAPf, N_LITm, N_LITs, N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb, N_SAPf, N_IN
@@ -44,14 +47,14 @@ module fluxMod
       delta_z=soil_depth
     end if
     !------------------CARBON FLUXES----------------------------:
-    I_tot = 0.04
-    C_PlantEcM = I_tot*delta*0.4
-    C_PlantErM = I_tot*delta*0.3  !gC/m3h
-    C_PlantAM = I_tot*delta*0.3
+    I_layer = I_tot/nlevdecomp
+    C_PlantEcM = I_layer*delta*0.4
+    C_PlantErM = I_layer*delta*0.3  !gC/m3h
+    C_PlantAM = I_layer*delta*0.3
 
     !Plant mortality/litter production:
-    C_PlantLITm = I_tot*(1-delta)*fMET !gC/m3h
-    C_PlantLITs =I_tot*(1-delta)*(1-fMET)
+    C_PlantLITm = I_layer*(1-delta)*fMET !gC/m3h
+    C_PlantLITs =I_layer*(1-delta)*(1-fMET)
 
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
