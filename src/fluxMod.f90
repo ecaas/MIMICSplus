@@ -42,10 +42,7 @@ module fluxMod
     N_SOMc => N_pool_matrix(depth, 10)
     N_IN => N_pool_matrix(depth, 11)
 
-    !change depth to soil_depth if single soil layer is used:
-    if (.not. isVert) then
-      delta_z=soil_depth
-    end if
+
     !------------------CARBON FLUXES----------------------------:
     I_layer = I_tot/nlevdecomp
     C_PlantEcM = I_layer*delta*0.4
@@ -58,15 +55,18 @@ module fluxMod
 
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
+    !Decomposition of SOMa by SAP. Based on the equations from SOMa to microbial pools in mimics.
+    !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
     C_LITmSAPb=C_SAPb*Vmax(1)*C_LITm/(Km(1)+C_LITm)
     C_LITsSAPb=C_SAPb*Vmax(2)*C_LITs/(Km(2)+C_LITs)
+    C_SOMaSAPb=C_SAPb*Vmax(3)*C_SOMa/(Km(3)+C_SOMa)
+
     C_LITmSAPf=C_SAPf*Vmax(4)*C_LITm/(Km(4)+C_LITm)
     C_LITsSAPf=C_SAPf*Vmax(5)*C_LITs/(Km(5)+C_LITs)
+    C_SOMaSAPf=C_SAPf*Vmax(6)*C_SOMa/(Km(6)+C_SOMa)
 
     !Decomposition of SOMa by SAP. Based on the equations from SOMa to microbial pools in mimics.
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
-    C_SOMaSAPb=C_SAPb*Vmax(3)*C_SOMa/(Km(3)+C_SOMa)
-    C_SOMaSAPf=C_SAPf*Vmax(6)*C_SOMa/(Km(6)+C_SOMa)
 
     !Dead mycorrhizal biomass enters the SOM pools:  gC/m3h
     C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp
