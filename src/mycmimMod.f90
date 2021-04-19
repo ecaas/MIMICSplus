@@ -310,9 +310,10 @@ module mycmim
               print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
               stop
             end if
-            if (pool_temporaryN(j,i) < 0.0001) then
+            if (pool_temporaryN(j,i) < 0.000) then
               print*, 'Too small pool size: NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
-              pool_temporaryN(j,i)=0.01
+              !pool_temporaryN(j,i)=0.01
+              stop
             end if
 
             if (i /=11 ) then
@@ -320,7 +321,7 @@ module mycmim
                 print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
                 stop
               end if
-              if (pool_temporaryC(j,i) < 0.0001) then
+              if (pool_temporaryC(j,i) < 0.000) then
                 print*, 'Too small pool size: CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
                 stop
               end if
