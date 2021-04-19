@@ -49,6 +49,8 @@ module writeMod
       call check(nf90_def_var(ncid, "Temp", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "Moisture", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "N_changeinorganic", NF90_DOUBLE,(/t_dimid, lev_dimid/), varid))
+      call check(nf90_def_var(ncid, "N_InPlant", NF90_DOUBLE,(/t_dimid, lev_dimid/), varid))
+
 
       do v = 1, size(C_name_fluxes)
          call check(nf90_def_var(ncid, "C_"//trim(C_name_fluxes(v)), NF90_double, (/t_dimid, lev_dimid /), varid))
@@ -219,10 +221,15 @@ module writeMod
       integer, intent(in) :: time
       integer, intent(in) :: write_hour !hours between every output-writing.
       integer, intent(out):: timestep
-      if (time == 1) then
-        timestep = 1
+
+      if (write_hour == 1) then
+        timestep = time/write_hour
       else
-        timestep = time/write_hour+1 !NOTE: Del write_hour på step_frac hvis step_frac ikke er lik 1!
+        if (time == 1) then
+          timestep = 1
+        else
+          timestep = time/write_hour+1 !NOTE: Del write_hour på step_frac hvis step_frac ikke er lik 1!
+        end if
       end if
     end subroutine get_timestep
 
@@ -382,6 +389,8 @@ module writeMod
       call check(nf90_put_var(ncid, varid, N_ErMPlant, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "N_AMPlant", varid))
       call check(nf90_put_var(ncid, varid, N_AMPlant, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "N_InPlant", varid))
+      call check(nf90_put_var(ncid, varid, N_InPlant, start = (/ timestep, depth_level /)))
 
 
 
