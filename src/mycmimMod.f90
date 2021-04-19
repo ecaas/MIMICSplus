@@ -96,7 +96,7 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: r_moist
 
 
-      integer,parameter              :: write_hour= 1*24*365*1!How often output is written to file
+      integer,parameter              :: write_hour= 1*24*365*5!How often output is written to file
                                       !TODO: This should be input to the subroutine!
 
 

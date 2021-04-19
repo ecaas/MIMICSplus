@@ -105,6 +105,7 @@ module fluxMod
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
     !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
+    Decomp_ecm = K_MO*soil_depth*C_EcM*C_SOMa   ![gC/m3h]
     Decomp_erm = 0.0!K_MO*delta_z(depth)*C_ErM*C_SOMa
     Decomp_am  = 0.0!K_MO*delta_z(depth)*C_AM*C_SOMa
 
@@ -117,12 +118,12 @@ module fluxMod
     !Inorganic N taken up directly by plant roots   !Unsure about units!
     N_InPlant = V_max_plant*N_in*(1-delta)*(CPlant/(CPlant + Km_plant/soil_depth)) !NOTE Changed from Baskaran: Use CPlant instead of C_plant shoot
     !Deposition and leaching from the inorganic N pool
-    Deposition = Deposition_rate/delta_z(depth)     !Unsure about units!
-    Leaching = Leaching_rate*N_in/delta_z(depth)
-
-    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/delta_z(depth)))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
-    N_INErM = V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
-    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
+    Deposition = Deposition_rate/soil_depth     !Unsure about units!
+    Leaching = Leaching_rate*N_in/soil_depth
+  !  print*, Deposition,Deposition_rate, Leaching, Leaching_rate
+    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
+    N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
+    N_INAM = 0.0!V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
 
     !Plant mortality
     N_PlantLITm = C_PlantLITm*N_Plant/C_Plant
@@ -133,8 +134,8 @@ module fluxMod
     N_LITsSAPb = C_LITsSAPb*N_LITs/C_LITs
 
     N_LITmSAPf = C_LITmSAPf*N_LITm/C_LITm
-
     N_LITsSAPf = C_LITsSAPf*N_LITs/C_LITs
+
     N_SOMaSAPb = C_SOMaSAPb*N_SOMa/C_SOMa
     N_SOMaSAPf = C_SOMaSAPf*N_SOMa/C_SOMa
 
@@ -148,7 +149,6 @@ module fluxMod
     N_AMSOMp = C_AMSOMp*(N_AM/C_AM)
     N_AMSOMa = C_AMSOMa*(N_AM/C_AM)
     N_AMSOMc = C_AMSOMc*(N_AM/C_AM)
-
     !Dead saphrotroph biomass enters SOM pools
     N_SAPbSOMp = C_SAPbSOMp*N_SAPb/C_SAPb
     N_SAPbSOMa = C_SAPbSOMa*N_SAPb/C_SAPb
@@ -183,21 +183,22 @@ module fluxMod
     end if
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    if ((N_INEcM + N_SOMaEcM) > e_m*C_PlantEcM/CN_ratio(5) ) then
-      N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM/CN_ratio(5) !gN/m3h
+    if ((N_INEcM + N_SOMaEcM) > e_m*C_PlantEcM*N_EcM/C_EcM ) then
+      N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*N_EcM/C_EcM  !gN/m3h
     else
       N_EcMPlant = 0.0
+      print*,"N_EcMPlant is zero!"
     end if
-    if ((N_INErM + N_SOMaErM) > e_m*C_PlantErM/CN_ratio(6) ) then
-      N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM/CN_ratio(6) !gN/m3h
-    else
+!    if ((N_INErM + N_SOMaErM) > e_m*C_PlantErM*N_ErM/C_ErM ) then
+!      N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*N_ErM/C_ErM  !gN/m3h
+!    else
       N_ErMPlant = 0.0
-    end if
-    if ((N_INAM + N_SOMaAM) > e_m*C_PlantAM/CN_ratio(7) ) then
-      N_AMPlant = N_INAM + N_SOMaAM - e_m*C_PlantAM/CN_ratio(7) !gN/m3h
-    else
+!    end if
+!    if ((N_INAM + N_SOMaAM) > e_m*C_PlantAM*N_AM/C_AM  ) then
+!      N_AMPlant = N_INAM + N_SOMaAM - e_m*C_PlantAM/*N_AM/C_AM  !gN/m3h
+!    else
       N_AMPlant = 0.0
-    end if
+!    end if
 
     nullify( C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
   end subroutine calculate_fluxes
