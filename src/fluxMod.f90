@@ -73,13 +73,13 @@ module fluxMod
     C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(2)!soma
     C_EcMSOMc=C_EcM*k_mycsom(1)*fEcMSOM(3)!somc
 
-    C_ErMSOMp=C_ErM*k_mycsom(2)*fErMSOM(1)
-    C_ErMSOMa=C_ErM*k_mycsom(2)*fErMSOM(2)
-    C_ErMSOMc=C_ErM*k_mycsom(2)*fErMSOM(3)
+    C_ErMSOMp=0.0!C_ErM*k_mycsom(2)*fErMSOM(1)
+    C_ErMSOMa=0.0!C_ErM*k_mycsom(2)*fErMSOM(2)
+    C_ErMSOMc=0.0!C_ErM*k_mycsom(2)*fErMSOM(3)
 
-    C_AMSOMp=C_AM*k_mycsom(3)*fAMSOM(1)
-    C_AMSOMa=C_AM*k_mycsom(3)*fAMSOM(2)
-    C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(3)
+    C_AMSOMp=0.0!C_AM*k_mycsom(3)*fAMSOM(1)
+    C_AMSOMa=0.0!C_AM*k_mycsom(3)*fAMSOM(2)
+    C_AMSOMc=0.0!C_AM*k_mycsom(3)*fAMSOM(3)
 
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
     C_SAPbSOMp=C_SAPb*tau(1)*fPHYS(1)   !gC/m3h
@@ -100,9 +100,8 @@ module fluxMod
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
     !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
-    Decomp_ecm = K_MO*delta_z(depth)*C_EcM*C_SOMa   ![gC/m3h]
-    Decomp_erm = K_MO*delta_z(depth)*C_ErM*C_SOMa
-    Decomp_am  = K_MO*delta_z(depth)*C_AM*C_SOMa
+    Decomp_erm = 0.0!K_MO*delta_z(depth)*C_ErM*C_SOMa
+    Decomp_am  = 0.0!K_MO*delta_z(depth)*C_AM*C_SOMa
 
     !-----------------------------------NITROGEN FLUXES----------------------------:
     !Nitrogen aquired bymycorrhiza via oxidation of SOMa  gN/m3h
