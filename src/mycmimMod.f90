@@ -114,8 +114,8 @@ module mycmim
 
 
       ! Fracions of SAP that goes to different SOM pools
-      fPHYS = (/ 0.3 * exp(fCLAY), 0.3 * exp(fCLAY) /)
-      fCHEM =  (/0.1 * exp(-3.0*fMET), 0.1 * exp(-3.0*fMET) /)
+      fPHYS = 0.3!(/ 0.3 * exp(fCLAY), 0.3 * exp(fCLAY) /)
+      fCHEM =  0.3!(/0.1 * exp(-3.0*fMET), 0.1 * exp(-3.0*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
 
       !TODO FROM MIMICS_CYCLE_CN:
