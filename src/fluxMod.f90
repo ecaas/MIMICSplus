@@ -13,9 +13,6 @@ module fluxMod
     real(r8)        :: C_plant, N_plant
     logical         :: isVert
 
-    !local:
-    real(r8)        :: I_layer !Total input/nlevdecomp
-
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
     C_SAPb, C_SAPf, N_LITm, N_LITs, N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb, N_SAPf, N_IN
@@ -44,14 +41,22 @@ module fluxMod
 
 
     !------------------CARBON FLUXES----------------------------:
-    I_layer = I_tot/nlevdecomp
-    C_PlantEcM = I_layer*delta*0.4
-    C_PlantErM = I_layer*delta*0.3  !gC/m3h
-    C_PlantAM = I_layer*delta*0.3
+    !
+    ! !Plant Carbon to mycorrhiza: = delta*P_N*N_PS     !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
+    P_N = calc_PN(CPlant)
+    N_PS = N_plant/(1+ gamma_rs)         !N in plant shoots
+                                                   !NOTE: Divide by layer depth to distrubute input from plant between the layers.
+    C_PlantEcM = delta*P_N*N_PS/soil_depth
 
-    !Plant mortality/litter production:
-    C_PlantLITm = I_layer*(1-delta)*fMET !gC/m3h
-    C_PlantLITs =I_layer*(1-delta)*(1-fMET)
+    ! C_PlantErM = 0.0!delta*0.3*P_N*N_PS/delta_z(depth)    !gC/m3h  (?)
+    ! C_PlantAM = 0.0!delta*0.3*P_N*N_PS/delta_z(depth)
+    !
+     !Used to calculate litter production in flux subroutine:
+    Total_plant_mortality = calc_plant_mortality(CPlant) !gC/m2h
+    ! !Plant mortality/litter production:
+    C_PlantLITm = fMET*Total_plant_mortality/soil_depth     !gC/m2h
+    C_PlantLITs =(1-fMET)*Total_plant_mortality/soil_depth  !TODO: Blir det riktig a bruke fMET for a dele opp totalproduksjonen?
+    !
 
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
@@ -109,7 +114,8 @@ module fluxMod
     N_SOMaErM = Decomp_erm*N_SOMa/C_SOMa
     N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa
 
-
+    !Inorganic N taken up directly by plant roots   !Unsure about units!
+    N_InPlant = V_max_plant*N_in*(1-delta)*(CPlant/(CPlant + Km_plant/soil_depth)) !NOTE Changed from Baskaran: Use CPlant instead of C_plant shoot
     !Deposition and leaching from the inorganic N pool
     Deposition = Deposition_rate/delta_z(depth)     !Unsure about units!
     Leaching = Leaching_rate*N_in/delta_z(depth)
@@ -119,8 +125,8 @@ module fluxMod
     N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
 
     !Plant mortality
-    N_PlantLITm = C_PlantLITm/CN_ratio(1)
-    N_PlantLITs = C_PlantLITs/CN_ratio(2)
+    N_PlantLITm = C_PlantLITm*N_Plant/C_Plant
+    N_PlantLITs = C_PlantLITs*N_Plant/C_Plant
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
@@ -237,6 +243,44 @@ module fluxMod
 
 
   end subroutine vertical_diffusion
+
+  function calc_PN(C_plant) result(productivity)
+    real(r8), intent(in) :: C_plant
+    real(r8)             :: productivity
+    P_N =  a-b*(C_plant/(1+ gamma_rs)) !Plant N productivity (as in Baskaran 2016, eq (12))
+
+  end function calc_PN
+
+  function calc_plant_growth_rate(C_plant, N_plant) result(growth_rate)
+    real(r8), intent(in) :: C_plant
+    real(r8), intent(in) :: N_plant
+    real(r8)             :: growth_rate
+
+    !Local
+    real(r8) :: C_PR,C_PS,N_PR,N_PS
+    real(r8) :: P_N
+    C_PR = gamma_rs*C_Plant/(1+gamma_rs) !Carbon in plant roots (Baskaran et al)
+    C_PS = C_plant/(1+ gamma_rs)         !Carbon in plant shoots
+    N_PR = gamma_rs*N_Plant/(1+gamma_rs) !N in plant roots
+    N_PS = N_plant/(1+ gamma_rs)         !N in plant shoots
+
+    P_N = calc_PN(C_plant)
+    if (P_N < 0) then
+      print*, "P_N < 0: ", P_N
+      P_N = 0
+    end if
+    !Plant growth rate
+    growth_rate = (1-delta)*P_N*N_PS                !NOTE Usikker paa enheter her
+  end function calc_plant_growth_rate
+
+  function calc_plant_mortality(C_plant) result(Total_mortality)
+      real(r8), intent(in) :: C_Plant
+      real(r8)             :: Total_mortality
+        !Used to calculate litter production in flux subroutine:
+        Total_mortality = (my_shoot + gamma_rs*my_root)*(C_plant/(1+gamma_rs))!gC/m2h
+
+  end function calc_plant_mortality
+
 
   subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist,nlevdecomp) !NOTE: Should maybe be placed somewhere else?
     integer :: nlevdecomp

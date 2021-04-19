@@ -137,8 +137,6 @@ module mycmim
       ycounter = 0
       HR_mass_accumulated = 0
       growth_sum=0
-      Cplant = 0.0
-      Nplant=0.0
 
       a_matrixC      = pool_matrixC
       a_matrixN      = pool_matrixN
@@ -164,7 +162,8 @@ module mycmim
         counter  = counter + 1
         ycounter = ycounter + 1
         month_counter = month_counter + 1
-
+        NPlant_tstep = 0
+        CPlant_tstep =0
         !Update temp and moisture values monthly
         if (month_counter == days_in_month(current_month)*24) then
           previous_month = current_month
@@ -189,6 +188,9 @@ module mycmim
           call disp("InitN", pool_matrixN)
         end if
 
+        C_growth_rate = calc_plant_growth_rate(Cplant,Nplant)
+        growth_sum = growth_sum + C_growth_rate*dt
+
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
           !Michaelis Menten parameters:
           Km      = exp(Kslope*TSOI + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
@@ -202,6 +204,17 @@ module mycmim
           if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
            call fluxes_netcdf(int(time), write_hour, j, run_name)
           end if !write fluxes
+
+          possible_N_change = (N_EcMPlant+  N_ErMPlant +  N_AMPlant + N_InPlant  &
+          - N_PlantLITm - N_PlantLITs)*dt*delta_z(j) !gN/m2
+
+          possible_C_change =  - (C_PlantEcM + C_PlantErM + C_PlantAM)*dt*delta_z(j)!gC/m2
+
+          NPlant_tstep = NPlant_tstep + possible_N_change
+          CPlant_tstep = CPlant_tstep + possible_C_change
+          ! print*, '---------------', j, '-------------------------'
+          ! print*, "NITROGEN: ", NPlant_tstep, possible_N_change
+          ! print*, "CARBON: ", CPlant_tstep, possible_C_change
 
           do i = 1,pool_types + 1 !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
@@ -325,10 +338,19 @@ module mycmim
 
         end do !j, depth_level
 
+        !Update Plant pools with the total change from all the layers
+        CPlant = CPlant + CPlant_tstep +C_growth_rate*dt - Total_plant_mortality*dt
+        NPlant = NPlant + NPlant_tstep
+        if (CPlant < 0.00 .or. NPlant < 0.00) then
+          print*, 'Too small pool size: CARBON value at t',t,'CPlant:', CPlant
+          print*, 'Too small pool size: Nitrogen value at t',t,'NPlant:', NPlant
 
+          stop
+        end if
         !Store accumulated HR mass
         call respired_mass(HR, HR_mass,nlevdecomp)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
+
 
         if (isVertical) then
           call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC)
