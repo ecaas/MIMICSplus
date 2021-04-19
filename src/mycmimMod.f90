@@ -80,7 +80,6 @@ module mycmim
       integer                        :: month_counter
       integer                        :: j,i,t              !for iterations
       integer,parameter              ::t_init=1
-      real(r8), allocatable:: HR_sum(:)                    !Sums total HR between two output entries
 
       real(r8)                       :: change_sum(nlevdecomp, pool_types)
 !      real(r8)                       :: vertN_change_sum(nlevdecomp, pool_types)
@@ -100,8 +99,6 @@ module mycmim
       integer,parameter              :: write_hour= 1*24*365*1!How often output is written to file
                                       !TODO: This should be input to the subroutine!
 
-      !ALLOCATIONS:
-      allocate(HR_sum(nlevdecomp))
 
       dt= 1.0/step_frac !Setting the time step
 
@@ -138,7 +135,6 @@ module mycmim
       vertC_change_sum=0.0
       counter = 0
       ycounter = 0
-      HR_sum   = 0.0 !For summing up the total respiration between two output times
       HR_mass_accumulated = 0
       growth_sum=0
       Cplant = 0.0
@@ -326,7 +322,6 @@ module mycmim
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t
           end if
-          HR_sum(j) = HR_sum(j) + HR(j)
 
         end do !j, depth_level
 
