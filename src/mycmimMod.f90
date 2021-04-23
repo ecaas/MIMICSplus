@@ -375,7 +375,7 @@ module mycmim
         if (t == nsteps) then
           call store_parameters(run_name)
           call disp("pool_matrixC gC/m3 ",pool_matrixC)
-          call disp("pool_matrixC gN/m3 ",pool_matrixN)
+          call disp("pool_matrixN gN/m3 ",pool_matrixN)
 
         end if
 
