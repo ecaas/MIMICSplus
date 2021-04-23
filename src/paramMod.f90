@@ -18,7 +18,7 @@ real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47      !LITm, LITs,
 real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (10 mg/cm3 from german et al 2012)
 real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
 real(kind=r8),parameter                      :: pscalar = 1.0/(2*exp(-2.0*dsqrt(fCLAY))) !Value range:  0.5-3.7
-real(kind=r8),dimension(MM_eqs)              :: Kmod    = 0.4!(/0.125d0, 0.5d0, 0.25d0*pscalar, 0.5d0, 0.25d0, 0.167d0*pscalar/)!LITm, LITs, SOMa entering SAPb, sapf
+real(kind=r8),dimension(MM_eqs)              :: Kmod    = 0.2!(/0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0/)!LITm, LITs, SOMa entering SAPb, sapf
 real(kind=r8),dimension(MM_eqs)              :: Vmod    = 10!(/10.0,  10.0, 10.0, 10.0, 10.0, 2.0/)            !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter, dimension(2)        :: KO      =  4                    ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
 real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*10e3=[gC/m3]
@@ -47,7 +47,7 @@ real(r8)                                :: desorb = 3e-4*exp(-4*(sqrt(fclay)))![
 real(r8)                  :: soil_depth           ![m] used if isVertical is False (sum(delta_z))
 real(r8),dimension(10),parameter     :: node_z =  (/0.01,0.04,0.09,0.16,0.26,0.40,0.587,0.80,1.06,1.36/)!(/0.076,0.228, 0.380,0.532, 0.684,0.836,0.988,1.140,1.292,1.444/)!![m] Depth of center in each soil layer. Same as the first layers of default CLM5 with vertical resolution.
 real(r8),dimension(10)               :: delta_z = (/0.02, 0.04, 0.06, 0.08,0.12,0.16,0.20,0.24,0.28,0.32/)!0.152![m] Thickness of each soil of the top layers in default clm5.
-real(r8),parameter                   :: D = 1.14e-6![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
+real(r8),parameter                   :: D = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
 
 
 real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
