@@ -11,14 +11,15 @@ contains
     real(r8), intent(out)  :: Init_PlantC, Init_PlantN
     integer                :: j
     real(r8),parameter     :: C_tot=20000 !gC/m2
-    pools_C=C_tot/(nlevdecomp*pool_types)
-    pools_C(1,:)=pools_C(1,:)+50
+    !pools_C=C_tot/(nlevdecomp*pool_types)
+    !pools_C(1,:)=pools_C(1,:)+50
+    !pools_C(j,:)2500,3700,5,5,100,100,100,50,2000,2000
 
 
 
     !TODO: Find better initial values!
     do j=1,nlevdecomp
-      !pools_C(j,:) = C_tot/(delta_z(j)*nlevdecomp)
+      pools_C(j,:)=(/2500,3700,5,5,100,100,100,50,2000,2000/)
       pools_N(j,1:10) = pools_C(j,1:10)/CN_ratio
     end do
     Init_PlantC = 500
