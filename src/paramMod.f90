@@ -4,7 +4,7 @@ use shr_kind_mod   , only : r8 => shr_kind_r8
 implicit none
 
 !Define variables
-real(kind=r8)                                :: TSOI =5.7                      ![degC]
+real(kind=r8)                                :: TSOI =-10.0                      ![degC]
 real(kind=r8)                                :: GEP                             ![gC/(m2 h)] Gross ecosystem productivity
 real(kind=r8),parameter                      :: fCLAY  = 0.20                   ![-] fraction of clay in soil
 real(kind=r8),dimension(3)                   :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
@@ -18,7 +18,7 @@ real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47      !LITm, LITs,
 real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (10 mg/cm3 from german et al 2012)
 real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
 real(kind=r8),parameter                      :: pscalar = 1.0/(2*exp(-2.0*dsqrt(fCLAY))) !Value range:  0.5-3.7
-real(kind=r8),dimension(MM_eqs)              :: Kmod    = 0.2!(/0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0/)!LITm, LITs, SOMa entering SAPb, sapf
+real(kind=r8),dimension(MM_eqs)              :: Kmod    = 0.4!(/0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0/)!LITm, LITs, SOMa entering SAPb, sapf
 real(kind=r8),dimension(MM_eqs)              :: Vmod    = 10!(/10.0,  10.0, 10.0, 10.0, 10.0, 2.0/)            !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter, dimension(2)        :: KO      =  4                    ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
 real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*10e3=[gC/m3]
