@@ -106,9 +106,12 @@ module mycmim
         soil_depth=sum(delta_z(1:nlevdecomp))
         isVertical = .True.
       else
-        soil_depth=1.0
+        soil_depth=1.52
         isVertical = .False.
         delta_z=soil_depth !So that delta_z will not be 1st on delta_z from parametersMod
+        allocate (vertC, mold = pool_matrixC)
+        allocate (vertN, mold = pool_matrixN)
+
                      !TODO: This can be done better
       end if
 
