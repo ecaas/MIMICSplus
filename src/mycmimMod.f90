@@ -194,8 +194,8 @@ module mycmim
 
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
           !Michaelis Menten parameters:
-          Km      = exp(Kslope*TSOIL(j) + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
-          Vmax    = exp(Vslope*TSOIL(j) + Vint)*a_v*Vmod!*W_SCALAR(j)   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+          Km      = Km_function(TSOIL(j))
+          Vmax    = Vmax_function(TSOIL(j),W_SCALAR(j)) !*W_SCALAR(j)   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
 
           k_mycsom  = (/1.4,1.4,1.4/)*10e-5!*W_SCALAR(j)  ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
 

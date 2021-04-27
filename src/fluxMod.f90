@@ -5,6 +5,31 @@ module fluxMod
 
   contains
 
+
+  function MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
+    !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
+    !NOTE: On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
+    real(r8):: flux ![gC/(m3 hr)]
+    real(r8), intent(in) :: C_SAP
+    real(r8), intent(in) :: C_SUBSTRATE
+    integer, intent (in) :: MMK_nr
+
+    flux = C_SAP*Vmax(MMK_nr)*C_SUBSTRATE/(Km(MMK_nr)+C_SUBSTRATE)
+  end function MMK_flux
+
+  function Km_function(temperature) result(K_m)
+    real(r8),dimension(MM_eqs)             :: K_m
+    real(r8), intent(in)                   :: temperature
+    K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
+  end function Km_function
+
+  function Vmax_function(temperature, moisture) result(V_max)
+    real(r8),dimension(MM_eqs)             :: V_max
+    real(r8), intent(in)                   :: temperature
+    real(r8), intent(in)                   :: moisture
+    V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod!*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+  end function Vmax_function
+
   subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix, C_plant, N_plant, isVert) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer         :: depth !depth level
     integer         :: nlevdecomp
@@ -73,15 +98,15 @@ module fluxMod
 
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
-    C_LITmSAPb=C_SAPb*Vmax(1)*C_LITm/(Km(1)+C_LITm)
-    C_LITsSAPb=C_SAPb*Vmax(2)*C_LITs/(Km(2)+C_LITs)
-    C_LITmSAPf=C_SAPf*Vmax(4)*C_LITm/(Km(4)+C_LITm)
-    C_LITsSAPf=C_SAPf*Vmax(5)*C_LITs/(Km(5)+C_LITs)
+    C_LITmSAPb=MMK_flux(C_SAPb,C_LITm,1)
+    C_LITsSAPb=MMK_flux(C_SAPb,C_LITs,2)
+    C_LITmSAPf=MMK_flux(C_SAPf,C_LITm,4)
+    C_LITsSAPf=MMK_flux(C_SAPf,C_LITs,5)
 
     !Decomposition of SOMa by SAP. Based on the equations from SOMa to microbial pools in mimics.
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
-    C_SOMaSAPb=C_SAPb*Vmax(3)*C_SOMa/(Km(3)+C_SOMa)
-    C_SOMaSAPf=C_SAPf*Vmax(6)*C_SOMa/(Km(6)+C_SOMa)
+    C_SOMaSAPb=MMK_flux(C_SAPb,C_SOMa,3)
+    C_SOMaSAPf=MMK_flux(C_SAPf,C_SOMa,6)
 
     !Dead mycorrhizal biomass enters the SOM pools:  gC/m3h
     C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp
