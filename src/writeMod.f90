@@ -4,7 +4,7 @@ module writeMod
   use dispmodule
   implicit none
 
-  integer,private :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid,i
+  integer,private :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid
 
   contains
 
@@ -153,7 +153,7 @@ module writeMod
 
      call check(nf90_enddef(ncid))
 
-     call check(nf90_put_var(ncid, tsoiID, tsoi))
+     call check(nf90_put_var(ncid, tsoiID, T_soil_const))
      call check(nf90_put_var(ncid, clayID, fCLAY))
      call check(nf90_put_var(ncid, desorbID, desorb))
      call check(nf90_put_var(ncid, gepID, GEP))
@@ -173,6 +173,7 @@ module writeMod
    !NOTE: This should maybe be somwhere else?
     subroutine read_clmdata(clm_history_file, TSOI, SOILLIQ,SOILICE,WATSAT,W_SCALAR,month, nlevdecomp)
       integer,intent(in)            :: nlevdecomp
+      integer,intent(in)            :: month
       character (len = *),intent(in):: clm_history_file
       real(r8),intent(out), dimension(nlevdecomp)          :: TSOI
       real(r8),intent(out), dimension(nlevdecomp)          :: SOILLIQ
@@ -180,7 +181,8 @@ module writeMod
       real(r8), intent(out),dimension(nlevdecomp)          :: WATSAT
       real(r8), intent(out),dimension(nlevdecomp)          :: W_SCALAR
 
-      integer            :: ncid, WATSATid, TSOIid, SOILICEid, SOILLIQid,W_SCALARid, month
+      integer            :: ncid, WATSATid, TSOIid, SOILICEid, SOILLIQid,W_SCALARid
+      integer            :: i
       WATSAT=0.0
       TSOI= 0.0
 

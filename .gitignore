@@ -188,7 +188,7 @@ src/test_vertical_runs_moisture_effect.ipynb
 src/testbed/
 src/run_script
 src/.tags*
-./tags*
+.tags*
 fort.1
 fort.3
 fort.4

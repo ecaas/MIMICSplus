@@ -3,9 +3,6 @@ module testMod
   use dispmodule
   implicit none
 
-  integer :: i
-
-
 contains
 
   ! subroutine cons_to_mass(matrix, mass_matrix,nlevdecomp) !Convert from g/m3 to g/m2
@@ -58,6 +55,8 @@ contains
     real(r8), intent(in), dimension(nlevdecomp) :: HR_conc_vr ![gC/m3]
     real(r8), intent(out) :: HR_mass_tot ![gC/m2]
     real(r8), dimension(nlevdecomp):: HR_mass_vr
+
+    integer ::i
 
     do i = 1,nlevdecomp
       HR_mass_vr(i) = HR_conc_vr(i)*delta_z(i)
