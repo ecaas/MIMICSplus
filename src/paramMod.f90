@@ -4,7 +4,7 @@ use shr_kind_mod   , only : r8 => shr_kind_r8
 implicit none
 
 !Define variables
-real(kind=r8)                                :: TSOI =-10.0                      ![degC]
+real(kind=r8)                                :: TSOI =5.0                      ![degC]
 real(kind=r8)                                :: GEP                             ![gC/(m2 h)] Gross ecosystem productivity
 real(kind=r8),parameter                      :: fCLAY  = 0.20                   ![-] fraction of clay in soil
 real(kind=r8),dimension(3)                   :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
@@ -41,7 +41,7 @@ real(r8), dimension(no_of_sap_pools),parameter    :: tau = (/ 5e-4*exp(0.1*fMET)
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.3,0.4,0.3/)
 real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
-real(r8)                                :: desorb = 3e-4*exp(-4*(sqrt(fclay)))![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
+real(r8)                                :: desorb = 1.5e-5*exp(-1.5*(fclay))![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Depth & vertical transport
 real(r8)                  :: soil_depth           ![m] used if isVertical is False (sum(delta_z))
