@@ -43,9 +43,8 @@ module mycmim
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types+1) ! For storing dC/dt for each time step [gN/(m3*hour)]
       real(r8)                       :: a_matrixN(nlevdecomp, pool_types+1)     ! For storing the analytical solution
 
-      real(r8)                       :: mass_N(nlevdecomp, pool_types+1)     ! gN/m2
-      real(r8)                       :: mass_C(nlevdecomp, pool_types)     ! gC/m2
-
+      real(r8)                       :: sum_consN(nlevdecomp, pool_types+1) !g/m3 for calculating annual mean
+      real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
 
 
 
@@ -179,11 +178,6 @@ module mycmim
             current_month = current_month + 1
           end if
           month_counter = 0
-        end if
-
-        if (ycounter == 365*24) then
-          year = year + 1
-          ycounter = 0
         end if
 
         !print initial values to terminal
@@ -367,6 +361,15 @@ module mycmim
           pool_matrixN=pool_temporaryN
         end if!isVertical
 
+        sum_consN = sum_consN + pool_matrixN
+        sum_consC = sum_consC + pool_matrixC
+
+        if (ycounter == 365*24) then
+          year = year + 1
+          ycounter = 0
+          call annual_mean(sum_consC,sum_consN, nlevdecomp) !calculates the annual mean and write the result to file
+        end if
+
         if (counter == write_hour) then
           counter = 0
           call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
@@ -381,12 +384,22 @@ module mycmim
           call store_parameters(run_name)
           call disp("pool_matrixC gC/m3 ",pool_matrixC)
           call disp("pool_matrixN gN/m3 ",pool_matrixN)
-
         end if
 
       end do !t
 
     end subroutine decomp
 
+  subroutine annual_mean(yearly_sumC,yearly_sumN, nlevels)
+    REAL(r8), DIMENSION(nlevels,pool_types) , intent(in):: yearly_sumC
+    REAL(r8), DIMENSION(nlevels,pool_types+1) , intent(in):: yearly_sumN
+    integer , intent(in):: nlevels
+    !Local
+    REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
+    REAL(r8), DIMENSION(nlevels,pool_types+1) :: yearly_meanN
+    integer, parameter                         :: hr_in_year = 24*365
+    yearly_meanC=yearly_sumC/hr_in_year
+    yearly_meanN=yearly_sumN/hr_in_year
+  end subroutine annual_mean
 
 end module mycmim
