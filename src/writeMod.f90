@@ -391,8 +391,90 @@ module writeMod
       call check(nf90_put_var(ncid, varid, N_AMPlant, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "N_InPlant", varid))
       call check(nf90_put_var(ncid, varid, N_InPlant, start = (/ timestep, depth_level /)))
-
-
-
     end subroutine write_Nfluxes
+
+    subroutine create_yearly_mean_netcdf(run_name, levsoi)
+      character (len = *), intent(in):: run_name
+      integer :: ncid, varid
+      integer, parameter :: gridcell = 1, column = 1
+      integer :: levsoi
+      integer :: v
+      call check(nf90_create(output_path//trim(run_name)//"_yearly_mean.nc",NF90_NETCDF4,ncid))
+
+      call check(nf90_def_dim(ncid, "time", nf90_unlimited, t_dimid))
+      call check(nf90_def_dim(ncid, "gridcell", gridcell, grid_dimid))
+      call check(nf90_def_dim(ncid, "column", column, col_dimid))
+      call check(nf90_def_dim(ncid, "levsoi", levsoi, lev_dimid))
+
+      do v = 1, size(variables)
+        call check(nf90_def_var(ncid, trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
+      end do
+
+      call check(nf90_def_var(ncid, "N_inorganic", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "N_plant", NF90_DOUBle, (/t_dimid/),varid))
+      call check(nf90_def_var(ncid, "C_plant", NF90_DOUBle, (/t_dimid/),varid))
+      call check(nf90_def_var(ncid, "C_Growth_sum", NF90_DOUBle, (/t_dimid/),varid))
+      call check(nf90_def_var(ncid, "C_Growth_flux", NF90_DOUBle, (/t_dimid/),varid))
+      call check(nf90_def_var(ncid,"HR_sum", NF90_DOUBLE, (/t_dimid /), varid ))
+      call check(nf90_def_var(ncid,"HR_flux", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid, "Temp", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
+      call check(nf90_def_var(ncid, "Moisture", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
+
+      call check(nf90_def_var(ncid, "year_since_start", NF90_DOUBLE, (/t_dimid /), varid))
+      call check(nf90_enddef(ncid))
+
+      call check( nf90_close(ncid) )
+    end subroutine create_yearly_mean_netcdf
+
+    subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, &
+       N_plant, C_plant, levsoi)
+      character (len = *):: run_name
+      integer:: levsoi
+      integer :: year, i , j, varidchange,varid,ncid, timestep,vertid,write_hour
+      real(r8), intent(in)          :: Cpool_yearly(levsoi,pool_types), Npool_yearly(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
+      real(r8), intent(in)                       :: N_plant, C_plant
+    !  real(r8)                                   :: HR_sum
+    !  real(r8) ,dimension(levsoi)                :: HR_flux!(levsoi) !HR_mass_accumulated
+      real(r8),dimension(levsoi)         :: TSOIL, MOIST
+
+      call check(nf90_open(output_path//trim(run_name)//"_yearly_mean.nc", nf90_write, ncid))
+      call check(nf90_inq_varid(ncid, "year_since_start", varid))
+      call check(nf90_put_var(ncid, varid, year , start = (/ year /)))
+      call check(nf90_inq_varid(ncid, "N_plant", varid))
+      call check(nf90_put_var(ncid, varid, N_Plant, start = (/ year /)))
+      call check(nf90_inq_varid(ncid, "C_plant", varid))
+      call check(nf90_put_var(ncid, varid, C_Plant, start = (/ year /)))
+      !
+      ! call check(nf90_inq_varid(ncid, "C_Growth_sum", varid))
+      ! call check(nf90_put_var(ncid, varid, growth_sum, start = (/ year /)))
+      !
+      ! call check(nf90_inq_varid(ncid, "HR_sum", varid))
+      ! call check(nf90_put_var(ncid, varid, HR_sum, start = (/ year /)))
+
+      do j=1,levsoi
+        ! call check(nf90_inq_varid(ncid, "Temp",varid))
+        ! call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/year,j/)))
+        !
+        ! call check(nf90_inq_varid(ncid, "Moisture",varid))
+        ! call check(nf90_put_var(ncid, varid, MOIST(j), start = (/year,j/)))
+
+        ! call check(nf90_inq_varid(ncid, "HR_flux", varid))
+        ! call check(nf90_put_var(ncid, varid, HR_flux(j), start = (/year, j/)))
+
+        call check(nf90_inq_varid(ncid, "N_inorganic", varid))
+        call check(nf90_put_var(ncid, varid, Npool_yearly(j,11), start = (/year, j/)))
+
+        do i = 1,pool_types
+          !C:
+          call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
+          call check(nf90_put_var(ncid, varid, Cpool_yearly(j,i), start = (/ year, j /)))
+          !N:
+          call check(nf90_inq_varid(ncid, "N_"//trim(variables(i)), varid))
+          call check(nf90_put_var(ncid, varid, Npool_yearly(j,i), start = (/ year, j /)))
+
+        end do !pool_types
+      end do ! levels
+      call check(nf90_close(ncid))
+    end subroutine fill_yearly_netcdf
 end module writeMod

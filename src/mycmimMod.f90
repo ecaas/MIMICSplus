@@ -45,7 +45,8 @@ module mycmim
 
       real(r8)                       :: sum_consN(nlevdecomp, pool_types+1) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
-
+      real(r8)                       :: sum_Cplant !g/m2
+      real(r8)                       :: sum_Nplant !g/m2
 
 
      !Shape of pool_matrixC/change_matrixC
@@ -148,6 +149,9 @@ module mycmim
       month_counter = 30
 
       !open and prepare files to store results. Store initial values
+      call create_yearly_mean_netcdf(run_name,nlevdecomp)
+
+
       call create_netcdf(run_name, nlevdecomp)
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
                        HR_mass_accumulated,HR, change_matrixC,change_matrixN, write_hour,current_month, &
@@ -363,11 +367,18 @@ module mycmim
 
         sum_consN = sum_consN + pool_matrixN
         sum_consC = sum_consC + pool_matrixC
+        sum_Cplant = sum_Cplant + Cplant
+        sum_Nplant = sum_Nplant + Nplant
+
 
         if (ycounter == 365*24) then
+          call annual_mean(sum_consC,sum_consN,sum_Cplant,sum_Nplant, nlevdecomp, year, run_name) !calculates the annual mean and write the result to file
           year = year + 1
           ycounter = 0
-          call annual_mean(sum_consC,sum_consN, nlevdecomp) !calculates the annual mean and write the result to file
+          sum_consN =0
+          sum_consC =0
+          sum_Cplant =0
+          sum_Nplant=0
         end if
 
         if (counter == write_hour) then
@@ -390,16 +401,29 @@ module mycmim
 
     end subroutine decomp
 
-  subroutine annual_mean(yearly_sumC,yearly_sumN, nlevels)
+  subroutine annual_mean(yearly_sumC,yearly_sumN, sum_Cplant, sum_Nplant,nlevels, year, run_name)
     REAL(r8), DIMENSION(nlevels,pool_types) , intent(in):: yearly_sumC
     REAL(r8), DIMENSION(nlevels,pool_types+1) , intent(in):: yearly_sumN
+    REAL(r8), intent(in):: sum_Nplant
+    REAL(r8), intent(in):: sum_Cplant
+    integer, intent(in) :: year
     integer , intent(in):: nlevels
+    CHARACTER (len = *):: run_name
     !Local
     REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
     REAL(r8), DIMENSION(nlevels,pool_types+1) :: yearly_meanN
+    REAL(r8) :: mean_Nplant
+    REAL(r8) :: mean_Cplant
+
     integer, parameter                         :: hr_in_year = 24*365
+
     yearly_meanC=yearly_sumC/hr_in_year
     yearly_meanN=yearly_sumN/hr_in_year
+    mean_Nplant=sum_Nplant/hr_in_year
+    mean_Cplant=sum_Cplant/hr_in_year
+
+    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN, mean_Nplant, mean_Cplant,nlevels)
+
   end subroutine annual_mean
 
 end module mycmim
