@@ -57,8 +57,11 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
                                                                                           !LITm: MIMICS-CN manuscript
                                                                                           !LITs, ErM, AM: Guesses!
 
+
+integer, parameter :: sec_pr_hr = 60*60        !For conversion
+integer, parameter :: hr_pr_yr = 365*24        !For conversion
+
 !From Baskaran et al 2016
-real(r8), parameter :: hr_pr_yr = 365*24        !For conversion
 real(r8), parameter :: my_sap = 1/hr_pr_yr      ![1/hr]mortality rate sap
 real(r8), parameter :: my_myc = 1/hr_pr_yr      ![1/hr] mortality rate myc
 real(r8), parameter :: my_root = 0.15/hr_pr_yr  ![1/hr]mortality rate plant root
