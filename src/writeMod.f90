@@ -4,7 +4,7 @@ module writeMod
   use dispmodule
   implicit none
 
-  integer,private :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid,i
+  integer,private :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid
 
   contains
 
@@ -161,7 +161,7 @@ module writeMod
 
      call check(nf90_enddef(ncid))
 
-     call check(nf90_put_var(ncid, tsoiID, tsoi))
+     call check(nf90_put_var(ncid, tsoiID, T_soil_const))
      call check(nf90_put_var(ncid, clayID, fCLAY))
      call check(nf90_put_var(ncid, desorbID, desorb))
      call check(nf90_put_var(ncid, gepID, GEP))
@@ -176,8 +176,6 @@ module writeMod
 
      call check(nf90_close(ncid))
    end subroutine store_parameters
-
-
 
     subroutine get_timestep(time, write_hour, timestep)
       integer, intent(in) :: time

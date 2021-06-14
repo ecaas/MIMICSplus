@@ -157,6 +157,8 @@ dmypy.json
 # End of https://www.gitignore.io/api/python,fortran,jupyternotebooks
 .tags*
 .Rhistory
+dispmodule-master/
+testbed/
 src/.Rhistory
 src/For_EGU_presentation.ipynb
 src/Untitled.ipynb
@@ -186,6 +188,8 @@ src/test_vertical_runs.ipynb
 src/test_vertical_runs_moisture_effect.ipynb
 src/testbed/
 src/run_script
+src/.tags*
+.tags*
 fort.1
 fort.3
 fort.4
