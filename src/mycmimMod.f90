@@ -19,6 +19,7 @@ module mycmim
   use initMod
   use writeMod
   use testMod
+  use readMod
   implicit none
 
 
