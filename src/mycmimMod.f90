@@ -31,6 +31,10 @@ module mycmim
       integer                        :: step_frac            ! determines the size of the time step
       integer                        :: nlevdecomp           ! number of vertical layers
 
+      character (len=4)              :: year_fmt
+      character (len=4)              :: year_char
+
+
       logical                        :: isVertical                           ! True if we use vertical soil layers.
       real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
       real(r8)                       :: HR_mass_accumulated, HR_mass,growth_sum
@@ -76,7 +80,7 @@ module mycmim
       real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
 
       !Counters
-      integer                        :: ycounter, year
+      integer                        :: ycounter, year, start_year,write_y
       integer                        :: counter            !used for determining when to output results
       integer                        :: month_counter
       integer                        :: j,i,t              !for iterations
@@ -144,10 +148,14 @@ module mycmim
 
       a_matrixC      = pool_matrixC
       a_matrixN      = pool_matrixN
-
-      year     = 1
+      start_year = 1901
+      year     = start_year
+      year_fmt = '(I4)'
+      write (year_char,year_fmt) year
       current_month = 1
       month_counter = 30
+      write_y=0
+      print*, clm_data_file//year_char//".nc"
 
       !open and prepare files to store results. Store initial values
       call create_yearly_mean_netcdf(run_name,nlevdecomp)
@@ -366,6 +374,7 @@ module mycmim
           pool_matrixN=pool_temporaryN
         end if!isVertical
 
+        !START Compute and write annual means
         sum_consN = sum_consN + pool_matrixN
         sum_consC = sum_consC + pool_matrixC
         sum_Cplant = sum_Cplant + Cplant
@@ -373,14 +382,20 @@ module mycmim
 
 
         if (ycounter == 365*24) then
-          call annual_mean(sum_consC,sum_consN,sum_Cplant,sum_Nplant, nlevdecomp, year, run_name) !calculates the annual mean and write the result to file
+          write_y =write_y+1
+          call annual_mean(sum_consC,sum_consN,sum_Cplant,sum_Nplant, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
+          if (year == 2000) then
+            year = 1901
+          end if
           year = year + 1
+          write (year_char,year_fmt) year
           ycounter = 0
           sum_consN =0
           sum_consC =0
           sum_Cplant =0
           sum_Nplant=0
         end if
+        !END Compute and write annual means
 
         if (counter == write_hour) then
           counter = 0
