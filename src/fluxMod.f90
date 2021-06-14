@@ -27,16 +27,15 @@ module fluxMod
     real(r8),dimension(MM_eqs)             :: V_max
     real(r8), intent(in)                   :: temperature
     real(r8), intent(in)                   :: moisture
-    V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod!*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+    V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
   end function Vmax_function
 
-  subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix, C_plant, N_plant, isVert) !This subroutine calculates the fluxes in and out of the SOM pools.
+  subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix, C_plant, N_plant) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer         :: depth !depth level
     integer         :: nlevdecomp
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
     real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
     real(r8)        :: C_plant, N_plant
-    logical         :: isVert
 
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
@@ -271,7 +270,7 @@ module fluxMod
   function calc_PN(C_plant) result(productivity)
     real(r8), intent(in) :: C_plant
     real(r8)             :: productivity
-    P_N =  a-b*(C_plant/(1+ gamma_rs)) !Plant N productivity (as in Baskaran 2016, eq (12))
+    productivity =  a-b*(C_plant/(1+ gamma_rs)) !Plant N productivity (as in Baskaran 2016, eq (12))
 
   end function calc_PN
 

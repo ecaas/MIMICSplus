@@ -104,7 +104,7 @@ module mycmim
 
 
 
-      integer,parameter              :: write_hour= 1*24*365*10!How often output is written to file
+      integer,parameter              :: write_hour= 1*24!How often output is written to file
                                       !TODO: This should be input to the subroutine!
 
 
@@ -154,7 +154,6 @@ module mycmim
       current_month = 1
       month_counter = 30
       write_y=0
-      print*, clm_data_file//year_char//".nc"
 
       !open and prepare files to store results. Store initial values
       call create_yearly_mean_netcdf(run_name,nlevdecomp)
@@ -220,7 +219,7 @@ module mycmim
           tau = (/ 5e-4*exp(0.1*fMET)*r_moist(j), 5e-4*exp(0.1*fMET)*r_moist(j)/)
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
-          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN, CPlant, NPlant,isVertical)
+          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN, CPlant, NPlant)
 
           if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
            call fluxes_netcdf(int(time), write_hour, j, run_name)
@@ -233,9 +232,6 @@ module mycmim
 
           NPlant_tstep = NPlant_tstep + possible_N_change
           CPlant_tstep = CPlant_tstep + possible_C_change
-          ! print*, '---------------', j, '-------------------------'
-          ! print*, "NITROGEN: ", NPlant_tstep, possible_N_change
-          ! print*, "CARBON: ", CPlant_tstep, possible_C_change
 
           do i = 1,pool_types + 1 !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
@@ -391,6 +387,7 @@ module mycmim
 
 
         if (ycounter == 365*24) then
+          print*, "inside", year
           write_y =write_y+1
           call annual_mean(sum_consC,sum_consN,sum_Cplant,sum_Nplant, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
           if (year == 2000) then

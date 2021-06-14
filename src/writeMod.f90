@@ -388,10 +388,10 @@ module writeMod
     end subroutine create_yearly_mean_netcdf
 
     subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, &
-       N_plant, C_plant, levsoi)
+       N_plant, C_plant, levsoi) !TODO: yearly HR and climate variables (if needed?)
       character (len = *):: run_name
-      integer:: levsoi
-      integer :: year, i , j, varidchange,varid,ncid, timestep,vertid,write_hour
+      integer :: levsoi
+      integer :: year,i,j,varid,ncid
       real(r8), intent(in)          :: Cpool_yearly(levsoi,pool_types), Npool_yearly(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
       real(r8), intent(in)                       :: N_plant, C_plant
     !  real(r8)                                   :: HR_sum
@@ -416,8 +416,8 @@ module writeMod
         ! call check(nf90_inq_varid(ncid, "Temp",varid))
         ! call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/year,j/)))
         !
-        ! call check(nf90_inq_varid(ncid, "Moisture",varid))
-        ! call check(nf90_put_var(ncid, varid, MOIST(j), start = (/year,j/)))
+        !call check(nf90_inq_varid(ncid, "Moisture",varid))
+        !call check(nf90_put_var(ncid, varid, MOIST(j), start = (/year,j/)))
 
         ! call check(nf90_inq_varid(ncid, "HR_flux", varid))
         ! call check(nf90_put_var(ncid, varid, HR_flux(j), start = (/year, j/)))
