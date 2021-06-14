@@ -64,37 +64,24 @@ module fluxMod
     N_SOMc => N_pool_matrix(depth, 10)
     N_IN => N_pool_matrix(depth, 11)
 
-    !change depth to soil_depth if single soil layer is used:
-    if (.not. isVert) then
-      delta_z=soil_depth
-    end if
+
     !------------------CARBON FLUXES----------------------------:
-    C_PR = gamma_rs*C_Plant/(1+gamma_rs) !Carbon in plant roots (Baskaran et al)
-    C_PS = C_plant/(1+ gamma_rs)         !Carbon in plant shoots
-    N_PR = gamma_rs*N_Plant/(1+gamma_rs) !N in plant roots
+    !
+    ! !Plant Carbon to mycorrhiza: = delta*P_N*N_PS     !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
+    P_N = calc_PN(CPlant)
     N_PS = N_plant/(1+ gamma_rs)         !N in plant shoots
+                                                   !NOTE: Divide by layer depth to distrubute input from plant between the layers.
+    C_PlantEcM = delta*P_N*N_PS/soil_depth
 
-    P_N =  a-b*C_PS !Plant N productivity (as in Baskaran 2016, eq (12))
-
-    if (P_N < 0) then
-      print*, "P_N < 0: ", P_N
-    end if
-    !Plant growth rate
-    C_growth_rate = (1-delta)*P_N*N_PS                !NOTE Usikker paa enheter her
-
-    !Plant Carbon to mycorrhiza: = delta*P_N*N_PS     !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
-                                                      !NOTE: Divide by layer depth to distrubute input from plant between the layers.
-    C_PlantEcM = delta*0.4*P_N*N_PS/delta_z(depth)
-    C_PlantErM = delta*0.3*P_N*N_PS/delta_z(depth)    !gC/m3h  (?)
-    C_PlantAM = delta*0.3*P_N*N_PS/delta_z(depth)
-
-    !Used to calculate litter production in flux subroutine:
-    Total_plant_mortality = (my_shoot + gamma_rs*my_root)*(C_plant/(1+gamma_rs))!gC/m2h
-
-    !Plant mortality/litter production:
-    C_PlantLITm = fMET*Total_plant_mortality/delta_z(depth)     !gC/m3h
-    C_PlantLITs =(1-fMET)*Total_plant_mortality/delta_z(depth)  !TODO: Blir det riktig a bruke fMET for a dele opp totalproduksjonen?
-                                                                !Tallene fra Baskaran
+    ! C_PlantErM = 0.0!delta*0.3*P_N*N_PS/delta_z(depth)    !gC/m3h  (?)
+    ! C_PlantAM = 0.0!delta*0.3*P_N*N_PS/delta_z(depth)
+    !
+     !Used to calculate litter production in flux subroutine:
+    Total_plant_mortality = calc_plant_mortality(CPlant) !gC/m2h
+    ! !Plant mortality/litter production:
+    C_PlantLITm = fMET*Total_plant_mortality/soil_depth     !gC/m2h
+    C_PlantLITs =(1-fMET)*Total_plant_mortality/soil_depth  !TODO: Blir det riktig a bruke fMET for a dele opp totalproduksjonen?
+    !
 
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
@@ -108,18 +95,19 @@ module fluxMod
     C_SOMaSAPb=MMK_flux(C_SAPb,C_SOMa,3)
     C_SOMaSAPf=MMK_flux(C_SAPf,C_SOMa,6)
 
+
     !Dead mycorrhizal biomass enters the SOM pools:  gC/m3h
     C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp
     C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(2)!soma
     C_EcMSOMc=C_EcM*k_mycsom(1)*fEcMSOM(3)!somc
 
-    C_ErMSOMp=C_ErM*k_mycsom(2)*fErMSOM(1)
-    C_ErMSOMa=C_ErM*k_mycsom(2)*fErMSOM(2)
-    C_ErMSOMc=C_ErM*k_mycsom(2)*fErMSOM(3)
+    C_ErMSOMp=0.0!C_ErM*k_mycsom(2)*fErMSOM(1)
+    C_ErMSOMa=0.0!C_ErM*k_mycsom(2)*fErMSOM(2)
+    C_ErMSOMc=0.0!C_ErM*k_mycsom(2)*fErMSOM(3)
 
-    C_AMSOMp=C_AM*k_mycsom(3)*fAMSOM(1)
-    C_AMSOMa=C_AM*k_mycsom(3)*fAMSOM(2)
-    C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(3)
+    C_AMSOMp=0.0!C_AM*k_mycsom(3)*fAMSOM(1)
+    C_AMSOMa=0.0!C_AM*k_mycsom(3)*fAMSOM(2)
+    C_AMSOMc=0.0!C_AM*k_mycsom(3)*fAMSOM(3)
 
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
     C_SAPbSOMp=C_SAPb*tau(1)*fPHYS(1)   !gC/m3h
@@ -140,9 +128,9 @@ module fluxMod
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
     !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
-    Decomp_ecm = K_MO*delta_z(depth)*C_EcM*C_SOMa   ![gC/m3h]
-    Decomp_erm = K_MO*delta_z(depth)*C_ErM*C_SOMa   !TODO: Somehow incorporate this carbon into SAP pools (?)
-    Decomp_am  = K_MO*delta_z(depth)*C_AM*C_SOMa
+    Decomp_ecm = K_MO*soil_depth*C_EcM*C_SOMa   ![gC/m3h]
+    Decomp_erm = 0.0!K_MO*delta_z(depth)*C_ErM*C_SOMa
+    Decomp_am  = 0.0!K_MO*delta_z(depth)*C_AM*C_SOMa
 
     !-----------------------------------NITROGEN FLUXES----------------------------:
     !Nitrogen aquired bymycorrhiza via oxidation of SOMa  gN/m3h
@@ -151,14 +139,14 @@ module fluxMod
     N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa
 
     !Inorganic N taken up directly by plant roots   !Unsure about units!
-    N_InPlant = V_max_plant*N_in*(1-delta)*(C_PR/(C_PR + Km_plant/delta_z(depth)))
+    N_InPlant = V_max_plant*N_in*(1-delta)*(CPlant/(CPlant + Km_plant/soil_depth)) !NOTE Changed from Baskaran: Use CPlant instead of C_plant shoot
     !Deposition and leaching from the inorganic N pool
-    Deposition = Deposition_rate/delta_z(depth)     !Unsure about units!
-    Leaching = Leaching_rate*N_in/delta_z(depth)
-
-    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/delta_z(depth)))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
-    N_INErM = V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
-    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
+    Deposition = Deposition_rate/soil_depth     !Unsure about units!
+    Leaching = Leaching_rate*N_in/soil_depth
+  !  print*, Deposition,Deposition_rate, Leaching, Leaching_rate
+    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
+    N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
+    N_INAM = 0.0!V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
 
     !Plant mortality
     N_PlantLITm = C_PlantLITm*N_Plant/C_Plant
@@ -169,8 +157,8 @@ module fluxMod
     N_LITsSAPb = C_LITsSAPb*N_LITs/C_LITs
 
     N_LITmSAPf = C_LITmSAPf*N_LITm/C_LITm
-
     N_LITsSAPf = C_LITsSAPf*N_LITs/C_LITs
+
     N_SOMaSAPb = C_SOMaSAPb*N_SOMa/C_SOMa
     N_SOMaSAPf = C_SOMaSAPf*N_SOMa/C_SOMa
 
@@ -184,7 +172,6 @@ module fluxMod
     N_AMSOMp = C_AMSOMp*(N_AM/C_AM)
     N_AMSOMa = C_AMSOMa*(N_AM/C_AM)
     N_AMSOMc = C_AMSOMc*(N_AM/C_AM)
-
     !Dead saphrotroph biomass enters SOM pools
     N_SAPbSOMp = C_SAPbSOMp*N_SAPb/C_SAPb
     N_SAPbSOMa = C_SAPbSOMa*N_SAPb/C_SAPb
@@ -206,13 +193,35 @@ module fluxMod
     U_sf = (C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf+ (1-f)*(Decomp_ecm + &
     Decomp_erm + Decomp_am))
 
-    N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb*N_SAPb/C_SAPb
-    N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*N_SAPf/C_SAPf
+    if  ((N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) > e_s*U_sb*N_SAPb/C_SAPb )then
+      N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb*N_SAPb/C_SAPb
+    else
+      N_SAPbIN = 0.0
+    end if
+    if  ((N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf) > e_s*U_sf*N_SAPf/C_SAPf )then
+      N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*N_SAPf/C_SAPf
+    else
+      N_SAPfIN = 0.0
+
+    end if
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*N_EcM/C_EcM !gN/m3h
-    N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*N_ErM/C_ErM
-    N_AMPlant = N_INAM + N_SOMaErM - e_m*C_PlantAM*N_AM/C_AM
+    if ((N_INEcM + N_SOMaEcM) > e_m*C_PlantEcM*N_EcM/C_EcM ) then
+      N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*N_EcM/C_EcM  !gN/m3h
+    else
+      N_EcMPlant = 0.0
+      print*,"N_EcMPlant is zero!"
+    end if
+!    if ((N_INErM + N_SOMaErM) > e_m*C_PlantErM*N_ErM/C_ErM ) then
+!      N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*N_ErM/C_ErM  !gN/m3h
+!    else
+      N_ErMPlant = 0.0
+!    end if
+!    if ((N_INAM + N_SOMaAM) > e_m*C_PlantAM*N_AM/C_AM  ) then
+!      N_AMPlant = N_INAM + N_SOMaAM - e_m*C_PlantAM/*N_AM/C_AM  !gN/m3h
+!    else
+      N_AMPlant = 0.0
+!    end if
 
     nullify( C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
   end subroutine calculate_fluxes
@@ -224,7 +233,8 @@ module fluxMod
       real(r8), intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
       real(r8), intent(out)  :: tot_diffusion_dummy ![gC/h]
       real(r8), allocatable, intent(out)  :: vert(:,:)
-      real(r8)               :: sum_day=0.0
+
+      !Local
       integer                :: depth, pool !For iteration
       integer,dimension(1)   :: max_pool, max_depth !For iteration
 
@@ -233,7 +243,6 @@ module fluxMod
       !Get how many depth levels and pools we will loop over.
       max_depth=shape(pool_matrix(:,1)) !TODO: Easier way to do this?
       max_pool=shape(pool_matrix(1,:))
-
       !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
       !pool_matrix is used here to calculate the diffusion.
 
@@ -253,11 +262,49 @@ module fluxMod
 
           tot_diffusion_dummy=(upper_diffusion_flux-lower_diffusion_flux)/delta_z(depth)
           vert(depth,pool) = tot_diffusion_dummy
-          sum_day=sum_day+tot_diffusion_dummy
         end do !pool
       end do !depth
 
+
   end subroutine vertical_diffusion
+
+  function calc_PN(C_plant) result(productivity)
+    real(r8), intent(in) :: C_plant
+    real(r8)             :: productivity
+    P_N =  a-b*(C_plant/(1+ gamma_rs)) !Plant N productivity (as in Baskaran 2016, eq (12))
+
+  end function calc_PN
+
+  function calc_plant_growth_rate(C_plant, N_plant) result(growth_rate)
+    real(r8), intent(in) :: C_plant
+    real(r8), intent(in) :: N_plant
+    real(r8)             :: growth_rate
+
+    !Local
+    real(r8) :: C_PR,C_PS,N_PR,N_PS
+    real(r8) :: P_N
+    C_PR = gamma_rs*C_Plant/(1+gamma_rs) !Carbon in plant roots (Baskaran et al)
+    C_PS = C_plant/(1+ gamma_rs)         !Carbon in plant shoots
+    N_PR = gamma_rs*N_Plant/(1+gamma_rs) !N in plant roots
+    N_PS = N_plant/(1+ gamma_rs)         !N in plant shoots
+
+    P_N = calc_PN(C_plant)
+    if (P_N < 0) then
+      print*, "P_N < 0: ", P_N
+      P_N = 0
+    end if
+    !Plant growth rate
+    growth_rate = (1-delta)*P_N*N_PS                !NOTE Usikker paa enheter her
+  end function calc_plant_growth_rate
+
+  function calc_plant_mortality(C_plant) result(Total_mortality)
+      real(r8), intent(in) :: C_Plant
+      real(r8)             :: Total_mortality
+        !Used to calculate litter production in flux subroutine:
+        Total_mortality = (my_shoot + gamma_rs*my_root)*(C_plant/(1+gamma_rs))!gC/m2h
+
+  end function calc_plant_mortality
+
 
   subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist,nlevdecomp) !NOTE: Should maybe be placed somewhere else?
     integer :: nlevdecomp

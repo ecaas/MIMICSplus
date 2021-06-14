@@ -7,13 +7,13 @@ INCS = /home/ecaas/anaconda3/envs/nc-fortran/include
 
 OBJ = main.o mycmimMod.o fluxMod.o initMod.o \
 	testMod.o writeMod.o paramMod.o dispmodule.o \
-	shr_kind_mod.o
+	shr_kind_mod.o readMod.o
 #-------------------------------------------------------------------------------
 FC = gfortran
-FFLAGS = -g -fcheck=all -fbacktrace -ffpe-trap=zero,invalid,overflow,underflow -O0 -Wall -Wextra -ffree-line-length-'none'\
+FFLAGS = -g -fcheck=all -fbacktrace -ffpe-trap=zero,invalid,overflow,underflow -O0 -Wall -ffree-line-length-'none'\
 -Wl,-rpath=$(LIB)
 
-EXTRAFFLAGS =  -Wno-unused-dummy-argument -Wno-unused-parameter
+#EXTRAFFLAGS =  -Wno-unused-dummy-argument -Wno-unused-parameter -Wextra
 FINCLUDES = -I$(INCS)
 
 $(PROG): $(OBJ)
@@ -22,7 +22,7 @@ $(PROG): $(OBJ)
 	-o $(PROG)
 
 mycmimMod.o: mycmimMod.f90 paramMod.o dispmodule.o fluxMod.o initMod.o writeMod.o \
-testMod.o
+testMod.o readMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) mycmimMod.f90
 
 fluxMod.o: fluxMod.f90 paramMod.o dispmodule.o
@@ -42,6 +42,9 @@ main.o: main.f90 mycmimMod.o
 
 paramMod.o: paramMod.f90 shr_kind_mod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) paramMod.f90
+
+readMod.o: readMod.f90 dispmodule.o shr_kind_mod.o
+	$(FC) $(FFLAGS) -c $(FINCLUDES) readMod.f90
 
 dispmodule.o: dispmodule.f90
 	$(FC) $(FFLAGS) -c $(FINCLUDES) dispmodule.f90
