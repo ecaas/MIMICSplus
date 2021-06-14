@@ -126,13 +126,6 @@ module mycmim
       fCHEM =  0.3!(/0.1 * exp(-3.0*fMET), 0.1 * exp(-3.0*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
 
-      !TODO FROM MIMICS_CYCLE_CN:
-      ! WW also modify TAU as a function of soil moisture, so things don't
-      ! colapse in frozen soils...
-      !mimicsbiome%tauR(npt) = mimicsbiome%tauR(npt) * fW
-      !mimicsbiome%tauK(npt) = mimicsbiome%tauK(npt) * fW
-      ![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
-
       !Set initial concentration values:
       call initialize(pool_matrixC,pool_matrixN,CPlant,NPlant,nlevdecomp)
 
@@ -207,7 +200,16 @@ module mycmim
           Km      = exp(Kslope*TSOIL(j) + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
           Vmax    = exp(Vslope*TSOIL(j) + Vint)*a_v*Vmod*r_moist(j)   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
 
-          k_mycsom  = (/1.14,1.14,1.14/)*1e-4!*W_SCALAR(j)  ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
+          k_mycsom  = (/1.14,1.14,1.14/)*1e-4  ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
+
+          !NOTE FROM MIMICS_CYCLE_CN:
+          ! WW also modify TAU as a function of soil moisture, so things don't
+          ! colapse in frozen soils...
+          !mimicsbiome%tauR(npt) = mimicsbiome%tauR(npt) * fW
+          !mimicsbiome%tauK(npt) = mimicsbiome%tauK(npt) * fW
+          ![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
+
+          tau = (/ 5e-4*exp(0.1*fMET)*r_moist(j), 5e-4*exp(0.1*fMET)*r_moist(j)/)
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN, CPlant, NPlant,isVertical)

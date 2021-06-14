@@ -36,7 +36,7 @@ integer, parameter                           :: pool_types_N = pool_types+1
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
 real(r8),parameter                               :: fMET =0.4                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
-real(r8), dimension(no_of_sap_pools),parameter    :: tau = (/ 5e-4*exp(0.1*fMET), 5e-4*exp(0.1*fMET)/)                            ![1/h]
+real(r8), dimension(no_of_sap_pools)    ::tau  ![1/h]
 
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.3,0.4,0.3/)
