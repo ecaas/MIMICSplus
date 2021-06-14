@@ -59,8 +59,8 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
                                                                                           !LITs, ErM, AM: Guesses!
 
 
-integer, parameter :: sec_pr_hr = 60*60        !For conversion
-integer, parameter :: hr_pr_yr = 365*24        !For conversion
+real(r8), parameter :: sec_pr_hr = 60*60        !For conversion
+real(r8), parameter :: hr_pr_yr = 365*24        !For conversion
 
 !From Baskaran et al 2016
 real(r8), parameter :: my_sap = 1/hr_pr_yr      ![1/hr]mortality rate sap
