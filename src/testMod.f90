@@ -6,7 +6,7 @@ module testMod
 contains
 
   subroutine cons_to_mass(matrix, mass_matrix,nlevdecomp) !Convert from g/m3 to g/m2
-    integer:: nlevdecomp
+    integer:: nlevdecomp,i
     real(r8), intent(in), dimension(nlevdecomp, pool_types) :: matrix
     real(r8), intent(out), dimension(nlevdecomp, pool_types) :: mass_matrix
     do i = 1,pool_types
