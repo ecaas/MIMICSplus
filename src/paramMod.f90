@@ -104,7 +104,7 @@ Decomp_erm, Decomp_am, Leaching, Deposition, C_PR, C_PS,N_PR, N_PS, Total_plant_
 NPlant, P_N, Plant_CN, CPlant_tstep, NPlant_tstep, growth_rate_sum
 
 character (len=*),parameter                  :: clm_data_file = &
-'/home/ecaas/clm/cruncep_iso_hist/Dovre/clm50_clm50d001_1deg_CRUNCEPV7_iso_hist.clm2.h0.SOILLIQ_SOILICE_TSOI_W_SCALAR.185001-201412.nc_Dovre2014.nc'
+'/home/ecaas/saga/archive/NR31486_1pt_finalspinup_historical/lnd/hist/yearly_files/NR31486_1pt_finalspinup_historical.clm2.h0.year'
 !For writing to file:
 character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/vertical/'
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file

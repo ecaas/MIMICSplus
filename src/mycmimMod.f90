@@ -91,6 +91,7 @@ module mycmim
       real(r8)                       :: vertC_change_sum(nlevdecomp, pool_types)
       real(r8)                      :: possible_N_change, possible_C_change
 
+      !character             :: clm_data_file
 
       !For reading soil temperature and moisture from CLM output file
       real(r8), dimension(nlevdecomp)         :: TSOIL!(:), SOILLIQ(:),SOILICE(:),WATSAT(:),r_moist(:)
@@ -101,11 +102,16 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: r_moist
 
 
-      integer,parameter              :: write_hour= 1*24*365*5!How often output is written to file
+
+
+      integer,parameter              :: write_hour= 1*24*365*10!How often output is written to file
                                       !TODO: This should be input to the subroutine!
 
 
       dt= 1.0/step_frac !Setting the time step
+
+      !clm_data_file = &
+      !'/home/ecaas/saga/archive/NR31486_1pt_finalspinup_historical/lnd/hist/yearly_files/NR31486_1pt_finalspinup_historical.clm2.h0.year1901.nc'
 
       if (nlevdecomp>1) then
         soil_depth=sum(delta_z(1:nlevdecomp))
@@ -160,7 +166,10 @@ module mycmim
                       NPlant, CPlant,TSOIL, r_moist, growth_sum = growth_sum,levsoi=nlevdecomp)
 
       !read temperature and moisture data from CLM file
-      call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,W_SCALAR,current_month, nlevdecomp)
+      call read_clmdata(clm_data_file//year_char//".nc",TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)
+      call read_WATSAT(clm_data_file//year_char//".nc",WATSAT, nlevdecomp)
+
+
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
 
       !----------------------------------------------------------------------------------------------------------------
@@ -174,10 +183,8 @@ module mycmim
         !Update temp and moisture values monthly
         if (month_counter == days_in_month(current_month)*24) then
           previous_month = current_month
-          call read_clmdata(clm_data_file,TSOIL,SOILLIQ,SOILICE,WATSAT,W_SCALAR,current_month, nlevdecomp)
+          call read_clmdata(clm_data_file//year_char//".nc",TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)
           call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
-           ! print*, '---'
-           ! call disp(r_moist)
           if (current_month == 12) then
             current_month = 1
           else
@@ -364,7 +371,6 @@ module mycmim
         !Store accumulated HR mass
         call respired_mass(HR, HR_mass,nlevdecomp)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
-
 
         if (isVertical) then
           call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC)
