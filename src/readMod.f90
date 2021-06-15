@@ -61,11 +61,10 @@ module readMod
          call check(nf90_close(ncid))
        end subroutine read_clmdata
 
-       subroutine read_clm_model_input(clm_history_file, LITFALL, NPP_NACTIVE,NACTIVE,SMIN_NO3_LEACHED,NDEP_TO_SMINN,month)
+       subroutine read_clm_model_input(clm_history_file, LITFALL, NPP_NACTIVE,SMIN_NO3_LEACHED,NDEP_TO_SMINN,month)
           character (len = *),intent(in):: clm_history_file
           real(r8),intent(out)         :: LITFALL      !litterfall (leaves and fine roots) [gC/m^2/s]
           real(r8),intent(out)         :: NPP_NACTIVE  !Mycorrhizal N uptake used C        [gC/m^2/s]
-          real(r8),intent(out)         :: NACTIVE      !Mycorrhizal N uptake flux          [gN/m^2/s]
           real(r8), intent(out)        :: SMIN_NO3_LEACHED!soil NO3 pool loss to leaching             [gN/m^2/s]
           real(r8), intent(out)        :: NDEP_TO_SMINN   !atmospheric N deposition to soil mineral N [gN/m^2/s]
 
@@ -83,10 +82,6 @@ module readMod
           call check(nf90_get_var(ncid, varid, NPP_NACTIVE,start=(/1, month/)))
           NPP_NACTIVE = NPP_NACTIVE*sec_pr_hr ![gC/m^2/h]
 
-          call check(nf90_inq_varid(ncid, 'NACTIVE', varid))
-          call check(nf90_get_var(ncid, varid, NACTIVE,start=(/1, month/)))
-          NACTIVE= NACTIVE*sec_pr_hr ![gN/m^2/h]
-
           call check(nf90_inq_varid(ncid, 'SMIN_NO3_LEACHED', varid))
           call check(nf90_get_var(ncid, varid, SMIN_NO3_LEACHED,start=(/1, month/)))
           SMIN_NO3_LEACHED = SMIN_NO3_LEACHED*sec_pr_hr ![gN/m^2/h]
@@ -94,7 +89,7 @@ module readMod
           call check(nf90_inq_varid(ncid, 'NDEP_TO_SMINN', varid))
           call check(nf90_get_var(ncid, varid, NDEP_TO_SMINN,start=(/1, month/)))
           NDEP_TO_SMINN = NDEP_TO_SMINN*sec_pr_hr ![gN/m^2/h]
-          
+
           call check(nf90_close(ncid))
        end subroutine read_clm_model_input
 
