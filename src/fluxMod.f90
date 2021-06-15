@@ -65,23 +65,6 @@ module fluxMod
 
 
     !------------------CARBON FLUXES----------------------------:
-    !
-    ! !Plant Carbon to mycorrhiza: = delta*P_N*N_PS     !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
-    P_N = calc_PN(CPlant)
-    N_PS = N_plant/(1+ gamma_rs)         !N in plant shoots
-                                                   !NOTE: Divide by layer depth to distrubute input from plant between the layers.
-    C_PlantEcM = delta*P_N*N_PS/soil_depth
-
-    ! C_PlantErM = 0.0!delta*0.3*P_N*N_PS/delta_z(depth)    !gC/m3h  (?)
-    ! C_PlantAM = 0.0!delta*0.3*P_N*N_PS/delta_z(depth)
-    !
-     !Used to calculate litter production in flux subroutine:
-    Total_plant_mortality = calc_plant_mortality(CPlant) !gC/m2h
-    ! !Plant mortality/litter production:
-    C_PlantLITm = fMET*Total_plant_mortality/soil_depth     !gC/m2h
-    C_PlantLITs =(1-fMET)*Total_plant_mortality/soil_depth  !TODO: Blir det riktig a bruke fMET for a dele opp totalproduksjonen?
-    !
-
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
     C_LITmSAPb=MMK_flux(C_SAPb,C_LITm,1)
@@ -139,17 +122,10 @@ module fluxMod
 
     !Inorganic N taken up directly by plant roots   !Unsure about units!
     N_InPlant = V_max_plant*N_in*(1-delta)*(CPlant/(CPlant + Km_plant/soil_depth)) !NOTE Changed from Baskaran: Use CPlant instead of C_plant shoot
-    !Deposition and leaching from the inorganic N pool
-    Deposition = Deposition_rate/soil_depth     !Unsure about units!
-    Leaching = Leaching_rate*N_in/soil_depth
-  !  print*, Deposition,Deposition_rate, Leaching, Leaching_rate
+
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
     N_INAM = 0.0!V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
-
-    !Plant mortality
-    N_PlantLITm = C_PlantLITm*N_Plant/C_Plant
-    N_PlantLITs = C_PlantLITs*N_Plant/C_Plant
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
@@ -333,4 +309,46 @@ module fluxMod
     r_moist = max(0.05, r_moist)
 
   end subroutine moisture_func
+
+  subroutine layer_dependent_fluxes(layer_nr,C_LITinput,C_EcMinput,N_LEACHinput,N_DEPinput, C_PlantLITm,C_PlantLITs,N_DEP,N_LEACH,C_PlantEcM)
+    !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
+    !in:
+    integer,  intent(in) :: layer_nr
+    real(r8), intent(in) :: C_LITinput
+    real(r8), intent(in) :: C_EcMinput
+    real(r8), intent(in) :: N_LEACHinput
+    real(r8), intent(in) :: N_DEPinput
+
+    !out:
+    real(r8), intent(out) :: C_PlantLITm
+    real(r8), intent(out) :: C_PlantLITs
+    real(r8), intent(out) :: N_DEP
+    real(r8), intent(out) :: N_LEACH
+    real(r8), intent(out) :: C_PlantEcM
+
+    !local:
+    real(r8),parameter :: litter_input_depth=sum(delta_z(1:2))  !Two top layers
+    real(r8),parameter :: leaching_depth=sum(delta_z(2:))       !All except top layer
+    real(r8),parameter :: deposition_depth=delta_z(1)           !Only top layer
+    real(r8),parameter :: myc_depth=sum(delta_z(2:))            !all except top layer
+
+    if (layer_nr==1 .or. layer_nr==2) then
+      C_PlantLITm=fMET*C_LITinput/litter_input_depth !gC/m3/h
+      C_PlantLITs=(1-fMET)*C_LITinput/litter_input_depth !gC/m3/h
+    else
+      C_PlantLITm=0.0
+      C_PlantLITs=0.0
+    end if
+
+    if (layer_nr == 1) then
+      N_DEP = N_DEPinput/deposition_depth
+      N_LEACH = 0.0
+      C_PlantEcM = 0.0
+    else
+      N_DEP = 0.0
+      N_LEACH = N_LEACHinput/leaching_depth
+      C_PlantEcM = C_EcMinput/myc_depth
+    end if
+  end subroutine layer_dependent_fluxes
+
 end module fluxMod

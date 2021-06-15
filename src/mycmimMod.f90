@@ -53,6 +53,8 @@ module mycmim
       real(r8)                       :: sum_Cplant !g/m2
       real(r8)                       :: sum_Nplant !g/m2
 
+      real(r8)                       :: C_EcMinput,C_LITinput,N_DEPinput,N_LEACHinput
+
 
      !Shape of pool_matrixC/change_matrixC
      !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc |
@@ -89,9 +91,6 @@ module mycmim
       real(r8)                       :: change_sum(nlevdecomp, pool_types)
 !      real(r8)                       :: vertN_change_sum(nlevdecomp, pool_types)
       real(r8)                       :: vertC_change_sum(nlevdecomp, pool_types)
-      real(r8)                      :: possible_N_change, possible_C_change
-
-      !character             :: clm_data_file
 
       !For reading soil temperature and moisture from CLM output file
       real(r8), dimension(nlevdecomp)         :: TSOIL!(:), SOILLIQ(:),SOILICE(:),WATSAT(:),r_moist(:)
@@ -198,9 +197,6 @@ module mycmim
           call disp("InitN", pool_matrixN)
         end if
 
-        C_growth_rate = calc_plant_growth_rate(Cplant,Nplant)
-        growth_sum = growth_sum + C_growth_rate*dt
-
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
           !Michaelis Menten parameters:
 
@@ -220,31 +216,24 @@ module mycmim
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN, CPlant, NPlant)
-
+          call layer_dependent_fluxes(j,C_LITinput, C_EcMinput,N_LEACHinput,N_DEPinput,C_PlantLITm,C_PlantLITs,Deposition,Leaching,C_PlantEcM)
+          print*, C_PlantLITm,C_PlantLITs,C_PlantEcM,Deposition,Leaching
           if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
            call fluxes_netcdf(int(time), write_hour, j, run_name)
           end if !write fluxes
-
-          possible_N_change = (N_EcMPlant+  N_ErMPlant +  N_AMPlant + N_InPlant  &
-          - N_PlantLITm - N_PlantLITs)*dt*delta_z(j) !gN/m2
-
-          possible_C_change =  - (C_PlantEcM + C_PlantErM + C_PlantAM)*dt*delta_z(j)!gC/m2
-
-          NPlant_tstep = NPlant_tstep + possible_N_change
-          CPlant_tstep = CPlant_tstep + possible_C_change
 
           do i = 1,pool_types + 1 !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
 
             if (i==1) then !LITm
-              N_Gain = N_PlantLITm
+              N_Gain = C_PlantLITm*pool_matrixN(j,i)/pool_matrixC(j,i)
               N_Loss = N_LITmSAPb + N_LITmSAPf
               C_Gain = C_PlantLITm
               C_Loss = C_LITmSAPb + C_LITmSAPf
 
             elseif (i==2) then !LITs
-              N_Gain = N_PlantLITs
+              N_Gain = C_PlantLITs*pool_matrixN(j,i)/pool_matrixC(j,i)
               N_Loss = N_LITsSAPb + N_LITsSAPf
               C_Gain = C_PlantLITs
               C_Loss = C_LITsSAPb + C_LITsSAPf
@@ -356,15 +345,6 @@ module mycmim
 
         end do !j, depth_level
 
-        !Update Plant pools with the total change from all the layers
-        CPlant = CPlant + CPlant_tstep +C_growth_rate*dt - Total_plant_mortality*dt
-        NPlant = NPlant + NPlant_tstep
-        if (CPlant < 0.00 .or. NPlant < 0.00) then
-          print*, 'Too small pool size: CARBON value at t',t,'CPlant:', CPlant
-          print*, 'Too small pool size: Nitrogen value at t',t,'NPlant:', NPlant
-
-          stop
-        end if
         !Store accumulated HR mass
         call respired_mass(HR, HR_mass,nlevdecomp)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
@@ -382,9 +362,6 @@ module mycmim
         !START Compute and write annual means
         sum_consN = sum_consN + pool_matrixN
         sum_consC = sum_consC + pool_matrixC
-        sum_Cplant = sum_Cplant + Cplant
-        sum_Nplant = sum_Nplant + Nplant
-
 
         if (ycounter == 365*24) then
           print*, "inside", year
