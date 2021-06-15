@@ -180,7 +180,6 @@ module mycmim
         CPlant_tstep =0
         !Update temp and moisture values monthly
         if (month_counter == days_in_month(current_month)*24) then
-          previous_month = current_month
           call read_clmdata(clm_data_file//year_char//".nc",TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)
           call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
           if (current_month == 12) then
