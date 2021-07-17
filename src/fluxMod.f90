@@ -327,28 +327,22 @@ module fluxMod
     real(r8), intent(out) :: C_PlantEcM
 
     !local:
-    real(r8),parameter :: litter_input_depth=sum(delta_z(1:2))  !Two top layers
-    real(r8),parameter :: leaching_depth=sum(delta_z(2:))       !All except top layer
-    real(r8),parameter :: deposition_depth=delta_z(1)           !Only top layer
     real(r8),parameter :: myc_depth=sum(delta_z(2:))            !all except top layer
-
-    if (layer_nr==1 .or. layer_nr==2) then
-      C_PlantLITm=fMET*C_LITinput/litter_input_depth !gC/m3/h
-      C_PlantLITs=(1-fMET)*C_LITinput/litter_input_depth !gC/m3/h
-    else
-      C_PlantLITm=0.0
-      C_PlantLITs=0.0
-    end if
-
-    if (layer_nr == 1) then
-      N_DEP = N_DEPinput/deposition_depth
-      N_LEACH = 0.0
+    real(r8),parameter :: leaching_depth=sum(delta_z(2:))       !All except top layer
+    
+    C_PlantLITm=fMET*C_LITinput*litter_prof(layer_nr) !gC/m2h * 1/m
+    C_PlantLITs=(1-fMET)*C_LITinput*litter_prof(layer_nr) !gC/m2h * 1/m
+    N_DEP=N_DEPinput*ndep_prof(layer_nr)
+    
+    if (layer_nr>1) then 
       C_PlantEcM = 0.0
+      N_LEACH=0.0
     else
-      N_DEP = 0.0
-      N_LEACH = N_LEACHinput/leaching_depth
       C_PlantEcM = C_EcMinput/myc_depth
+      N_LEACH=N_LEACHinput/leaching_depth
     end if
+    !TODO: Get vertically resolved leaching from CLM output and use that instead. 
+    !TODO: Figure out how to do mycorrhizal input vertically
   end subroutine layer_dependent_fluxes
 
 end module fluxMod
