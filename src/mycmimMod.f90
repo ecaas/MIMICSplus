@@ -24,17 +24,16 @@ module mycmim
 
 
   contains
-    subroutine decomp(nsteps, run_name,nlevdecomp,step_frac) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
-
-      integer                        :: nsteps               ! number of time steps to iterate over
-      character (len=*)              :: run_name             ! used for naming outputfiles
-      integer                        :: step_frac            ! determines the size of the time step
-      integer                        :: nlevdecomp           ! number of vertical layers
+    subroutine decomp(nsteps, run_name,nlevdecomp,step_frac,write_hour) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
+      !INPUT
+      integer,intent(in)                        :: nsteps               ! number of time steps to iterate over
+      character (len=*) ,intent(in)             :: run_name             ! used for naming outputfiles
+      integer,intent(in)                        :: step_frac            ! determines the size of the time step
+      integer,intent(in)                        :: nlevdecomp           ! number of vertical layers
+      integer,intent(in)                        :: write_hour           !How often output is written to file
 
       character (len=4)              :: year_fmt
       character (len=4)              :: year_char
-
-
       logical                        :: isVertical                           ! True if we use vertical soil layers.
       real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
       real(r8)                       :: HR_mass_accumulated, HR_mass,growth_sum
@@ -101,16 +100,8 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: r_moist
 
 
-
-
-      integer,parameter              :: write_hour= 1*24!How often output is written to file
-                                      !TODO: This should be input to the subroutine!
-
-
       dt= 1.0/step_frac !Setting the time step
 
-      !clm_data_file = &
-      !'/home/ecaas/saga/archive/NR31486_1pt_finalspinup_historical/lnd/hist/yearly_files/NR31486_1pt_finalspinup_historical.clm2.h0.year1901.nc'
 
       if (nlevdecomp>1) then
         soil_depth=sum(delta_z(1:nlevdecomp))
@@ -144,8 +135,6 @@ module mycmim
       HR_mass_accumulated = 0
       growth_sum=0
 
-      a_matrixC      = pool_matrixC
-      a_matrixN      = pool_matrixN
       start_year = 1901
       year     = start_year
       year_fmt = '(I4)'
@@ -374,8 +363,6 @@ module mycmim
           ycounter = 0
           sum_consN =0
           sum_consC =0
-          sum_Cplant =0
-          sum_Nplant=0
         end if
         !END Compute and write annual means
 
@@ -410,15 +397,11 @@ module mycmim
     !Local
     REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
     REAL(r8), DIMENSION(nlevels,pool_types+1) :: yearly_meanN
-    REAL(r8) :: mean_Nplant
-    REAL(r8) :: mean_Cplant
 
     integer, parameter                         :: hr_in_year = 24*365
 
     yearly_meanC=yearly_sumC/hr_in_year
     yearly_meanN=yearly_sumN/hr_in_year
-    mean_Nplant=sum_Nplant/hr_in_year
-    mean_Cplant=sum_Cplant/hr_in_year
 
     call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN, mean_Nplant, mean_Cplant,nlevels)
 

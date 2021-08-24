@@ -372,8 +372,6 @@ module writeMod
       end do
 
       call check(nf90_def_var(ncid, "N_inorganic", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid))
-      call check(nf90_def_var(ncid, "N_plant", NF90_DOUBle, (/t_dimid/),varid))
-      call check(nf90_def_var(ncid, "C_plant", NF90_DOUBle, (/t_dimid/),varid))
       call check(nf90_def_var(ncid, "C_Growth_sum", NF90_DOUBle, (/t_dimid/),varid))
       call check(nf90_def_var(ncid, "C_Growth_flux", NF90_DOUBle, (/t_dimid/),varid))
       call check(nf90_def_var(ncid,"HR_sum", NF90_DOUBLE, (/t_dimid /), varid ))
@@ -387,13 +385,11 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_yearly_mean_netcdf
 
-    subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, &
-       N_plant, C_plant, levsoi) !TODO: yearly HR and climate variables (if needed?)
+    subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, levsoi) !TODO: yearly HR and climate variables (if needed?)
       character (len = *):: run_name
       integer :: levsoi
       integer :: year,i,j,varid,ncid
       real(r8), intent(in)          :: Cpool_yearly(levsoi,pool_types), Npool_yearly(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
-      real(r8), intent(in)                       :: N_plant, C_plant
     !  real(r8)                                   :: HR_sum
     !  real(r8) ,dimension(levsoi)                :: HR_flux!(levsoi) !HR_mass_accumulated
       real(r8),dimension(levsoi)         :: TSOIL, MOIST
@@ -401,11 +397,7 @@ module writeMod
       call check(nf90_open(output_path//trim(run_name)//"_yearly_mean.nc", nf90_write, ncid))
       call check(nf90_inq_varid(ncid, "year_since_start", varid))
       call check(nf90_put_var(ncid, varid, year , start = (/ year /)))
-      call check(nf90_inq_varid(ncid, "N_plant", varid))
-      call check(nf90_put_var(ncid, varid, N_Plant, start = (/ year /)))
-      call check(nf90_inq_varid(ncid, "C_plant", varid))
-      call check(nf90_put_var(ncid, varid, C_Plant, start = (/ year /)))
-      !
+
       ! call check(nf90_inq_varid(ncid, "C_Growth_sum", varid))
       ! call check(nf90_put_var(ncid, varid, growth_sum, start = (/ year /)))
       !

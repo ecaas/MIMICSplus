@@ -5,7 +5,7 @@ implicit none
 
 !Define variables
 
-real(kind=r8)                                :: T_soil_const =5.18                      ![degC]
+real(kind=r8)                                :: T_soil_const =5.18              ![degC]
 real(kind=r8)                                :: GEP                             ![gC/(m2 h)] Gross ecosystem productivity
 real(kind=r8),parameter                      :: fCLAY  = 0.20                   ![-] fraction of clay in soil
 real(kind=r8),dimension(3)                   :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
@@ -35,7 +35,7 @@ integer, parameter                           :: pool_types = no_of_litter_pools 
 integer, parameter                           :: pool_types_N = pool_types+1
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
-real(r8),parameter                               :: fMET =0.4                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
+real(r8),parameter                      :: fMET =0.4                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
 real(r8), dimension(no_of_sap_pools)    ::tau  ![1/h]
 
@@ -45,7 +45,7 @@ real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
 real(r8)                                :: desorb = 1.5e-5*exp(-1.5*(fclay))![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Depth & vertical transport
-real(r8)                  :: soil_depth           ![m] used if isVertical is False (sum(delta_z))
+real(r8)                             :: soil_depth           ![m] used if isVertical is False (sum(delta_z))
 real(r8),dimension(10),parameter     :: node_z =  (/0.01,0.04,0.09,0.16,0.26,0.40,0.587,0.80,1.06,1.36/)!(/0.076,0.228, 0.380,0.532, 0.684,0.836,0.988,1.140,1.292,1.444/)!![m] Depth of center in each soil layer. Same as the first layers of default CLM5 with vertical resolution.
 real(r8),dimension(10)               :: delta_z = (/0.02, 0.04, 0.06, 0.08,0.12,0.16,0.20,0.24,0.28,0.32/)!0.152![m] Thickness of each soil of the top layers in default clm5.
 real(r8),parameter                   :: D = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
@@ -63,21 +63,13 @@ real(r8), parameter :: sec_pr_hr = 60*60        !For conversion
 real(r8), parameter :: hr_pr_yr = 365*24        !For conversion
 
 !From Baskaran et al 2016
-real(r8), parameter :: my_sap = 1/hr_pr_yr      ![1/hr]mortality rate sap
-real(r8), parameter :: my_myc = 1/hr_pr_yr      ![1/hr] mortality rate myc
-real(r8), parameter :: my_root = 0.15/hr_pr_yr  ![1/hr]mortality rate plant root
-real(r8), parameter :: my_shoot = 0.15/hr_pr_yr ![1/hr]  mortality rate plant shoot
-real(r8), parameter :: gamma_rs = 0.3           !Plant root:shoot ratio                      TODO: Vary with plant type/pft/myc?
-real(r8)            :: delta=0.15               !Fraction of plant C allocated to mycorrhiza TODO: determine based on myc type?
-real(r8), parameter :: a = 80/hr_pr_yr          ![gC(gN)⁻¹yr⁻¹], max plant N productivity
-real(r8), parameter :: b = 0.09/hr_pr_yr        !Shading factor of plant productivity
 real(r8), parameter :: Km_plant = 0.6           ![gNm-2] Half saturation constant of plant uptake of inorganic N (called S_p in article)
 real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article)
 real(r8), parameter :: V_max_plant = 1.8/hr_pr_yr![g g-1 hr-1] Max plant root uptake of inorganic N (called K_pn in article)
 real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article)
 real(r8)  :: Leaching_rate = 3/hr_pr_yr          ![hr-1] Leaching rate
 real(r8)  :: Deposition_rate =3/hr_pr_yr         ![gNm-2hr-1] Deposition rate  NOTE: varied from 0.3-3 in article
-real(r8), parameter :: e_s = 0.25                !Growth efficiency of saprotrophs        TODO: Compare these to the efficiencies from Mimics
+real(r8), parameter :: e_s = 0.25                !Growth efficiency of saprotrophs
 real(r8), parameter :: e_m = 0.25                !Growth efficiency of mycorrhiza NOTE: If efficiency is too high, SAPbIN will become negative bc.  e_s*U_sb/CN_ratio(3) will be too large. Problem??
 !Decomposition rates:
 real(r8), parameter :: K_SH = 0.006/hr_pr_yr ![m2gC-1hr-1] Saprotrophic decay rate constant for hydrolizable store. TODO: review these

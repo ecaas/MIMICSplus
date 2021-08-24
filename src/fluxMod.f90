@@ -13,7 +13,7 @@ module fluxMod
     real(r8), intent(in) :: C_SAP
     real(r8), intent(in) :: C_SUBSTRATE
     integer, intent (in) :: MMK_nr
-
+    !TODO: this works, but should not depend on Vmax & Km from mycmim mod
     flux = C_SAP*Vmax(MMK_nr)*C_SUBSTRATE/(Km(MMK_nr)+C_SUBSTRATE)
   end function MMK_flux
 
