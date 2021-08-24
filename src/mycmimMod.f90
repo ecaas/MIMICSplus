@@ -109,7 +109,7 @@ module mycmim
       else
         soil_depth=1.52
         isVertical = .False.
-        delta_z=soil_depth !So that delta_z will not be 1st on delta_z from parametersMod
+        !delta_z=soil_depth !So that delta_z will not be 1st on delta_z from parametersMod
         allocate (vertC, mold = pool_matrixC)
         allocate (vertN, mold = pool_matrixN)
 
@@ -140,23 +140,20 @@ module mycmim
       year_fmt = '(I4)'
       write (year_char,year_fmt) year
       current_month = 1
-      month_counter = 30
+      month_counter = 0
       write_y=0
-
       !open and prepare files to store results. Store initial values
       call create_yearly_mean_netcdf(run_name,nlevdecomp)
-
-
+  
       call create_netcdf(run_name, nlevdecomp)
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
                        HR_mass_accumulated,HR, change_matrixC,change_matrixN, write_hour,current_month, &
                       NPlant, CPlant,TSOIL, r_moist, growth_sum = growth_sum,levsoi=nlevdecomp)
 
       !read temperature and moisture data from CLM file
-      call read_clmdata(clm_data_file//year_char//".nc",TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)
-      call read_WATSAT(clm_data_file//year_char//".nc",WATSAT, nlevdecomp)
-
-
+      call read_clmdata(clm_data_file//year_char//"-02-01-00000.nc",TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)  
+      call read_clm_model_input(clm_data_file//year_char//"-02-01-00000.nc",C_LITinput,C_EcMinput,N_LEACHinput,N_DEPinput, current_month)  
+      call read_WATSAT(clm_data_file//"1901-02-01-00000.nc",WATSAT, nlevdecomp)
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
 
       !----------------------------------------------------------------------------------------------------------------
@@ -167,18 +164,18 @@ module mycmim
         month_counter = month_counter + 1
         NPlant_tstep = 0
         CPlant_tstep =0
-        !Update temp and moisture values monthly
+        !Update temp and moisture values monthly !TODO: Modify to accomodate for daily values also
         if (month_counter == days_in_month(current_month)*24) then
-          call read_clmdata(clm_data_file//year_char//".nc",TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)
-          call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
           if (current_month == 12) then
             current_month = 1
           else
             current_month = current_month + 1
-          end if
+          end if      
           month_counter = 0
+          call read_clmdata(clm_data_file//year_char//"-02-01-00000.nc",TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)
+          call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
+          call read_clm_model_input(clm_data_file//year_char//"-02-01-00000.nc",C_LITinput,C_EcMinput,N_LEACHinput,N_DEPinput, current_month)
         end if
-
         !print initial values to terminal
         if (t == 1) then
           call disp("InitC", pool_matrixC)
@@ -191,7 +188,7 @@ module mycmim
           k_mycsom  = (/1.14,1.14,1.14/)*1e-4  ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
 
           Km      = Km_function(TSOIL(j))
-          Vmax    = Vmax_function(TSOIL(j),W_SCALAR(j)) !*W_SCALAR(j)   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+          Vmax    = Vmax_function(TSOIL(j),r_moist(j)) !  ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
 
           !NOTE FROM MIMICS_CYCLE_CN:
           ! WW also modify TAU as a function of soil moisture, so things don't
@@ -205,10 +202,10 @@ module mycmim
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN, CPlant, NPlant)
           call layer_dependent_fluxes(j,C_LITinput, C_EcMinput,N_LEACHinput,N_DEPinput,C_PlantLITm,C_PlantLITs,Deposition,Leaching,C_PlantEcM)
-          print*, C_PlantLITm,C_PlantLITs,C_PlantEcM,Deposition,Leaching
-          if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
-           call fluxes_netcdf(int(time), write_hour, j, run_name)
-          end if !write fluxes
+
+          ! if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
+          !  call fluxes_netcdf(int(time), write_hour, j, run_name)
+          ! end if !write fluxes
 
           do i = 1,pool_types + 1 !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
@@ -352,11 +349,10 @@ module mycmim
         sum_consC = sum_consC + pool_matrixC
 
         if (ycounter == 365*24) then
-          print*, "inside", year
           write_y =write_y+1
           call annual_mean(sum_consC,sum_consN,sum_Cplant,sum_Nplant, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
-          if (year == 2000) then
-            year = 1901
+          if (year == 1920) then
+            year = 1900        
           end if
           year = year + 1
           write (year_char,year_fmt) year
@@ -368,16 +364,16 @@ module mycmim
 
         if (counter == write_hour) then
           counter = 0
-          call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
-           HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, NPlant,&
-           CPlant, TSOIL, r_moist, growth_sum,nlevdecomp)
+          !call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
+           !HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, NPlant,&
+           !CPlant, TSOIL, r_moist, growth_sum,nlevdecomp)
            change_sum = 0.0
           !vertC_change_sum = 0.0
         end if!writing
 
         !Write end values to terminal
         if (t == nsteps) then
-          call store_parameters(run_name)
+        !  call store_parameters(run_name)
           call disp("pool_matrixC gC/m3 ",pool_matrixC)
           call disp("pool_matrixN gN/m3 ",pool_matrixN)
         end if
@@ -387,23 +383,22 @@ module mycmim
     end subroutine decomp
 
   subroutine annual_mean(yearly_sumC,yearly_sumN, sum_Cplant, sum_Nplant,nlevels, year, run_name)
-    REAL(r8), DIMENSION(nlevels,pool_types) , intent(in):: yearly_sumC
-    REAL(r8), DIMENSION(nlevels,pool_types+1) , intent(in):: yearly_sumN
+    REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: yearly_sumC
+    REAL(r8), DIMENSION(nlevels,pool_types+1), intent(in):: yearly_sumN
     REAL(r8), intent(in):: sum_Nplant
     REAL(r8), intent(in):: sum_Cplant
     integer, intent(in) :: year
     integer , intent(in):: nlevels
-    CHARACTER (len = *):: run_name
+    CHARACTER (len = *), intent(in):: run_name
     !Local
     REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
     REAL(r8), DIMENSION(nlevels,pool_types+1) :: yearly_meanN
-
     integer, parameter                         :: hr_in_year = 24*365
 
     yearly_meanC=yearly_sumC/hr_in_year
     yearly_meanN=yearly_sumN/hr_in_year
 
-    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN, mean_Nplant, mean_Cplant,nlevels)
+    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,nlevels)
 
   end subroutine annual_mean
 

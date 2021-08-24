@@ -31,30 +31,30 @@ module readMod
        subroutine read_clmdata(clm_history_file, TSOI, SOILLIQ,SOILICE,W_SCALAR,month, nlevdecomp)
          integer,intent(in)            :: nlevdecomp
          character (len = *),intent(in):: clm_history_file
-         real(r8),intent(out), dimension(nlevdecomp)          :: TSOI
-         real(r8),intent(out), dimension(nlevdecomp)          :: SOILLIQ
-         real(r8), intent(out),dimension(nlevdecomp)          :: SOILICE
+         real(r8),intent(out), dimension(nlevdecomp)          :: TSOI    !Celcius
+         real(r8),intent(out), dimension(nlevdecomp)          :: SOILLIQ !m3/m3
+         real(r8), intent(out),dimension(nlevdecomp)          :: SOILICE !m3/m3
          real(r8), intent(out),dimension(nlevdecomp)          :: W_SCALAR
 
          integer            :: ncid, TSOIid, SOILICEid, SOILLIQid,W_SCALARid, month,i
-         !WATSAT=0.0
-         !TSOI= 0.0
+         
+         TSOI= 0.0
          call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
-
+         
          call check(nf90_inq_varid(ncid, 'TSOI', TSOIid))
-         call check(nf90_get_var(ncid, TSOIid, TSOI, start=(/1,1,1, month/), count=(/1,1,nlevdecomp,1/)))
-
+         call check(nf90_get_var(ncid, TSOIid, TSOI, start=(/1,1,month/), count=(/1,nlevdecomp,1/)))
+         
          call check(nf90_inq_varid(ncid, 'SOILLIQ', SOILLIQid))
-         call check(nf90_get_var(ncid, SOILLIQid, SOILLIQ, start=(/1,1,1, month/), count=(/1,1,nlevdecomp,1/)))
+         call check(nf90_get_var(ncid, SOILLIQid, SOILLIQ, start=(/1,1,month/), count=(/1,nlevdecomp,1/)))
 
          call check(nf90_inq_varid(ncid, 'SOILICE', SOILICEid))
-         call check(nf90_get_var(ncid, SOILICEid, SOILICE, start=(/1,1,1, month/), count=(/1,1,nlevdecomp,1/)))
+         call check(nf90_get_var(ncid, SOILICEid, SOILICE, start=(/1,1,month/), count=(/1,nlevdecomp,1/)))
 
          call check(nf90_inq_varid(ncid, 'W_SCALAR', W_SCALARid))
-         call check(nf90_get_var(ncid, W_SCALARid, W_SCALAR, start=(/1,1,1, month/), count=(/1,1,nlevdecomp,1/)))
+         call check(nf90_get_var(ncid, W_SCALARid, W_SCALAR, start=(/1,1,month/), count=(/1,nlevdecomp,1/)))
          !Unit conversions:
-         TSOI = TSOI - 273.15 !Kelvin to Celcius TODO put in function
-         do i = 1, nlevdecomp ! TODO put in function
+         TSOI = TSOI - 273.15 !Kelvin to Celcius 
+         do i = 1, nlevdecomp ! Unit conversion
            SOILICE(i) = SOILICE(i)/(delta_z(i)*917) !kg/m2 to m3/m3 rho_ice=917kg/m3
            SOILLIQ(i) = SOILLIQ(i)/(delta_z(i)*1000) !kg/m2 to m3/m3 rho_liq=1000kg/m3
          end do
@@ -62,11 +62,14 @@ module readMod
        end subroutine read_clmdata
 
        subroutine read_clm_model_input(clm_history_file, LITFALL, NPP_NACTIVE,SMIN_NO3_LEACHED,NDEP_TO_SMINN,month)
+          !INPUT
           character (len = *),intent(in):: clm_history_file
-          real(r8),intent(out)         :: LITFALL      !litterfall (leaves and fine roots) [gC/m^2/s]
-          real(r8),intent(out)         :: NPP_NACTIVE  !Mycorrhizal N uptake used C        [gC/m^2/s]
-          real(r8), intent(out)        :: SMIN_NO3_LEACHED!soil NO3 pool loss to leaching             [gN/m^2/s]
-          real(r8), intent(out)        :: NDEP_TO_SMINN   !atmospheric N deposition to soil mineral N [gN/m^2/s]
+          
+          !OUTPUT
+          real(r8), intent(out)        :: LITFALL      !litterfall (leaves and fine roots)  [gC/m^2/hour] (converted from [gC/m^2/s])  
+          real(r8), intent(out)        :: NPP_NACTIVE  !Mycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s])  
+          real(r8), intent(out)        :: SMIN_NO3_LEACHED!soil NO3 pool loss to leaching   [gN/m^2/hour] (converted from [gN/m^2/s])  
+          real(r8), intent(out)        :: NDEP_TO_SMINN   !atmospheric N deposition to soil mineral N [gN/m^2/hour] (converted from [gN/m^2/s]) 
 
           !Local
           integer            :: ncid, varid
