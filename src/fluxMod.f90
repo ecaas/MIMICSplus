@@ -243,52 +243,11 @@ module fluxMod
 
   end subroutine vertical_diffusion
 
-  function calc_PN(C_plant) result(productivity)
-    real(r8), intent(in) :: C_plant
-    real(r8)             :: productivity
-    productivity =  a-b*(C_plant/(1+ gamma_rs)) !Plant N productivity (as in Baskaran 2016, eq (12))
-
-  end function calc_PN
-
-  function calc_plant_growth_rate(C_plant, N_plant) result(growth_rate)
-    real(r8), intent(in) :: C_plant
-    real(r8), intent(in) :: N_plant
-    real(r8)             :: growth_rate
-
-    !Local
-    real(r8) :: C_PR,C_PS,N_PR,N_PS
-    real(r8) :: P_N
-    C_PR = gamma_rs*C_Plant/(1+gamma_rs) !Carbon in plant roots (Baskaran et al)
-    C_PS = C_plant/(1+ gamma_rs)         !Carbon in plant shoots
-    N_PR = gamma_rs*N_Plant/(1+gamma_rs) !N in plant roots
-    N_PS = N_plant/(1+ gamma_rs)         !N in plant shoots
-
-    P_N = calc_PN(C_plant)
-    if (P_N < 0) then
-      print*, "P_N < 0: ", P_N
-      P_N = 0
-    end if
-    !Plant growth rate
-    growth_rate = (1-delta)*P_N*N_PS                !NOTE Usikker paa enheter her
-  end function calc_plant_growth_rate
-
-  function calc_plant_mortality(C_plant) result(Total_mortality)
-      real(r8), intent(in) :: C_Plant
-      real(r8)             :: Total_mortality
-        !Used to calculate litter production in flux subroutine:
-        Total_mortality = (my_shoot + gamma_rs*my_root)*(C_plant/(1+gamma_rs))!gC/m2h
-
-  end function calc_plant_mortality
-
-
   subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist,nlevdecomp) !NOTE: Should maybe be placed somewhere else?
     integer :: nlevdecomp
     real(r8), intent(out), dimension(nlevdecomp) :: r_moist
     real(r8), intent(in), dimension(nlevdecomp)  :: theta_l, theta_sat, theta_f
     real(r8), dimension(nlevdecomp)  :: theta_frzn, theta_liq, air_filled_porosity
-
-
-
       !FROM mimics_cycle.f90 in testbed:
       ! ! Read in soil moisture data as in CORPSE
       !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
