@@ -80,7 +80,6 @@ real(r8), parameter :: K_MO = 0.0003/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay ra
 real(r8), parameter                          :: P = 44.247 !normalization of moisture function
 real(r8)                                     :: gas_diffusion
 integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
-integer                                      :: current_month
 
 
 real(r8), parameter, dimension(10)   :: ndep_prof=(/19.87594,7.3622293,2.9769452,1.1087304,0.27191943,0.05029088,0.0,0.0,0.0,0.0/)

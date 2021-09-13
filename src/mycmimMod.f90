@@ -62,22 +62,17 @@ module mycmim
       character (len=4)              :: year_char
       logical                        :: isVertical                           ! True if we use vertical soil layers.
       real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
-      real(r8)                       :: HR_mass_accumulated, HR_mass,growth_sum
+      real(r8)                       :: HR_mass_accumulated, HR_mass
       real(r8)                       :: pool_matrixC(nlevdecomp,pool_types)     ! For storing C pool sizes [gC/m3]
       real(r8)                       :: change_matrixC(nlevdecomp,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
-      real(r8)                       :: a_matrixC(nlevdecomp, pool_types)       ! For storing the analytical solution
       real(r8)                       :: pool_temporaryC(nlevdecomp,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
 
       real(r8)                       :: pool_temporaryN(nlevdecomp,pool_types+1)! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
       real(r8)                       :: pool_matrixN(nlevdecomp,pool_types+1)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types+1) ! For storing dC/dt for each time step [gN/(m3*hour)]
-      real(r8)                       :: a_matrixN(nlevdecomp, pool_types+1)     ! For storing the analytical solution
 
       real(r8)                       :: sum_consN(nlevdecomp, pool_types+1) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
-      real(r8)                       :: sum_Cplant !g/m2
-      real(r8)                       :: sum_Nplant !g/m2
-
       real(r8)                       :: C_EcMinput,C_LITinput,N_DEPinput
       real(r8)                       :: N_LEACHinput(nlevdecomp)
 
@@ -104,7 +99,7 @@ module mycmim
       real(r8)                       :: vertC_change_sum(nlevdecomp, pool_types)
 
       !For reading soil temperature and moisture from CLM output file
-      real(r8), dimension(nlevdecomp)         :: TSOIL!(:), SOILLIQ(:),SOILICE(:),WATSAT(:),r_moist(:)
+      real(r8), dimension(nlevdecomp)          :: TSOIL
       real(r8), dimension(nlevdecomp)          :: SOILLIQ
       real(r8), dimension(nlevdecomp)          :: SOILICE
       real(r8), dimension(nlevdecomp)          :: WATSAT
@@ -152,9 +147,7 @@ module mycmim
       counter = 0
       ycounter = 0
       HR_mass_accumulated = 0
-      growth_sum=0
 
-      start_year = 1901
       year     = start_year
       year_fmt = '(I4)'
       write (year_char,year_fmt) year
@@ -403,11 +396,9 @@ module mycmim
 
     end subroutine decomp
 
-  subroutine annual_mean(yearly_sumC,yearly_sumN, sum_Cplant, sum_Nplant,nlevels, year, run_name)
+  subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
     REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: yearly_sumC
     REAL(r8), DIMENSION(nlevels,pool_types+1), intent(in):: yearly_sumN
-    REAL(r8), intent(in):: sum_Nplant
-    REAL(r8), intent(in):: sum_Cplant
     integer, intent(in) :: year
     integer , intent(in):: nlevels
     CHARACTER (len = *), intent(in):: run_name
