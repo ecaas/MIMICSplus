@@ -7,7 +7,7 @@ implicit none
 
 real(kind=r8)                                :: T_soil_const =5.18              ![degC]
 real(kind=r8)                                :: GEP                             ![gC/(m2 h)] Gross ecosystem productivity
-real(kind=r8),parameter                      :: fCLAY  = 0.20                   ![-] fraction of clay in soil
+real(kind=r8)                                :: fCLAY                          ![-] fraction of clay in soil
 real(kind=r8),dimension(3)                   :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
 
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
@@ -18,7 +18,7 @@ real(kind=r8),dimension(MM_eqs),parameter    :: Kint    = 3.19      !LITm, LITs,
 real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (10 mg/cm3 from german et al 2012)
 real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
-real(kind=r8),parameter                      :: pscalar = 1.0/(2*exp(-2.0*dsqrt(fCLAY))) !Value range:  0.5-3.7
+real(kind=r8)                     :: pscalar != 1.0/(2*exp(-2.0*dsqrt(fCLAY))) !Value range:  0.5-3.7
 real(kind=r8),dimension(MM_eqs)              :: Kmod    = 0.4!(/0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0/)!LITm, LITs, SOMa entering SAPb, sapf
 real(kind=r8),dimension(MM_eqs)              :: Vmod    = 10!(/10.0,  10.0, 10.0, 10.0, 10.0, 2.0/)            !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter, dimension(2)        :: KO      =  4                    ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
@@ -42,7 +42,7 @@ real(r8), dimension(no_of_sap_pools)    ::tau  ![1/h]
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.3,0.4,0.3/)
 real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
-real(r8)                                :: desorb = 1.5e-5*exp(-1.5*(fclay))![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
+real(r8)                                :: desorb != 1.5e-5*exp(-1.5*(fclay))![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Depth & vertical transport
 real(r8)                             :: soil_depth           ![m] used if isVertical is False (sum(delta_z))
@@ -102,7 +102,14 @@ Decomp_erm, Decomp_am, Leaching, Deposition, C_PR, C_PS,N_PR, N_PS, Total_plant_
 NPlant, P_N, Plant_CN, CPlant_tstep, NPlant_tstep
 
 character (len=*),parameter                  :: clm_data_file = &
-'/home/ecaas/nird/NR31883_historical/lnd/hist/NR31883_historical.clm2.h0.'
+'/home/ecaas/nird/31767_Kongsvinger_historical/lnd/hist/31767_Kongsvinger_historical.clm2.'
+
+character (len=*),parameter                  :: clm_surface_file = &
+'/home/ecaas/nird/surface_files/31767_Kongsvinger/surfdata_31767_Kongsvinger_simyr2000.nc'
+
+!'/home/ecaas/nird/31767_Kongsvinger_historical/lnd/hist/31767_Kongsvinger_historical.clm2.'
+
+!'/home/ecaas/nird/32374_Saltdal_historical/lnd/hist/32374_Saltdal_historical.clm2.'
 !For writing to file:
 character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/vertical/'
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file

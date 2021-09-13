@@ -142,6 +142,8 @@ module mycmim
       current_month = 1
       month_counter = 0
       write_y=0
+      call read_clay(clm_surface_file,fCLAY)
+      
       !open and prepare files to store results. Store initial values
       call create_yearly_mean_netcdf(run_name,nlevdecomp)
   
@@ -155,6 +157,8 @@ module mycmim
       call read_clm_model_input(clm_data_file//year_char//"-02-01-00000.nc",C_LITinput,C_EcMinput,N_LEACHinput,N_DEPinput, current_month)  
       call read_WATSAT(clm_data_file//"1901-02-01-00000.nc",WATSAT, nlevdecomp)
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
+      desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
+      pscalar = 1.0/(2*exp(-2.0*dsqrt(fCLAY)))
 
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
