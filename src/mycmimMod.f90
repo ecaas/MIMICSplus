@@ -86,11 +86,18 @@ module mycmim
       real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
 
       !Counters
-      integer                        :: ycounter, year, start_year,write_y
+      integer                        :: ycounter, year,write_y
       integer                        :: counter            !used for determining when to output results
-      integer                        :: month_counter
+      integer                        :: month_counter      !for determining when to read new input values (Temp. litfall etc.)
+      integer                        :: day_counter
+      integer                        :: current_month
+      integer                        :: current_day
+      
+      
+      
       integer                        :: j,i,t              !for iterations
       integer,parameter              ::t_init=1
+      integer                        :: date
       character (len=15)             :: file_suffix
       integer                       :: input_steps
 
@@ -152,23 +159,33 @@ module mycmim
       year_fmt = '(I4)'
       write (year_char,year_fmt) year
       current_month = 1
+      current_day = 1
+      
       month_counter = 0
+      day_counter = 0
+      
       write_y=0
+      
+      !Check if inputdata is daily or monthly:
+      call read_time(clm_data_file//'h0.'//year_char//file_suffix,input_steps)
+      
+      !read temperature and moisture data from CLM file
+      call read_clmdata(clm_data_file//'h0.'//year_char//file_suffix,date,TSOIL,SOILLIQ,SOILICE,W_SCALAR,1, nlevdecomp)  
+      call read_clm_model_input(clm_data_file//'h0.'//year_char//file_suffix,C_LITinput,C_EcMinput,N_DEPinput, 1)  
+      call read_WATSAT(clm_data_file//'h0.'//"1901-02-01-00000.nc",WATSAT, nlevdecomp)
+      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
+      call read_LEACHING(clm_data_file//'h1.'//year_char//file_suffix,nlevdecomp,1, N_LEACHinput)
+      
       call read_clay(clm_surface_file,fCLAY)
       
       !open and prepare files to store results. Store initial values
       call create_yearly_mean_netcdf(run_name,nlevdecomp)
-  
       call create_netcdf(run_name, nlevdecomp)
+      
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
-                       HR_mass_accumulated,HR, change_matrixC,change_matrixN, write_hour,current_month, &
-                      NPlant, CPlant,TSOIL, r_moist, growth_sum = growth_sum,levsoi=nlevdecomp)
-
-      !read temperature and moisture data from CLM file
-      call read_clmdata(clm_data_file//year_char//"-02-01-00000.nc",TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)  
-      call read_clm_model_input(clm_data_file//year_char//"-02-01-00000.nc",C_LITinput,C_EcMinput,N_LEACHinput,N_DEPinput, current_month)  
-      call read_WATSAT(clm_data_file//"1901-02-01-00000.nc",WATSAT, nlevdecomp)
-      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
+                       date, HR_mass_accumulated,HR, change_matrixC,change_matrixN,write_hour,current_month, &
+                      TSOIL, r_moist,levsoi=nlevdecomp)
+                      
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
       pscalar = 1.0/(2*exp(-2.0*dsqrt(fCLAY)))
 
@@ -178,18 +195,42 @@ module mycmim
         counter  = counter + 1
         ycounter = ycounter + 1
         month_counter = month_counter + 1
-        !Update temp and moisture values monthly !TODO: Modify to accomodate for daily values also
-        if (month_counter == days_in_month(current_month)*24) then
-          if (current_month == 12) then
-            current_month = 1
-          else
-            current_month = current_month + 1
-          end if      
-          month_counter = 0
-          call read_clmdata(clm_data_file//year_char//"-02-01-00000.nc",TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)
-          call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
-          call read_clm_model_input(clm_data_file//year_char//"-02-01-00000.nc",C_LITinput,C_EcMinput,N_LEACHinput,N_DEPinput, current_month)
-        end if
+        day_counter = day_counter + 1
+        
+
+        !Update temp and moisture values monthly/daily 
+        if (input_steps==12) then
+          if (month_counter == days_in_month(current_month)*24) then
+            if (current_month == 12) then
+              current_month = 1
+            else
+              current_month = current_month + 1
+            end if      
+            month_counter = 0
+            call read_clmdata(clm_data_file//'h0.'//year_char//file_suffix,date,TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)
+            call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
+            call read_clm_model_input(clm_data_file//'h0.'//year_char//file_suffix,C_LITinput,C_EcMinput,N_DEPinput, current_month)
+            call read_LEACHING(clm_data_file//'h1.'//year_char//file_suffix,nlevdecomp,current_month, N_LEACHinput)
+            
+          end if
+        elseif (input_steps==365) then
+          if (day_counter == 24) then
+            if (current_day == 365) then
+              current_day= 1
+            else
+              current_day = current_day + 1
+            end if      
+            day_counter = 0
+            call read_clmdata(clm_data_file//'h0.'//year_char//file_suffix,date,TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_day, nlevdecomp)
+            call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
+            call read_clm_model_input(clm_data_file//'h0.'//year_char//file_suffix,C_LITinput,C_EcMinput,N_DEPinput, current_day)  
+            call read_LEACHING(clm_data_file//'h1.'//year_char//file_suffix,nlevdecomp,current_day, N_LEACHinput)
+          end if
+                    
+        else
+          print*, "Unvalid time step in input files: ", input_steps
+        end if !input_steps
+        
         !print initial values to terminal
         if (t == 1) then
           call disp("InitC", pool_matrixC)
@@ -373,23 +414,25 @@ module mycmim
           ycounter = 0
           sum_consN =0
           sum_consC =0
+          print*, year
         end if
         !END Compute and write annual means
 
         if (counter == write_hour) then
           counter = 0
-          !call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
-           !HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, NPlant,&
-           !CPlant, TSOIL, r_moist, growth_sum,nlevdecomp)
+          call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
+           date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
+           TSOIL, r_moist,nlevdecomp)
            change_sum = 0.0
           !vertC_change_sum = 0.0
         end if!writing
 
         !Write end values to terminal
         if (t == nsteps) then
-        !  call store_parameters(run_name)
           call disp("pool_matrixC gC/m3 ",pool_matrixC)
-          call disp("pool_matrixN gN/m3 ",pool_matrixN)
+          call disp("pool_matrixN gN/m3 ",pool_matrixN)          
+          pool_C_final=pool_matrixC
+          pool_N_final=pool_matrixN        
         end if
 
       end do !t

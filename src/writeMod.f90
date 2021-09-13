@@ -56,7 +56,8 @@ module writeMod
       do v = 1, size(N_name_fluxes)
          call check(nf90_def_var(ncid, "N_"//trim(N_name_fluxes(v)), NF90_double, (/t_dimid, lev_dimid /), varid))
       end do
-
+      
+      call check(nf90_def_var(ncid, "mcdate", NF90_DOUBLE,(/t_dimid/), varid))
       call check(nf90_def_var(ncid, "time", NF90_DOUBLE, (/t_dimid /), varid))
       call check(nf90_def_var(ncid, "month", NF90_DOUBLE, (/t_dimid /), varid))
       call check(nf90_enddef(ncid))
@@ -86,6 +87,8 @@ module writeMod
       !print*, time, timestep, "write"
       call check(nf90_inq_varid(ncid, "time", varid))
       call check(nf90_put_var(ncid, varid, time, start = (/ timestep /)))
+      call check(nf90_inq_varid(ncid, "mcdate", varid))
+      call check(nf90_put_var(ncid, varid, mcdate, start = (/ timestep /)))      
       call check(nf90_inq_varid(ncid, "month", varid))
       call check(nf90_put_var(ncid, varid, month, start = (/ timestep /)))
       call check(nf90_inq_varid(ncid, "N_plant", varid))

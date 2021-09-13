@@ -14,6 +14,22 @@ module readMod
           stop 2
         end if
       end subroutine check
+      
+      subroutine read_time(clm_history_file,steps)
+        !INPUT
+        character (len = *),intent(in):: clm_history_file
+        
+        !OUTPUT
+        integer, intent(out):: steps
+        
+        !LOCAL
+        integer            :: ncid, timeid
+        
+        call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
+        call check(nf90_inquire(ncid, unlimiteddimid = timeid))
+        call check(nf90_inquire_dimension(ncid, timeid, len = steps))
+        call check(nf90_close(ncid))
+      end subroutine read_time
 
       subroutine read_WATSAT(clm_history_file,WATSAT, nlevdecomp)
         integer,intent(in)            :: nlevdecomp
@@ -28,7 +44,6 @@ module readMod
        call check(nf90_close(ncid))
       end subroutine read_WATSAT
 
-       subroutine read_clmdata(clm_history_file, TSOI, SOILLIQ,SOILICE,W_SCALAR,month, nlevdecomp)
       
       subroutine read_clay(clm_surface_file,mean_clay_content) !Needed bc. WATSAT is only given in the first outputfile of the simulation.
         !INPUT
@@ -70,29 +85,40 @@ module readMod
         call check(nf90_close(ncid))
       end subroutine read_LEACHING      
 
+         subroutine read_clmdata(clm_history_file, mcdate,TSOI, SOILLIQ,SOILICE,W_SCALAR,time_entry, nlevdecomp)
+         !INPUT
          integer,intent(in)            :: nlevdecomp
          character (len = *),intent(in):: clm_history_file
+         integer,intent(in)            :: time_entry
+         
+         !OUTPUT
+         integer,intent(out)                                  :: mcdate  !"Current date" , end of averaging interval
          real(r8),intent(out), dimension(nlevdecomp)          :: TSOI    !Celcius
          real(r8),intent(out), dimension(nlevdecomp)          :: SOILLIQ !m3/m3
          real(r8), intent(out),dimension(nlevdecomp)          :: SOILICE !m3/m3
          real(r8), intent(out),dimension(nlevdecomp)          :: W_SCALAR
-
-         integer            :: ncid, TSOIid, SOILICEid, SOILLIQid,W_SCALARid, month,i
+         
+         !LOCAL
+         integer                      :: ncid, varid 
+         integer                      :: i
          
          TSOI= 0.0
          call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
-         
-         call check(nf90_inq_varid(ncid, 'TSOI', TSOIid))
-         call check(nf90_get_var(ncid, TSOIid, TSOI, start=(/1,1,month/), count=(/1,nlevdecomp,1/)))
-         
-         call check(nf90_inq_varid(ncid, 'SOILLIQ', SOILLIQid))
-         call check(nf90_get_var(ncid, SOILLIQid, SOILLIQ, start=(/1,1,month/), count=(/1,nlevdecomp,1/)))
 
-         call check(nf90_inq_varid(ncid, 'SOILICE', SOILICEid))
-         call check(nf90_get_var(ncid, SOILICEid, SOILICE, start=(/1,1,month/), count=(/1,nlevdecomp,1/)))
+         call check(nf90_inq_varid(ncid, 'mcdate', varid))
+         call check(nf90_get_var(ncid, varid, mcdate, start=(/time_entry/)))
+         
+         call check(nf90_inq_varid(ncid, 'TSOI', varid))
+         call check(nf90_get_var(ncid, varid, TSOI, start=(/1,1,time_entry/), count=(/1,nlevdecomp,1/)))
 
-         call check(nf90_inq_varid(ncid, 'W_SCALAR', W_SCALARid))
-         call check(nf90_get_var(ncid, W_SCALARid, W_SCALAR, start=(/1,1,month/), count=(/1,nlevdecomp,1/)))
+         call check(nf90_inq_varid(ncid, 'SOILLIQ', varid))
+         call check(nf90_get_var(ncid, varid, SOILLIQ, start=(/1,1,time_entry/), count=(/1,nlevdecomp,1/)))
+
+         call check(nf90_inq_varid(ncid, 'SOILICE', varid))
+         call check(nf90_get_var(ncid, varid, SOILICE, start=(/1,1,time_entry/), count=(/1,nlevdecomp,1/)))
+
+         call check(nf90_inq_varid(ncid, 'W_SCALAR', varid))
+         call check(nf90_get_var(ncid, varid, W_SCALAR, start=(/1,1,time_entry/), count=(/1,nlevdecomp,1/)))
          !Unit conversions:
          TSOI = TSOI - 273.15 !Kelvin to Celcius 
          do i = 1, nlevdecomp ! Unit conversion
