@@ -275,7 +275,7 @@ module fluxMod
     integer,  intent(in) :: layer_nr
     real(r8), intent(in) :: C_LITinput
     real(r8), intent(in) :: C_EcMinput
-    real(r8), intent(in) :: N_LEACHinput
+    real(r8), intent(in) :: N_LEACHinput(:)
     real(r8), intent(in) :: N_DEPinput
 
     !out:
@@ -292,15 +292,12 @@ module fluxMod
     C_PlantLITm=fMET*C_LITinput*litter_prof(layer_nr) !gC/m2h * 1/m
     C_PlantLITs=(1-fMET)*C_LITinput*litter_prof(layer_nr) !gC/m2h * 1/m
     N_DEP=N_DEPinput*ndep_prof(layer_nr)
-    
-    if (layer_nr>1) then 
+    N_LEACH = N_LEACHinput(layer_nr) !gN/m3h
+    if (layer_nr==1) then 
       C_PlantEcM = 0.0
-      N_LEACH=0.0
     else
       C_PlantEcM = C_EcMinput/myc_depth
-      N_LEACH=N_LEACHinput/leaching_depth
     end if
-    !TODO: Get vertically resolved leaching from CLM output and use that instead. 
     !TODO: Figure out how to do mycorrhizal input vertically
   end subroutine layer_dependent_fluxes
 

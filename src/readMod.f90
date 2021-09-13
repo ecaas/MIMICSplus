@@ -50,6 +50,26 @@ module readMod
         mean_clay_content = sum(pct_clay)/size(pct_clay)
       end subroutine read_clay
       
+      subroutine read_LEACHING(clm_history_file,nlevdecomp,time_entry,N_leach)!Needed bc. WATSAT is only given in the first outputfile of the simulation.
+        !INPUT
+        integer,intent(in)            :: nlevdecomp
+        integer,intent(in)            :: time_entry
+        character (len = *),intent(in):: clm_history_file
+        
+        !OUTPUT
+        real(r8),intent(out)          :: N_leach(:)
+        
+        !LOCAL
+        integer            :: ncid, leachid
+        
+        call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
+        call check(nf90_inq_varid(ncid, 'SMIN_NO3_LEACHED_vr', leachid))
+
+        call check(nf90_get_var(ncid, leachid, N_leach, start=(/1,1,time_entry/),count=(/1,nlevdecomp,1/)))
+        N_leach=N_leach*sec_pr_hr !gN/(m3 s) to gN/(m3 h)
+        call check(nf90_close(ncid))
+      end subroutine read_LEACHING      
+
          integer,intent(in)            :: nlevdecomp
          character (len = *),intent(in):: clm_history_file
          real(r8),intent(out), dimension(nlevdecomp)          :: TSOI    !Celcius
@@ -82,36 +102,31 @@ module readMod
          call check(nf90_close(ncid))
        end subroutine read_clmdata
 
-       subroutine read_clm_model_input(clm_history_file, LITFALL, NPP_NACTIVE,SMIN_NO3_LEACHED,NDEP_TO_SMINN,month)
+       subroutine read_clm_model_input(clm_history_file, LITFALL, NPP_NACTIVE,NDEP_TO_SMINN,time_entry)
           !INPUT
           character (len = *),intent(in):: clm_history_file
+          integer,intent(in)            :: time_entry
           
-          !OUTPUT
+          !OUTPUT 
           real(r8), intent(out)        :: LITFALL      !litterfall (leaves and fine roots)  [gC/m^2/hour] (converted from [gC/m^2/s])  
           real(r8), intent(out)        :: NPP_NACTIVE  !Mycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s])  
-          real(r8), intent(out)        :: SMIN_NO3_LEACHED!soil NO3 pool loss to leaching   [gN/m^2/hour] (converted from [gN/m^2/s])  
           real(r8), intent(out)        :: NDEP_TO_SMINN   !atmospheric N deposition to soil mineral N [gN/m^2/hour] (converted from [gN/m^2/s]) 
 
           !Local
           integer            :: ncid, varid
-          integer            :: month
 
           call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
 
           call check(nf90_inq_varid(ncid, 'LITFALL', varid))
-          call check(nf90_get_var(ncid, varid, LITFALL,start=(/1, month/)))
+          call check(nf90_get_var(ncid, varid, LITFALL,start=(/1, time_entry/)))
           LITFALL = LITFALL*sec_pr_hr  ![gC/m^2/h]
 
           call check(nf90_inq_varid(ncid, 'NPP_NACTIVE', varid))
-          call check(nf90_get_var(ncid, varid, NPP_NACTIVE,start=(/1, month/)))
+          call check(nf90_get_var(ncid, varid, NPP_NACTIVE,start=(/1, time_entry/)))
           NPP_NACTIVE = NPP_NACTIVE*sec_pr_hr ![gC/m^2/h]
 
-          call check(nf90_inq_varid(ncid, 'SMIN_NO3_LEACHED', varid))
-          call check(nf90_get_var(ncid, varid, SMIN_NO3_LEACHED,start=(/1, month/)))
-          SMIN_NO3_LEACHED = SMIN_NO3_LEACHED*sec_pr_hr ![gN/m^2/h]
-
           call check(nf90_inq_varid(ncid, 'NDEP_TO_SMINN', varid))
-          call check(nf90_get_var(ncid, varid, NDEP_TO_SMINN,start=(/1, month/)))
+          call check(nf90_get_var(ncid, varid, NDEP_TO_SMINN,start=(/1, time_entry/)))
           NDEP_TO_SMINN = NDEP_TO_SMINN*sec_pr_hr ![gN/m^2/h]
 
           call check(nf90_close(ncid))
