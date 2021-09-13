@@ -24,14 +24,40 @@ module mycmim
 
 
   contains
-    subroutine decomp(nsteps, run_name,nlevdecomp,step_frac,write_hour) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
+    subroutine decomp(nsteps, run_name,nlevdecomp,step_frac,write_hour,pool_C_start,pool_N_start,pool_C_final,pool_N_final,start_year,stop_year) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
       !INPUT
       integer,intent(in)                        :: nsteps               ! number of time steps to iterate over
       character (len=*) ,intent(in)             :: run_name             ! used for naming outputfiles
       integer,intent(in)                        :: step_frac            ! determines the size of the time step
       integer,intent(in)                        :: nlevdecomp           ! number of vertical layers
       integer,intent(in)                        :: write_hour           !How often output is written to file
+      real(r8),intent(in)                      :: pool_C_start(nlevdecomp,pool_types)     ! For store and output final C pool sizes 
+      real(r8),intent(in)                      :: pool_N_start(nlevdecomp,pool_types+1)   ! For storing and output final N pool sizes [gN/m3] 
+      integer, intent(in)                       :: start_year !Forcing start year
+      integer, intent(in)                       :: stop_year !Forcing end year, i.e. forcing loops over interval start_year-stop_year
+      
+      !OUTPUT
+      real(r8),intent(out)                      :: pool_C_final(nlevdecomp,pool_types)     ! For store and output final C pool sizes 
+      real(r8),intent(out)                      :: pool_N_final(nlevdecomp,pool_types+1)   ! For storing and output final N pool sizes [gN/m3] 
+      
+      
+     !Shape of pool_matrixC/change_matrixC
+     !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc |
+     !|level1   1   2    3    4   5   6   7   8    9    10  |
+     !|level2                                               |
+     !| .                                                   |
+     !| .                                                   |
+     !|nlevdecomp __________________________________________|
 
+     !Shape of the pool_matrixN/change_matrixN
+     !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc IN|
+     !|level1   1   2    3    4   5   6   7   8    9    10  11|
+     !|level2                                                 |
+     !| .                                                     |
+     !| .                                                     |
+     !|nlevdecomp ____________________________________________|
+     
+      !LOCAL
       character (len=4)              :: year_fmt
       character (len=4)              :: year_char
       logical                        :: isVertical                           ! True if we use vertical soil layers.
@@ -52,24 +78,8 @@ module mycmim
       real(r8)                       :: sum_Cplant !g/m2
       real(r8)                       :: sum_Nplant !g/m2
 
-      real(r8)                       :: C_EcMinput,C_LITinput,N_DEPinput,N_LEACHinput
-
-
-     !Shape of pool_matrixC/change_matrixC
-     !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc |
-     !|level1   1   2    3    4   5   6   7   8    9    10  |
-     !|level2                                               |
-     !| .                                                   |
-     !| .                                                   |
-     !|nlevdecomp __________________________________________|
-
-     !Shape of the pool_matrixN/change_matrixN
-     !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc  IN|
-     !|level1   1   2    3    4   5   6   7   8    9    10   11|
-     !|level2                                                  |
-     !| .                                                      |
-     !| .                                                      |
-     !|nlevdecomp __________________________________________   |
+      real(r8)                       :: C_EcMinput,C_LITinput,N_DEPinput
+      real(r8)                       :: N_LEACHinput(nlevdecomp)
 
       real(r8)                       :: dt                            ! size of time step
       real(r8)                       :: time                          ! t*dt
@@ -86,6 +96,8 @@ module mycmim
       integer                        :: month_counter
       integer                        :: j,i,t              !for iterations
       integer,parameter              ::t_init=1
+      character (len=15)             :: file_suffix
+      integer                       :: input_steps
 
       real(r8)                       :: change_sum(nlevdecomp, pool_types)
 !      real(r8)                       :: vertN_change_sum(nlevdecomp, pool_types)
@@ -101,6 +113,12 @@ module mycmim
 
 
       dt= 1.0/step_frac !Setting the time step
+      
+      if (start_year < 1971) then 
+        file_suffix = "-02-01-00000.nc"
+      else
+        file_suffix = "-01-02-00000.nc"
+      end if
 
 
       if (nlevdecomp>1) then
@@ -123,7 +141,8 @@ module mycmim
       fAVAIL = 1-(fPHYS+fCHEM)
 
       !Set initial concentration values:
-      call initialize(pool_matrixC,pool_matrixN,CPlant,NPlant,nlevdecomp)
+      pool_matrixC=pool_C_start
+      pool_matrixN=pool_N_start
 
       !Make sure things start from zero
       change_matrixC = 0.0
