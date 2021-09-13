@@ -162,8 +162,6 @@ module mycmim
         counter  = counter + 1
         ycounter = ycounter + 1
         month_counter = month_counter + 1
-        NPlant_tstep = 0
-        CPlant_tstep =0
         !Update temp and moisture values monthly !TODO: Modify to accomodate for daily values also
         if (month_counter == days_in_month(current_month)*24) then
           if (current_month == 12) then
@@ -200,7 +198,7 @@ module mycmim
           tau = (/ 5e-4*exp(0.1*fMET)*r_moist(j), 5e-4*exp(0.1*fMET)*r_moist(j)/)
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
-          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN, CPlant, NPlant)
+          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
           call layer_dependent_fluxes(j,C_LITinput, C_EcMinput,N_LEACHinput,N_DEPinput,C_PlantLITm,C_PlantLITs,Deposition,Leaching,C_PlantEcM)
 
           ! if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
@@ -350,9 +348,9 @@ module mycmim
 
         if (ycounter == 365*24) then
           write_y =write_y+1
-          call annual_mean(sum_consC,sum_consN,sum_Cplant,sum_Nplant, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
-          if (year == 1920) then
-            year = 1900        
+          call annual_mean(sum_consC,sum_consN, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
+          if (year == stop_year) then
+            year = start_year        
           end if
           year = year + 1
           write (year_char,year_fmt) year

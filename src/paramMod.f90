@@ -97,9 +97,9 @@ N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc, N_ErMSOMp, N_ErMSOMa, N
 N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, N_LITmSAPf, N_LITsSAPf, N_SOMaEcM, N_SOMaErM,N_SOMaAM,&
 N_PlantLITs, N_PlantLITm, N_INPlant, N_INEcM, N_INErM, N_INAM, N_EcMPlant, N_ErMPlant, N_AMPlant, &
 N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc, N_SAPfIN, N_SAPbIN,&
-C_growth_rate, C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, Decomp_ecm, &
+C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, Decomp_ecm, &
 Decomp_erm, Decomp_am, Leaching, Deposition, C_PR, C_PS,N_PR, N_PS, Total_plant_mortality,f, U_sb, U_sf, CPlant,&
-NPlant, P_N, Plant_CN, CPlant_tstep, NPlant_tstep, growth_rate_sum
+NPlant, P_N, Plant_CN, CPlant_tstep, NPlant_tstep
 
 character (len=*),parameter                  :: clm_data_file = &
 '/home/ecaas/nird/NR31883_historical/lnd/hist/NR31883_historical.clm2.h0.'

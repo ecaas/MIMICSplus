@@ -30,12 +30,12 @@ module fluxMod
     V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
   end function Vmax_function
 
-  subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix, C_plant, N_plant) !This subroutine calculates the fluxes in and out of the SOM pools.
+  subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer         :: depth !depth level
     integer         :: nlevdecomp
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
     real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
-    real(r8)        :: C_plant, N_plant
+
 
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &

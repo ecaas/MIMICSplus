@@ -40,16 +40,13 @@ module writeMod
 
       end do
       call check(nf90_def_var(ncid, "N_inorganic", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid))
-      call check(nf90_def_var(ncid, "N_plant", NF90_DOUBle, (/t_dimid/),varid))
-      call check(nf90_def_var(ncid, "C_plant", NF90_DOUBle, (/t_dimid/),varid))
-      call check(nf90_def_var(ncid, "C_Growth_sum", NF90_DOUBle, (/t_dimid/),varid))
-      call check(nf90_def_var(ncid, "C_Growth_flux", NF90_DOUBle, (/t_dimid/),varid))
       call check(nf90_def_var(ncid,"HR_sum", NF90_DOUBLE, (/t_dimid /), varid ))
       call check(nf90_def_var(ncid,"HR_flux", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid, "Temp", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "Moisture", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "N_changeinorganic", NF90_DOUBLE,(/t_dimid, lev_dimid/), varid))
       call check(nf90_def_var(ncid, "N_InPlant", NF90_DOUBLE,(/t_dimid, lev_dimid/), varid))
+      
 
 
       do v = 1, size(C_name_fluxes)
@@ -218,8 +215,6 @@ module writeMod
       !Local:
       integer :: varid
 
-      call check(nf90_inq_varid(ncid, "C_Growth_flux", varid))
-      call check(nf90_put_var(ncid, varid, C_growth_rate, start = (/ timestep /)))
       call check(nf90_inq_varid(ncid, "C_PlantLITm", varid))
       call check(nf90_put_var(ncid, varid, C_PlantLITm, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "C_PlantLITs", varid))
@@ -372,8 +367,6 @@ module writeMod
       end do
 
       call check(nf90_def_var(ncid, "N_inorganic", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid))
-      call check(nf90_def_var(ncid, "C_Growth_sum", NF90_DOUBle, (/t_dimid/),varid))
-      call check(nf90_def_var(ncid, "C_Growth_flux", NF90_DOUBle, (/t_dimid/),varid))
       call check(nf90_def_var(ncid,"HR_sum", NF90_DOUBLE, (/t_dimid /), varid ))
       call check(nf90_def_var(ncid,"HR_flux", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid, "Temp", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
