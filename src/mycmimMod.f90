@@ -176,7 +176,7 @@ module mycmim
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
       call read_LEACHING(clm_data_file//'h1.'//year_char//file_suffix,nlevdecomp,1, N_LEACHinput)
       
-      call read_clay(clm_surface_file,fCLAY)
+      call read_clay(clm_surface_file,fCLAY,nlevdecomp)
       
       !open and prepare files to store results. Store initial values
       call create_yearly_mean_netcdf(run_name,nlevdecomp)
