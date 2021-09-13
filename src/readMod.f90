@@ -31,19 +31,22 @@ module readMod
         call check(nf90_close(ncid))
       end subroutine read_time
 
-      subroutine read_WATSAT(clm_history_file,WATSAT, nlevdecomp)
+      subroutine read_WATSAT(clm_history_file,WATSAT, nlevdecomp) !Needed bc. WATSAT is only given in the first outputfile of the simulation.
+        !INPUT
         integer,intent(in)            :: nlevdecomp
         character (len = *),intent(in):: clm_history_file
+        
+        !OUTPUT
         real(r8), intent(out),dimension(nlevdecomp)          :: WATSAT
+        
+        !LOCAL
         integer            :: ncid, WATSATid
-
-       call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
-
-       call check(nf90_inq_varid(ncid, 'WATSAT', WATSATid))
-       call check(nf90_get_var(ncid, WATSATid, WATSAT,count=(/1,nlevdecomp/)))
-       call check(nf90_close(ncid))
+        
+        call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
+        call check(nf90_inq_varid(ncid, 'WATSAT', WATSATid))
+        call check(nf90_get_var(ncid, WATSATid, WATSAT,count=(/1,nlevdecomp/)))
+        call check(nf90_close(ncid))
       end subroutine read_WATSAT
-
       
       subroutine read_clay(clm_surface_file,mean_clay_content) !Needed bc. WATSAT is only given in the first outputfile of the simulation.
         !INPUT
