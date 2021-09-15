@@ -66,10 +66,11 @@ module mycmim
       real(r8)                       :: pool_matrixC(nlevdecomp,pool_types)     ! For storing C pool sizes [gC/m3]
       real(r8)                       :: change_matrixC(nlevdecomp,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: pool_temporaryC(nlevdecomp,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
-
+      real(r8)                       :: pool_matrixC_previous(nlevdecomp,pool_types) !Used for checking mass conservation
       real(r8)                       :: pool_temporaryN(nlevdecomp,pool_types+1)! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
       real(r8)                       :: pool_matrixN(nlevdecomp,pool_types+1)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types+1) ! For storing dC/dt for each time step [gN/(m3*hour)]
+      
 
       real(r8)                       :: sum_consN(nlevdecomp, pool_types+1) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
@@ -81,7 +82,8 @@ module mycmim
       real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss
       real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion
       real(r8)                       :: tot_diffN,upperN,lowerN                 ! For the call to vertical_diffusion
-
+      real(r8)                       :: sum_input_step          ! Used for checking mass conservation
+      real(r8)                       :: sum_input_total         ! Used for checking mass conservation
       real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
       real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
 
@@ -145,7 +147,7 @@ module mycmim
       !Set initial concentration values:
       pool_matrixC=pool_C_start
       pool_matrixN=pool_N_start
-
+      pool_matrixC_previous = pool_C_start
       !Make sure things start from zero
       change_matrixC = 0.0
       change_matrixN = 0.0
@@ -154,6 +156,8 @@ module mycmim
       counter = 0
       ycounter = 0
       HR_mass_accumulated = 0
+      sum_input_step=0.0
+      sum_input_total=0.0
 
       year     = start_year
       year_fmt = '(I4)'
@@ -382,13 +386,14 @@ module mycmim
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t
           end if
+          
+          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+C_PlantEcM)*dt*delta_z(j)
 
         end do !j, depth_level
 
         !Store accumulated HR mass
         call respired_mass(HR, HR_mass,nlevdecomp)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
-
         if (isVertical) then
           call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC)
           call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN)
@@ -434,9 +439,13 @@ module mycmim
           pool_C_final=pool_matrixC
           pool_N_final=pool_matrixN        
         end if
-
+        
+        call test_mass_conservation(sum_input_step,HR_mass,pool_matrixC_previous,pool_matrixC,nlevdecomp,pool_types)
+        pool_matrixC_previous=pool_matrixC
+        sum_input_total=sum_input_total+sum_input_step
+        sum_input_step=0.0
       end do !t
-
+      call total_mass_conservation(sum_input_total,HR_mass_accumulated,pool_C_start,pool_C_final,nlevdecomp,pool_types)
     end subroutine decomp
 
   subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
