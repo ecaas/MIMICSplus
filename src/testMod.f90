@@ -120,11 +120,10 @@ contains
 
     sum_old = sum(mass_old)
     sum_new = sum(mass_new)
-    !sum_respiration = sum(mass_respiration) !Sum of all layers
-    !sum_input = sum(mass_input) 
 
     goal = sum_old + mass_input - mass_respiration
     diff = sum_new-goal
+    
     if (abs(diff) > 1e-4) then
       print*, '-----------------------------------------------------------'
       print*, '(mass at t+dt) - (mass at t + Input - respiration): ', diff
@@ -167,18 +166,57 @@ contains
 
     if (abs(diff) > 1e-4) then
       print*, 'Mass conservation is NOT fulfilled: '
-      print*, 'diff: ', diff
-      print*, 'sum of respired mass: ', sum_respiration
-      print*, 'sum of input: ', sum_input
-      print*, 'sum_old: ', sum_old, 'sum_new: ', sum_new
+
     else
       print*, 'Mass conservation is fulfilled (yay!): '
-      print*, 'diff: ', diff
-      print*, 'sum of respired mass: ', sum_respiration
-      print*, 'sum of input:  ', sum_input
-      print*, 'sum_old: ', sum_old, 'sum_new: ', sum_new      
     end if
+    print*, 'diff                : ', diff
+    print*, 'sum of respired mass: ', sum_respiration
+    print*, 'sum of input        : ', sum_input
+    print*, 'sum_old             : ', sum_old
+    print*, 'sum_new             : ', sum_new
   end subroutine total_mass_conservation
 
+  subroutine total_nitrogen_conservation(sum_input, sum_out, old, new,nlevdecomp,no_of_pools) !Checking that mass is conserved over the whole time period. tested and works.
+    !INPUT 
+    integer , intent(in)                                    :: nlevdecomp
+    integer , intent(in)                                    :: no_of_pools
+    real(r8),intent(in)                                     :: sum_out
+    real(r8),intent(in)                                     :: sum_input    
+    real(r8), intent(in), dimension(nlevdecomp, no_of_pools):: old
+    real(r8), intent(in), dimension(nlevdecomp, no_of_pools):: new
+    
+    !OUTPUT
+    
+    !LOCAL
+    real(r8), dimension(nlevdecomp, no_of_pools):: mass_old 
+    real(r8), dimension(nlevdecomp, no_of_pools):: mass_new
+    real(r8)                                    :: sum_old
+    real(r8)                                    :: sum_new 
+    real(r8)                                    :: diff
+    real(r8)                                    :: goal
+    
+    print*, sum_input,sum_out
+    call cons_to_mass(old, mass_old,nlevdecomp,no_of_pools)
+    call cons_to_mass(new, mass_new,nlevdecomp,no_of_pools)
+
+    sum_old = sum(mass_old)
+    sum_new = sum(mass_new)
+
+    goal = sum_old + sum_input - sum_out
+    diff = sum_new-goal
+
+    if (abs(diff) > 1e-4) then
+      print*, 'Mass conservation of N is NOT fulfilled: '
+
+    else
+      print*, 'Mass conservation of N is fulfilled (yay!): '
+    end if
+    print*, 'diff                : ', diff
+    print*, 'sum N out of system : ', sum_out
+    print*, 'sum of input        : ', sum_input
+    print*, 'sum_old             : ', sum_old
+    print*, 'sum_new             : ', sum_new
+  end subroutine total_nitrogen_conservation
 
 end module testMod

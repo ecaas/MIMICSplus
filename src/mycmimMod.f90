@@ -92,8 +92,13 @@ module mycmim
       real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss
       real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion
       real(r8)                       :: tot_diffN,upperN,lowerN                 ! For the call to vertical_diffusion
-      real(r8)                       :: sum_input_step          ! Used for checking mass conservation
-      real(r8)                       :: sum_input_total         ! Used for checking mass conservation
+      real(r8)                       :: sum_input_step         ! Used for checking mass conservation
+      real(r8)                       :: sum_input_total        ! Used for checking mass conservation
+      real(r8)                       :: sum_N_input_total
+      real(r8)                       :: sum_N_out_total
+      real(r8)                       :: sum_N_out_step
+      real(r8)                       :: sum_N_input_step       ! Used for checking mass conservation
+
       real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
       real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
 
@@ -160,6 +165,11 @@ module mycmim
       HR_mass_accumulated = 0
       sum_input_step =0.0
       sum_input_total=0.0
+      sum_N_input_step =0.0
+      sum_N_input_total=0.0
+      sum_N_out_step =0.0
+      sum_N_out_total=0.0
+      
 
       year     = start_year
       year_fmt = '(I4)'
@@ -400,7 +410,10 @@ module mycmim
             print*, 'Negative HR: ', HR(j), t
           end if
           
-          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+C_PlantEcM)*dt*delta_z(j)
+          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+C_PlantEcM)*dt*delta_z(j) !g/m2
+          
+          sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+Deposition)*dt*delta_z(j) !g/m2
+          sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_INPlant+Leaching)*dt*delta_z(j)
 
         end do !j, depth_level
 
@@ -459,8 +472,14 @@ module mycmim
         pool_matrixC_previous=pool_matrixC
         sum_input_total=sum_input_total+sum_input_step
         sum_input_step=0.0
+        sum_N_input_total=sum_N_input_total+sum_N_input_step  
+        sum_N_input_step=0.0
+        sum_N_out_total=sum_N_out_total+sum_N_out_step    
+        sum_N_out_step=0.0
       end do !t
+      
       call total_mass_conservation(sum_input_total,HR_mass_accumulated,pool_C_start,pool_C_final,nlevdecomp,pool_types)
+      call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total,pool_N_start,pool_N_final,nlevdecomp,pool_types_N)
     end subroutine decomp
 
   subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
