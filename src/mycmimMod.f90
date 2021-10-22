@@ -434,21 +434,28 @@ module mycmim
         !START Compute and write annual means
         sum_consN = sum_consN + pool_matrixN
         sum_consC = sum_consC + pool_matrixC
-
+        !print*, ycounter
         if (ycounter == 365*24) then
+          call check(nf90_close(ncid)) !Close netcdf file containing values for the past year
+          
           write_y =write_y+1
           call annual_mean(sum_consC,sum_consN, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
           if (year == stop_year) then
-            year = start_year        
-          end if
-          year = year + 1
+            year = start_year         
+          else 
+            year = year + 1             
+          end if          
+          day_counter=0
+          current_day=1
+          month_counter=0
+          current_month=1
           write (year_char,year_fmt) year
           call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
           call read_time(clm_input_path//'all.'//year_char//'.nc',input_steps)     
           ycounter = 0
           sum_consN =0
           sum_consC =0
-          print*, year
+
         end if
         !END Compute and write annual means
 
