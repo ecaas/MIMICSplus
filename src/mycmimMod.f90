@@ -24,7 +24,8 @@ module mycmim
 
 
   contains
-    subroutine decomp(nsteps, run_name,nlevdecomp,step_frac,write_hour,pool_C_start,pool_N_start,pool_C_final,pool_N_final,start_year,stop_year) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
+    subroutine decomp(nsteps, run_name,nlevdecomp,step_frac,write_hour,pool_C_start, &
+      pool_N_start,pool_C_final,pool_N_final,start_year,stop_year,clm_input_path,clm_surf_path) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
       !INPUT
       integer,intent(in)                        :: nsteps               ! number of time steps to iterate over
       character (len=*) ,intent(in)             :: run_name             ! used for naming outputfiles
@@ -35,6 +36,9 @@ module mycmim
       real(r8),intent(in)                      :: pool_N_start(nlevdecomp,pool_types+1)   ! For storing and output final N pool sizes [gN/m3] 
       integer, intent(in)                       :: start_year !Forcing start year
       integer, intent(in)                       :: stop_year !Forcing end year, i.e. forcing loops over interval start_year-stop_year
+      character (len=*) ,intent(in)             :: clm_input_path             ! file path for input
+      character (len=*) ,intent(in)             :: clm_surf_path            ! file path for surface data
+      
       
       !OUTPUT
       real(r8),intent(out)                      :: pool_C_final(nlevdecomp,pool_types)     ! For store and output final C pool sizes 
@@ -74,8 +78,14 @@ module mycmim
 
       real(r8)                       :: sum_consN(nlevdecomp, pool_types+1) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
-      real(r8)                       :: C_EcMinput,C_LITinput,N_DEPinput
+      real(r8)                       :: N_DEPinput
       real(r8)                       :: N_LEACHinput(nlevdecomp)
+      real(r8)                       :: C_EcMinput
+      real(r8)                       :: C_leaf_litter
+      real(r8)                       :: N_leaf_litter
+      real(r8)                       :: C_litterfall
+      real(r8)                       :: C_CWD_litter(nlevdecomp)
+      real(r8)                       :: N_CWD_litter(nlevdecomp)
 
       real(r8)                       :: dt                            ! size of time step
       real(r8)                       :: time                          ! t*dt
@@ -94,9 +104,7 @@ module mycmim
       integer                        :: day_counter
       integer                        :: current_month
       integer                        :: current_day
-      
-      
-      
+            
       integer                        :: j,i,t              !for iterations
       integer,parameter              ::t_init=1
       integer                        :: date
@@ -115,16 +123,10 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: W_SCALAR
       real(r8), dimension(nlevdecomp)          :: r_moist
 
+      integer :: ncid
 
       dt= 1.0/step_frac !Setting the time step
       
-      if (start_year < 1971) then 
-        file_suffix = "-02-01-00000.nc"
-      else
-        file_suffix = "-01-02-00000.nc"
-      end if
-
-
       if (nlevdecomp>1) then
         soil_depth=sum(delta_z(1:nlevdecomp))
         isVertical = .True.
@@ -169,19 +171,24 @@ module mycmim
       day_counter = 0
       
       write_y=0
-      
+
+      call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
       !Check if inputdata is daily or monthly:
-      call read_time(clm_data_file//'h0.'//year_char//file_suffix,input_steps)
+      call read_time(clm_input_path//'all.'//year_char//'.nc',input_steps)
       
-      !read temperature and moisture data from CLM file
-      call read_clmdata(clm_data_file//'h0.'//year_char//file_suffix,date,TSOIL,SOILLIQ,SOILICE,W_SCALAR,1, nlevdecomp)  
-      call read_clm_model_input(clm_data_file//'h0.'//year_char//file_suffix,C_LITinput,C_EcMinput,N_DEPinput, 1)  
-      call read_WATSAT(clm_data_file//'h0.'//"1901-02-01-00000.nc",WATSAT, nlevdecomp)
+      !data from CLM file
+      call read_clm_model_input(ncid,nlevdecomp,1, &
+                                C_litterfall,N_leaf_litter,C_EcMinput,N_DEPinput, &
+                                C_leaf_litter,date,TSOIL,SOILLIQ,SOILICE, &
+                                W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
+
+
+      call read_WATSAT(clm_input_path//'all.'//"1901.nc",WATSAT, nlevdecomp)
+  
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
-      call read_LEACHING(clm_data_file//'h1.'//year_char//file_suffix,nlevdecomp,1, N_LEACHinput)
-      
-      call read_clay(clm_surface_file,fCLAY,nlevdecomp)
-      
+    
+      call read_clay(clm_surf_path,fCLAY,nlevdecomp)
+  
       !open and prepare files to store results. Store initial values
       call create_yearly_mean_netcdf(run_name,nlevdecomp)
       call create_netcdf(run_name, nlevdecomp)
@@ -200,41 +207,44 @@ module mycmim
         ycounter = ycounter + 1
         month_counter = month_counter + 1
         day_counter = day_counter + 1
-        
-
-        !Update temp and moisture values monthly/daily 
-        if (input_steps==12) then
-          if (month_counter == days_in_month(current_month)*24) then
-            if (current_month == 12) then
-              current_month = 1
-            else
-              current_month = current_month + 1
-            end if      
-            month_counter = 0
-            call read_clmdata(clm_data_file//'h0.'//year_char//file_suffix,date,TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_month, nlevdecomp)
-            call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
-            call read_clm_model_input(clm_data_file//'h0.'//year_char//file_suffix,C_LITinput,C_EcMinput,N_DEPinput, current_month)
-            call read_LEACHING(clm_data_file//'h1.'//year_char//file_suffix,nlevdecomp,current_month, N_LEACHinput)
+        ! !Update temp and moisture values monthly/daily 
+        if (month_counter == days_in_month(current_month)*24+1) then
+            month_counter = 1
             
-          end if
-        elseif (input_steps==365) then
-          if (day_counter == 24) then
-            if (current_day == 365) then
-              current_day= 1
-            else
-              current_day = current_day + 1
-            end if      
-            day_counter = 0
-            call read_clmdata(clm_data_file//'h0.'//year_char//file_suffix,date,TSOIL,SOILLIQ,SOILICE,W_SCALAR,current_day, nlevdecomp)
-            call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
-            call read_clm_model_input(clm_data_file//'h0.'//year_char//file_suffix,C_LITinput,C_EcMinput,N_DEPinput, current_day)  
-            call read_LEACHING(clm_data_file//'h1.'//year_char//file_suffix,nlevdecomp,current_day, N_LEACHinput)
-          end if
-                    
-        else
-          print*, "Unvalid time step in input files: ", input_steps
-        end if !input_steps
+            if (current_month == 12) then
+              current_month=1 !Update to new year
+            else 
+              current_month = current_month + 1 
+            end if             
+             
+            if (input_steps==12) then   
+              call read_clm_model_input(ncid,nlevdecomp,current_month, &
+                                C_litterfall,N_leaf_litter,C_EcMinput,N_DEPinput, &
+                                C_leaf_litter,date,TSOIL,SOILLIQ,SOILICE, &
+                                W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)  
+              call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
+                                
+            end if    
+                                      
+        end if 
         
+        if (day_counter == 24+1) then
+          if ( current_day == 366 ) then
+            current_day = 1
+          else 
+            current_day = current_day +1            
+          end if          
+          if (input_steps==365) then
+            call read_clm_model_input(ncid,nlevdecomp,current_day, &
+            C_litterfall,N_leaf_litter,C_EcMinput,N_DEPinput, &
+            C_leaf_litter,date,TSOIL,SOILLIQ,SOILICE, &
+            W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
+            call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)            
+          end if        
+          day_counter = 1   
+        end if 
+      !  print*, time, current_month, current_day,day_counter,year_char,date,input_steps
+
         !print initial values to terminal
         if (t == 1) then
           call disp("InitC", pool_matrixC)
@@ -260,12 +270,15 @@ module mycmim
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
-          call layer_dependent_fluxes(j,C_LITinput, C_EcMinput,N_LEACHinput,N_DEPinput,C_PlantLITm,C_PlantLITs,Deposition,Leaching,C_PlantEcM)
-
-          ! if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
-          !  call fluxes_netcdf(int(time), write_hour, j, run_name)
-          ! end if !write fluxes
-
+          call input_rates(j,C_litterfall,C_leaf_litter,N_leaf_litter,&
+                                      C_EcMinput,N_LEACHinput,N_DEPinput,&
+                                      N_CWD_litter,C_CWD_litter,&
+                                      C_PlantLITm,C_PlantLITs, &
+                                      N_PlantLITm,N_PlantLITs, &
+                                      Deposition,Leaching,C_PlantEcM  )
+          if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
+           call fluxes_netcdf(int(time), write_hour, j, run_name)
+          end if !write fluxes
           do i = 1,pool_types + 1 !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
@@ -416,6 +429,8 @@ module mycmim
           end if
           year = year + 1
           write (year_char,year_fmt) year
+          call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
+          call read_time(clm_input_path//'all.'//year_char//'.nc',input_steps)     
           ycounter = 0
           sum_consN =0
           sum_consC =0

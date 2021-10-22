@@ -100,17 +100,8 @@ C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, Decomp_ecm, &
 Decomp_erm, Decomp_am, Leaching, Deposition, C_PR, C_PS,N_PR, N_PS, Total_plant_mortality,f, U_sb, U_sf, CPlant,&
 NPlant, P_N, Plant_CN, CPlant_tstep, NPlant_tstep
 
-character (len=*),parameter                  :: clm_data_file = &
-'/home/ecaas/nird/31767_Kongsvinger_historical/lnd/hist/31767_Kongsvinger_historical.clm2.'
-
-character (len=*),parameter                  :: clm_surface_file = &
-'/home/ecaas/nird/surface_files/31767_Kongsvinger/surfdata_31767_Kongsvinger_simyr2000.nc'
-
-!'/home/ecaas/nird/31767_Kongsvinger_historical/lnd/hist/31767_Kongsvinger_historical.clm2.'
-
-!'/home/ecaas/nird/32374_Saltdal_historical/lnd/hist/32374_Saltdal_historical.clm2.'
 !For writing to file:
-character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/vertical/'
+character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/sites/'
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
 character (len=4), dimension(pool_types)     :: variables = &
 (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
