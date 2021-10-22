@@ -375,7 +375,7 @@ module mycmim
             end if
             if (pool_temporaryN(j,i) < 0.000) then
               print*, 'Too small pool size: NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
-              !pool_temporaryN(j,i)=0.01
+              print*, count_occurences
               stop
             end if
 

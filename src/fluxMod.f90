@@ -2,7 +2,8 @@ module fluxMod
   use paramMod
   use dispmodule !External module to pretty print matrices (mainly for testing purposes)
   implicit none
-
+  integer :: count_occurences=0
+  
   contains
 
 
@@ -193,7 +194,7 @@ module fluxMod
       N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*N_EcM/C_EcM  !gN/m3h
     else
       N_EcMPlant = 0.0
-      print*,"N_EcMPlant is zero!"
+      count_occurences=count_occurences+1
     end if
 !    if ((N_INErM + N_SOMaErM) > e_m*C_PlantErM*N_ErM/C_ErM ) then
 !      N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*N_ErM/C_ErM  !gN/m3h
