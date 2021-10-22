@@ -295,13 +295,13 @@ module mycmim
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
 
             if (i==1) then !LITm
-              N_Gain = C_PlantLITm*pool_matrixN(j,i)/pool_matrixC(j,i)
+              N_Gain = N_PlantLITm
               N_Loss = N_LITmSAPb + N_LITmSAPf
               C_Gain = C_PlantLITm
               C_Loss = C_LITmSAPb + C_LITmSAPf
 
             elseif (i==2) then !LITs
-              N_Gain = C_PlantLITs*pool_matrixN(j,i)/pool_matrixC(j,i)
+              N_Gain = N_PlantLITs
               N_Loss = N_LITsSAPb + N_LITsSAPf
               C_Gain = C_PlantLITs
               C_Loss = C_LITsSAPb + C_LITsSAPf

@@ -48,7 +48,7 @@ module readMod
         call check(nf90_close(ncid))
       end subroutine read_WATSAT
       
-      subroutine read_clay(clm_surface_file,mean_clay_content, nlevdecomp) !Needed bc. WATSAT is only given in the first outputfile of the simulation.
+      subroutine read_clay(clm_surface_file,mean_clay_content, nlevdecomp)
         !INPUT
         character (len = *),intent(in):: clm_surface_file
         integer,intent(in)                       :: nlevdecomp
@@ -70,25 +70,23 @@ module readMod
 
       end subroutine read_clay
       
-      subroutine read_LEACHING(clm_history_file,nlevdecomp,time_entry,N_leach)!Needed bc. WATSAT is only given in the first outputfile of the simulation.
+      subroutine read_nlayers(clm_history_file, nlevels) 
         !INPUT
-        integer,intent(in)            :: nlevdecomp
-        integer,intent(in)            :: time_entry
         character (len = *),intent(in):: clm_history_file
         
         !OUTPUT
-        real(r8),intent(out)          :: N_leach(:)
+        integer, intent(out)         :: nlevels
         
         !LOCAL
-        integer            :: ncid, leachid
+        integer            :: ncid, nid
         
         call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
-        call check(nf90_inq_varid(ncid, 'SMIN_NO3_LEACHED_vr', leachid))
-
-        call check(nf90_get_var(ncid, leachid, N_leach, start=(/1,1,time_entry/),count=(/1,nlevdecomp,1/)))
-        N_leach=N_leach*sec_pr_hr !gN/(m3 s) to gN/(m3 h)
+        call check(nf90_inq_varid(ncid, 'nbedrock', nid))
+        call check(nf90_get_var(ncid, nid, nlevels))
         call check(nf90_close(ncid))
-      end subroutine read_LEACHING      
+      end subroutine read_nlayers      
+      
+                  
       subroutine read_clm_model_input(ncid, nlevdecomp,time_entry, &
                                       LITFALL, LEAFN_TO_LITTER, NPP_NACTIVE,NDEP_TO_SMINN, &
                                       LEAFC_TO_LITTER,mcdate,TSOI,SOILLIQ,SOILICE, &
