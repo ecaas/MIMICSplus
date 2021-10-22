@@ -3,17 +3,10 @@ module readMod
   use netcdf
   use dispmodule
   use paramMod
+  use writeMod, only : check
   implicit none
 
     contains
-
-      subroutine check(status)
-        integer, intent ( in) :: status
-        if(status /= nf90_noerr) then
-          print *, trim(nf90_strerror(status))
-          stop 2
-        end if
-      end subroutine check
       
       subroutine read_time(clm_history_file,steps)
         !INPUT
