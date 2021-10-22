@@ -16,6 +16,17 @@ module fluxMod
     !TODO: this works, but should not depend on Vmax & Km from mycmim mod
     flux = C_SAP*Vmax(MMK_nr)*C_SUBSTRATE/(Km(MMK_nr)+C_SUBSTRATE)
   end function MMK_flux
+  
+    function reverse_MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
+      !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
+      !NOTE: On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
+      real(r8):: flux ![gC/(m3 hr)]
+      real(r8), intent(in) :: C_SAP
+      real(r8), intent(in) :: C_SUBSTRATE
+      integer, intent (in) :: MMK_nr
+      !TODO: this works, but should not depend on Vmax & Km from mycmim mod
+      flux = C_SUBSTRATE*Vmax(MMK_nr)*C_SAP/(Km(MMK_nr)+C_SAP)
+    end function reverse_MMK_flux
 
   function Km_function(temperature) result(K_m)
     real(r8),dimension(MM_eqs)             :: K_m
