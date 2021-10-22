@@ -32,6 +32,7 @@ module fluxMod
     real(r8),dimension(MM_eqs)             :: K_m
     real(r8), intent(in)                   :: temperature
     K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
+    
   end function Km_function
 
   function Vmax_function(temperature, moisture) result(V_max)
@@ -46,7 +47,6 @@ module fluxMod
     integer         :: nlevdecomp
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
     real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
-
 
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
@@ -74,7 +74,6 @@ module fluxMod
     N_SOMc => N_pool_matrix(depth, 10)
     N_IN => N_pool_matrix(depth, 11)
 
-
     !------------------CARBON FLUXES----------------------------:
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
@@ -82,7 +81,6 @@ module fluxMod
     C_LITsSAPb=MMK_flux(C_SAPb,C_LITs,2)
     C_LITmSAPf=MMK_flux(C_SAPf,C_LITm,4)
     C_LITsSAPf=MMK_flux(C_SAPf,C_LITs,5)
-
     !Decomposition of SOMa by SAP. Based on the equations from SOMa to microbial pools in mimics.
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
     C_SOMaSAPb=MMK_flux(C_SAPb,C_SOMa,3)
@@ -188,7 +186,6 @@ module fluxMod
       N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*N_SAPf/C_SAPf
     else
       N_SAPfIN = 0.0
-
     end if
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:

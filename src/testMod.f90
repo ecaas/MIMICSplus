@@ -105,12 +105,14 @@ contains
     real(r8),intent(in)                                    :: mass_input !g/m2
     integer, intent(in)                                    :: nlevdecomp
     integer, intent(in)                                    :: no_of_pools
-    
-    
+
     !OUTPUT
     
     !LOCAL
-    real(r8) :: sum_old, sum_new, sum_respiration, sum_input, diff, goal
+    real(r8) :: sum_old
+    real(r8) :: sum_new
+    real(r8) :: diff
+    real(r8) :: goal
 
     real(r8), dimension(nlevdecomp, no_of_pools) :: mass_old, mass_new
     call cons_to_mass(old, mass_old,nlevdecomp,no_of_pools)
@@ -140,16 +142,16 @@ contains
     integer , intent(in)                                    :: no_of_pools
     real(r8),intent(in)                                     :: sum_respiration
     real(r8),intent(in)                                     :: sum_input    
-    real(r8), intent(in), dimension(nlevdecomp, no_of_pools) :: old
-    real(r8), intent(in), dimension(nlevdecomp, no_of_pools) :: new
+    real(r8), intent(in), dimension(nlevdecomp, no_of_pools):: old
+    real(r8), intent(in), dimension(nlevdecomp, no_of_pools):: new
+    
     !OUTPUT
     
     !LOCAL
-    real(r8), dimension(nlevdecomp, no_of_pools) :: mass_old 
-    real(r8), dimension(nlevdecomp, no_of_pools) :: mass_new
+    real(r8), dimension(nlevdecomp, no_of_pools):: mass_old 
+    real(r8), dimension(nlevdecomp, no_of_pools):: mass_new
     real(r8)                                    :: sum_old
     real(r8)                                    :: sum_new 
-
     real(r8)                                    :: diff
     real(r8)                                    :: goal
     

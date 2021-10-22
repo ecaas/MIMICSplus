@@ -153,19 +153,19 @@ module mycmim
       !Make sure things start from zero
       change_matrixC = 0.0
       change_matrixN = 0.0
-      HR            = 0.0
+      HR             = 0.0
       vertC_change_sum=0.0
-      counter = 0
+      counter  = 0
       ycounter = 0
       HR_mass_accumulated = 0
-      sum_input_step=0.0
+      sum_input_step =0.0
       sum_input_total=0.0
 
       year     = start_year
       year_fmt = '(I4)'
       write (year_char,year_fmt) year
       current_month = 1
-      current_day = 1
+      current_day   = 1
       
       month_counter = 0
       day_counter = 0
@@ -205,7 +205,7 @@ module mycmim
         time = t*dt
         counter  = counter + 1
         ycounter = ycounter + 1
-        month_counter = month_counter + 1
+        month_counter = month_counter + 1 !Counts hours in a month
         day_counter = day_counter + 1
         ! !Update temp and moisture values monthly/daily 
         if (month_counter == days_in_month(current_month)*24+1) then

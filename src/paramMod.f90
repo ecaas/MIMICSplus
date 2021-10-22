@@ -63,24 +63,17 @@ real(r8), parameter :: sec_pr_hr = 60*60        !For conversion
 real(r8), parameter :: hr_pr_yr = 365*24        !For conversion
 
 !From Baskaran et al 2016
-real(r8), parameter :: Km_plant = 0.6           ![gNm-2] Half saturation constant of plant uptake of inorganic N (called S_p in article)
 real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article)
-real(r8), parameter :: V_max_plant = 1.8/hr_pr_yr![g g-1 hr-1] Max plant root uptake of inorganic N (called K_pn in article)
 real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article)
-real(r8)  :: Leaching_rate = 3/hr_pr_yr          ![hr-1] Leaching rate
-real(r8)  :: Deposition_rate =3/hr_pr_yr         ![gNm-2hr-1] Deposition rate  NOTE: varied from 0.3-3 in article
-real(r8), parameter :: e_s = 0.25                !Growth efficiency of saprotrophs
-real(r8), parameter :: e_m = 0.25                !Growth efficiency of mycorrhiza NOTE: If efficiency is too high, SAPbIN will become negative bc.  e_s*U_sb/CN_ratio(3) will be too large. Problem??
+real(r8), parameter :: e_m = 0.25                !Growth efficiency of mycorrhiza 
+
 !Decomposition rates:
-real(r8), parameter :: K_SH = 0.006/hr_pr_yr ![m2gC-1hr-1] Saprotrophic decay rate constant for hydrolizable store. TODO: review these
-                        !NOTE: K_SH is not used in fluxMod!!
 real(r8), parameter :: K_MO = 0.0003/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
 !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
 real(r8), parameter                          :: P = 44.247 !normalization of moisture function
 real(r8)                                     :: gas_diffusion
 integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
-
 
 real(r8), parameter, dimension(10)   :: ndep_prof=(/19.87594,7.3622293,2.9769452,1.1087304,0.27191943,0.05029088,0.0,0.0,0.0,0.0/)
 real(r8), parameter, dimension(10)   :: litter_prof=(/6.25469,5.090693,3.633833,2.2859988,1.2048532,0.5035426,0.16965505,0.0470349,0.0,0.0/)
