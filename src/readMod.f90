@@ -65,7 +65,8 @@ module readMod
         call check(nf90_get_var(ncid, clayid, pct_clay, count=(/1,1,nlevdecomp/)))
         call check(nf90_close(ncid))
 
-        mean_clay_content = sum(pct_clay)/size(pct_clay)
+        mean_clay_content = (sum(pct_clay)/size(pct_clay))/100.0 !output as fraction
+        
 
       end subroutine read_clay
       
