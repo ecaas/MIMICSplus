@@ -278,36 +278,61 @@ module fluxMod
 
   end subroutine moisture_func
 
-  subroutine layer_dependent_fluxes(layer_nr,C_LITinput,C_EcMinput,N_LEACHinput,N_DEPinput, C_PlantLITm,C_PlantLITs,N_DEP,N_LEACH,C_PlantEcM)
+  subroutine input_rates(layer_nr,&
+                                  TOTC_LITFALL,LEAFC_TO_LIT,LEAFN_TO_LIT, &
+                                  C_EcMinput,N_LEACHinput,N_DEPinput,&
+                                  N_CWD,C_CWD, &
+                                  C_PlantLITm,C_PlantLITs,&
+                                  N_PlantLITm,N_PlantLITs,&
+                                  N_DEP,N_LEACH,C_PlantEcM)!, &
+                                  !N_IN)
     !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
     !in:
     integer,  intent(in) :: layer_nr
-    real(r8), intent(in) :: C_LITinput
+    real(r8), intent(in) :: TOTC_LITFALL
+    real(r8), intent(in) :: LEAFC_TO_LIT
+    real(r8), intent(in) :: LEAFN_TO_LIT  
     real(r8), intent(in) :: C_EcMinput
     real(r8), intent(in) :: N_LEACHinput(:)
     real(r8), intent(in) :: N_DEPinput
-
+    !real(r8), intent(in) :: N_IN
+    real(r8), intent(in) :: N_CWD(:)
+    real(r8), intent(in) :: C_CWD(:)
+    
     !out:
     real(r8), intent(out) :: C_PlantLITm
     real(r8), intent(out) :: C_PlantLITs
+    real(r8), intent(out) :: N_PlantLITm
+    real(r8), intent(out) :: N_PlantLITs
     real(r8), intent(out) :: N_DEP
     real(r8), intent(out) :: N_LEACH
     real(r8), intent(out) :: C_PlantEcM
 
     !local:
     real(r8),parameter :: myc_depth=sum(delta_z(2:))            !all except top layer
-    real(r8),parameter :: leaching_depth=sum(delta_z(2:))       !All except top layer
+    real(r8)           :: FROOTC_TO_LIT
+    real(r8)           :: totC_LIT_input
+    real(r8)           :: totN_LIT_input
     
-    C_PlantLITm=fMET*C_LITinput*litter_prof(layer_nr) !gC/m2h * 1/m
-    C_PlantLITs=(1-fMET)*C_LITinput*litter_prof(layer_nr) !gC/m2h * 1/m
-    N_DEP=N_DEPinput*ndep_prof(layer_nr)
-    N_LEACH = N_LEACHinput(layer_nr) !gN/m3h
+    
+    FROOTC_TO_LIT=TOTC_LITFALL-LEAFC_TO_LIT !NOTE: Assume that fine root litterfall can be calculated as clm variables LITFALL-LEAFC_TO_LITTER.
+    
+    totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr)  !gC/m3h TOTC_LITFALL/sum(delta_z(1:8)) !
+    C_PlantLITm=fMET* totC_LIT_input
+    C_PlantLITs=(1-fMET)*totC_LIT_input + C_CWD(layer_nr)
+    
+    totN_LIT_input = LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
+    N_PlantLITm=fMET*totN_LIT_input
+    N_PlantLITs=(1-fMET)*totN_LIT_input+ + N_CWD(layer_nr)
+    
+    N_DEP=N_DEPinput*ndep_prof(layer_nr) !gC/m2h / m
+    N_LEACH = N_DEP !gN/m3h N_DEPinput*ndep_prof(layer_nr)/N_IN
     if (layer_nr==1) then 
       C_PlantEcM = 0.0
     else
       C_PlantEcM = C_EcMinput/myc_depth
     end if
     !TODO: Figure out how to do mycorrhizal input vertically
-  end subroutine layer_dependent_fluxes
+  end subroutine input_rates
 
 end module fluxMod
