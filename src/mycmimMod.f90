@@ -193,8 +193,7 @@ module mycmim
                                 W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
 
 
-      call read_WATSAT(clm_input_path//'all.'//"1901.nc",WATSAT, nlevdecomp)
-  
+      call read_WATSAT_and_profiles(clm_input_path//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)  
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
     
       call read_clay(clm_surf_path,fCLAY,nlevdecomp)
