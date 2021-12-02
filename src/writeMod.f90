@@ -189,7 +189,10 @@ module writeMod
     subroutine get_timestep(time, write_hour, timestep)
       integer, intent(in) :: time
       integer, intent(in) :: write_hour !hours between every output-writing.
+      
       integer, intent(out):: timestep
+      
+      integer,parameter:: step_frac=10
 
       if (write_hour == 1) then
         timestep = time/write_hour
@@ -197,7 +200,7 @@ module writeMod
         if (time == 1) then
           timestep = 1
         else
-          timestep = time/write_hour+1 !NOTE: Del write_hour på step_frac hvis step_frac ikke er lik 1!
+          timestep = time/(write_hour)+1 
         end if
       end if
     end subroutine get_timestep
