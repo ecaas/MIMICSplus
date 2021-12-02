@@ -48,6 +48,8 @@ module fluxMod
     integer         :: nlevdecomp
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
     real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
+    !LOCAL:
+    real(r8)  :: N_for_sap
 
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
@@ -171,23 +173,6 @@ module fluxMod
     !Transport from SOMc to SOMa:
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
 
-    !"Leftover" N in saprotrophs. Given to inorganic pool to ensure constant C:N ratios:
-    f = 0.5    !NOTE: A fraction, f, of the C made available by myc is decomposed by SAPb, the rest by SAPf
-    U_sb = (C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb+f*(Decomp_ecm + &
-    Decomp_erm + Decomp_am))    !The saprotrophs decompose the carbon that is made more available when the mycorrhiza take N from SOM.
-    U_sf = (C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf+ (1-f)*(Decomp_ecm + &
-    Decomp_erm + Decomp_am))
-
-    if  ((N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) > e_s*U_sb*N_SAPb/C_SAPb )then
-      N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb*N_SAPb/C_SAPb
-    else
-      N_SAPbIN = 0.0
-    end if
-    if  ((N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf) > e_s*U_sf*N_SAPf/C_SAPf )then
-      N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*N_SAPf/C_SAPf
-    else
-      N_SAPfIN = 0.0
-    end if
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
     if ((N_INEcM + N_SOMaEcM) > e_m*C_PlantEcM*N_EcM/C_EcM ) then
@@ -208,6 +193,28 @@ module fluxMod
 !    end if
 
     nullify( C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
+    !Calculate amount of inorganic N saprotrophs have access to: 
+    N_for_sap  = N_IN + Deposition-Leaching - N_INPlant - N_INEcM
+
+    !total C uptake (growth + respiration) of saprotrophs
+    U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
+    U_sf = C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf
+
+    !Calculate SAP demand/excess of N (to ensure constant C:N ratio) 
+    N_SAPbIN = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) - CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
+    N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
+    
+    !If there is not enough inorganic N to fill SAP demand, decrease CUE:
+    do while (N_for_sap + N_SAPbIN+N_SAPfIN <0)
+      CUEmod_bacteria=0.9
+      CUEmod_fungi=0.9
+      CUE_bacteria_vr(depth)=CUE_bacteria_vr(depth)*CUEmod_bacteria
+      CUE_fungi_vr(depth)=CUE_fungi_vr(depth)*CUEmod_fungi
+      
+      N_SAPbIN = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) - CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
+      N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
+    end do 
+
   end subroutine calculate_fluxes
 
 
