@@ -424,8 +424,8 @@ module mycmim
         call respired_mass(HR, HR_mass,nlevdecomp)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
         if (isVertical) then
-          call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC)
-          call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN)
+          call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC,D_carbon)
+          call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN,D_nitrogen)
           pool_matrixC =  vertC*dt + pool_temporaryC
           pool_matrixN = vertN*dt + pool_temporaryN
         else

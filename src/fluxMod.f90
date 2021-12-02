@@ -211,12 +211,13 @@ module fluxMod
   end subroutine calculate_fluxes
 
 
-  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert) !This subroutine calculates the vertical transport of carbon through the soil layers.
+  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,D) !This subroutine calculates the vertical transport of carbon through the soil layers.
 
       real(r8), intent(in)   :: pool_matrix(:,:)
       real(r8), intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
       real(r8), intent(out)  :: tot_diffusion_dummy ![gC/h]
       real(r8), allocatable, intent(out)  :: vert(:,:)
+      real(r8), intent(in)   :: D
 
       !Local
       integer                :: depth, pool !For iteration
