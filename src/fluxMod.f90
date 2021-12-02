@@ -2,8 +2,7 @@ module fluxMod
   use paramMod
   use dispmodule !External module to pretty print matrices (mainly for testing purposes)
   implicit none
-  integer :: count_occurences=0
-  
+
   contains
 
 
@@ -76,6 +75,7 @@ module fluxMod
     N_SOMa => N_pool_matrix(depth, 9)
     N_SOMc => N_pool_matrix(depth, 10)
     N_IN => N_pool_matrix(depth, 11)
+    
 
     !------------------CARBON FLUXES----------------------------:
     !Decomposition of LIT by SAP:

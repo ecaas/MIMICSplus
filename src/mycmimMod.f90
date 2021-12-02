@@ -91,7 +91,7 @@ module mycmim
 
       real(r8)                       :: dt                            ! size of time step
       real(r8)                       :: time                          ! t*dt
-      real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss
+      real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss,N_exchange
       real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion
       real(r8)                       :: tot_diffN,upperN,lowerN                 ! For the call to vertical_diffusion
       real(r8)                       :: sum_input_step         ! Used for checking mass conservation
@@ -115,7 +115,6 @@ module mycmim
       integer                        :: j,i,t              !for iterations
       integer,parameter              ::t_init=1
       integer                        :: date
-      character (len=15)             :: file_suffix
       integer                       :: input_steps
 
       real(r8)                       :: change_sum(nlevdecomp, pool_types)
@@ -129,7 +128,9 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: WATSAT
       real(r8), dimension(nlevdecomp)          :: W_SCALAR
       real(r8), dimension(nlevdecomp)          :: r_moist
-
+      
+    
+      
       integer :: ncid
 
       dt= 1.0/step_frac !Setting the time step
@@ -261,7 +262,6 @@ module mycmim
           end if        
           day_counter = 1   
         end if 
-      !  print*, time, current_month, current_day,day_counter,year_char,date,input_steps
 
         !print initial values to terminal
         if (t == 1) then
@@ -378,33 +378,44 @@ module mycmim
               N_Loss = N_SOMcSOMa
 
             elseif (i == 11) then !Inorganic N
-              N_Gain = Deposition+ N_SAPbIN + N_SAPfIN
-              N_Loss = Leaching+N_INEcM + N_INErM + N_INAM + N_InPlant
-              change_matrixN(j,i) = N_Gain - N_loss
+              N_Gain = Deposition
+              N_exchange= N_SAPbIN + N_SAPfIN !N_exchange can act both as a sink and a source, depending on the SAP demand for N
+              N_Loss = Leaching + N_INEcM + N_InPlant !+ N_INErM + N_INAM 
+              change_matrixN(j,i) = N_Gain + N_exchange - N_loss 
+              ! print*, "Gain: ", Deposition, j,time
+              ! print*, "Loss: ", Leaching,N_INEcM,N_InPlant
+              ! print*, "Exchange: ", N_SAPbIN,N_SAPfIN
+              ! print*, change_matrixN(j,i), pool_matrixN(j,i)
+              ! print*, "-------------------------------------------------------------------------------------------------"
             else
               print*, 'Too many pool types expected, pool_types = ',pool_types, 'i: ', i
             end if !determine total gains and losses
-
+            
 
             if (i /= 11) then !Carbon matrix does only have 10 columns (if i == 11 this is handeled inside the loop over pools)
-                change_matrixC(j,i) = C_Gain - C_Loss
-                change_matrixN(j,i) = N_Gain - N_loss
+                change_matrixC(j,i) = C_Gain - C_Loss !net change in timestep
+                change_matrixN(j,i) = N_Gain - N_loss            
                 !For summarize total change between each written output
-                change_sum(j,i)= change_sum(j,i) + change_matrixC(j,i)*dt
+                !print*, change_sum(j,i) + change_matrixC(j,i)*dt
+                !change_sum(j,i)= change_sum(j,i) + change_matrixC(j,i)*dt
+                
                 !Store these values as temporary so that they can be used in the vertical diffusion subroutine
                 pool_temporaryC(j,i)=pool_matrixC(j,i) + change_matrixC(j,i)*dt
 
             end if
 
             pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt
-
+            !call disp("N change matrix;",change_matrixN) 
             if (isnan(pool_temporaryN(j,i))) then
               print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
               stop
             end if
             if (pool_temporaryN(j,i) < 0.000) then
               print*, 'Too small pool size: NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
-              print*, count_occurences
+              call disp(pool_temporaryN)
+              call disp(pool_temporaryC)
+              call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))
+              
               stop
             end if
 

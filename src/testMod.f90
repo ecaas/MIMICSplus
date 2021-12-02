@@ -196,7 +196,6 @@ contains
     real(r8)                                    :: diff
     real(r8)                                    :: goal
     
-    print*, sum_input,sum_out
     call cons_to_mass(old, mass_old,nlevdecomp,no_of_pools)
     call cons_to_mass(new, mass_new,nlevdecomp,no_of_pools)
 
