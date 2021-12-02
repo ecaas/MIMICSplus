@@ -148,6 +148,12 @@ module mycmim
       end if
 
 
+      
+      allocate(CUE_bacteria_vr(nlevdecomp))
+      allocate(CUE_fungi_vr(nlevdecomp))
+      CUE_fungi_vr=0.5
+      CUE_bacteria_vr=0.5
+      
       ! Fracions of SAP that goes to different SOM pools
       fPHYS = 0.3!(/ 0.3 * exp(fCLAY), 0.3 * exp(fCLAY) /)
       fCHEM =  0.3!(/0.1 * exp(-3.0*fMET), 0.1 * exp(-3.0*fMET) /)
@@ -208,7 +214,7 @@ module mycmim
       
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
                        date, HR_mass_accumulated,HR, change_matrixC,change_matrixN,write_hour,current_month, &
-                      TSOIL, r_moist,levsoi=nlevdecomp)
+                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,levsoi=nlevdecomp)
                       
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
       pscalar = 1.0/(2*exp(-2.0*dsqrt(fCLAY)))
@@ -279,7 +285,8 @@ module mycmim
           ![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
 
           tau = (/ 5e-4*exp(0.1*fMET)*r_moist(j), 5e-4*exp(0.1*fMET)*r_moist(j)/)
-          e_s = e_s_slope*TSOIL(j)+e_s0
+          CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
+          CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
@@ -301,27 +308,36 @@ module mycmim
               N_Loss = N_LITmSAPb + N_LITmSAPf
               C_Gain = C_PlantLITm
               C_Loss = C_LITmSAPb + C_LITmSAPf
-
+              
             elseif (i==2) then !LITs
               N_Gain = N_PlantLITs
               N_Loss = N_LITsSAPb + N_LITsSAPf
               C_Gain = C_PlantLITs
               C_Loss = C_LITsSAPb + C_LITsSAPf
 
-            elseif (i==3) then !SAPb
-            !TODO Sap: Check if MGE/efficiency still makes sense in the new setup.
-              C_Gain = e_s*(C_LITmSAPb + C_LITsSAPb &
-                + C_SOMaSAPb + 0.5*(Decomp_ecm + Decomp_erm + Decomp_am))
+            elseif (i==3) then !SAPb              
+              C_Gain = CUE_bacteria_vr(j)*(C_LITmSAPb + C_LITsSAPb &
+                + C_SOMaSAPb)
               C_Loss =  C_SAPbSOMp + C_SAPbSOMa + C_SAPbSOMc
               N_Gain = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb
-              N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMc + N_SAPbIN
+              N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMc
+              if ( N_SAPbIN<0 ) then
+                N_Gain = N_Gain - N_SAPbIN !two minus becomes +              
+              else
+                N_Loss=N_Loss+N_SAPbIN              
+              end if
 
             elseif (i==4) then !SAPf
-              C_Gain = e_s*(C_LITmSAPf + C_LITsSAPf &
-                + C_SOMaSAPf + 0.5*(Decomp_ecm + Decomp_erm + Decomp_am))
+              C_Gain = CUE_fungi_vr(j)*(C_LITmSAPf + C_LITsSAPf &
+                + C_SOMaSAPf)
               C_Loss =  C_SAPfSOMp + C_SAPfSOMa + C_SAPfSOMc
               N_Gain = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
-              N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMc + N_SAPfIN
+              N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMc
+              if ( N_SAPfIN<0 ) then
+                N_Gain = N_Gain - N_SAPfIN !two minus becomes +
+              else
+                N_Loss=N_Loss+N_SAPfIN
+              end if
 
             elseif (i==5) then !EcM
               C_Gain = e_m*C_PlantEcM
@@ -406,9 +422,9 @@ module mycmim
           end do !i, pool_types
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t: NOTE: revise!
-          HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb + C_LITmSAPf &
-          + C_LITsSAPf + C_SOMaSAPf+Decomp_ecm + Decomp_erm + Decomp_am)*(1-e_s) &
-          + (C_PlantEcM + C_PlantErM + C_PlantAM)*(1-e_m))*dt
+          HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j)) + (C_LITmSAPf &
+          + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j))+ &
+           (C_PlantEcM + C_PlantErM + C_PlantAM)*(1-e_m))*dt
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t
           end if
@@ -491,6 +507,8 @@ module mycmim
       call total_mass_conservation(sum_input_total,HR_mass_accumulated,pool_C_start,pool_C_final,nlevdecomp,pool_types)
       call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total,pool_N_start,pool_N_final,nlevdecomp,pool_types_N)
       deallocate(ndep_prof,leaf_prof,froot_prof)
+      deallocate(CUE_bacteria_vr,CUE_fungi_vr)
+      deallocate(count_occurences_EcM,count_occurences_SAPb,count_occurences_SAPf)
     end subroutine decomp
 
   subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)

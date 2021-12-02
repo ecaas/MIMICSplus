@@ -51,9 +51,17 @@ real(r8),dimension(10),parameter     :: delta_z = (/0.02, 0.04, 0.06, 0.08,0.12,
 real(r8),parameter                   :: D_carbon = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
 real(r8),parameter                   :: D_nitrogen = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
 
-real(r8)                             :: e_s
-real(r8),parameter                   :: e_s0=0.50
-real(r8),parameter                   :: e_s_slope=0.0!-0.016 !From German et al 2012
+
+real(r8),dimension(:),allocatable    :: CUE_bacteria_vr
+real(r8),dimension(:),allocatable    :: CUE_fungi_vr
+
+real(r8),parameter                   :: CUE_0=0.50
+real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
+real(r8)                             :: CUEmod_bacteria
+real(r8)                             :: CUEmod_fungi
+LOGICAL                              :: N_lim
+
+
 real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
                                                                                           !NOTE: Wallander/Rousk may have data more suited for Boreal/Arctic conditions
                                                                                           !EcM: From Baskaran et al as in Wallander et al 2004

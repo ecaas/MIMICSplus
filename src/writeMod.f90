@@ -42,6 +42,8 @@ module writeMod
       call check(nf90_def_var(ncid, "N_inorganic", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid,"HR_sum", NF90_DOUBLE, (/t_dimid /), varid ))
       call check(nf90_def_var(ncid,"HR_flux", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid,"CUEb", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid,"CUEf", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid, "Temp", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "Moisture", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "N_changeinorganic", NF90_DOUBLE,(/t_dimid, lev_dimid/), varid))
@@ -66,7 +68,7 @@ module writeMod
     end subroutine create_netcdf
 
     subroutine fill_netcdf(run_name, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, &
-      mcdate,HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, TSOIL, MOIST,levsoi)
+      mcdate,HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, TSOIL, MOIST,CUE_bacteria,CUE_fungi,levsoi)
       !INPUT:
       character (len = *),intent(in)   :: run_name
       real(r8), intent(in)             :: pool_matrix(levsoi,pool_types), Npool_matrix(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
@@ -81,6 +83,7 @@ module writeMod
       real(r8),intent(in)              :: HR_sum
       real(r8),dimension(levsoi), intent(in)       :: HR_flux
       real(r8),dimension(levsoi), intent(in)       :: TSOIL, MOIST  
+      real(r8),dimension(levsoi), intent(in)       :: CUE_bacteria,CUE_fungi
           
       !OUTPUT:
       
@@ -111,7 +114,13 @@ module writeMod
 
         call check(nf90_inq_varid(ncid, "HR_flux", varid))
         call check(nf90_put_var(ncid, varid, HR_flux(j), start = (/timestep, j/)))
-
+        
+        call check(nf90_inq_varid(ncid, "CUEb", varid))
+        call check(nf90_put_var(ncid, varid, CUE_bacteria(j), start = (/timestep, j/)))
+        
+        call check(nf90_inq_varid(ncid, "CUEf", varid))
+        call check(nf90_put_var(ncid, varid, CUE_fungi(j), start = (/timestep, j/)))
+        
         call check(nf90_inq_varid(ncid, "N_inorganic", varid))
         call check(nf90_put_var(ncid, varid, Npool_matrix(j,11), start = (/timestep, j/)))
 
