@@ -82,7 +82,9 @@ module mycmim
       real(r8)                       :: N_LEACHinput(nlevdecomp)
       real(r8)                       :: C_EcMinput
       real(r8)                       :: C_leaf_litter
+      real(r8)                       :: C_root_litter
       real(r8)                       :: N_leaf_litter
+      real(r8)                       :: N_root_litter
       real(r8)                       :: C_litterfall
       real(r8)                       :: C_CWD_litter(nlevdecomp)
       real(r8)                       :: N_CWD_litter(nlevdecomp)
@@ -181,15 +183,15 @@ module mycmim
       day_counter = 0
       
       write_y=0
-
       call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
       !Check if inputdata is daily or monthly:
+      
       call read_time(clm_input_path//'all.'//year_char//'.nc',input_steps)
       
       !data from CLM file
       call read_clm_model_input(ncid,nlevdecomp,1, &
-                                C_litterfall,N_leaf_litter,C_EcMinput,N_DEPinput, &
-                                C_leaf_litter,date,TSOIL,SOILLIQ,SOILICE, &
+                                C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
+                                C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
                                 W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
 
       allocate(ndep_prof(nlevdecomp),leaf_prof(nlevdecomp),froot_prof(nlevdecomp))   
@@ -230,11 +232,10 @@ module mycmim
              
             if (input_steps==12) then   
               call read_clm_model_input(ncid,nlevdecomp,current_month, &
-                                C_litterfall,N_leaf_litter,C_EcMinput,N_DEPinput, &
-                                C_leaf_litter,date,TSOIL,SOILLIQ,SOILICE, &
+                                C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
+                                C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
                                 W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)  
-              call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
-                                
+              call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)             
             end if    
                                       
         end if 
@@ -247,8 +248,8 @@ module mycmim
           end if          
           if (input_steps==365) then
             call read_clm_model_input(ncid,nlevdecomp,current_day, &
-            C_litterfall,N_leaf_litter,C_EcMinput,N_DEPinput, &
-            C_leaf_litter,date,TSOIL,SOILLIQ,SOILICE, &
+            C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
+            C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
             W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)            
           end if        
