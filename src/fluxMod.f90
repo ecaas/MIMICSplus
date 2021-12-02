@@ -2,7 +2,8 @@ module fluxMod
   use paramMod
   use dispmodule !External module to pretty print matrices (mainly for testing purposes)
   implicit none
-
+  integer :: count_occurences=0
+  
   contains
 
 
@@ -13,30 +14,40 @@ module fluxMod
     real(r8), intent(in) :: C_SAP
     real(r8), intent(in) :: C_SUBSTRATE
     integer, intent (in) :: MMK_nr
-
+    !TODO: this works, but should not depend on Vmax & Km from mycmim mod
     flux = C_SAP*Vmax(MMK_nr)*C_SUBSTRATE/(Km(MMK_nr)+C_SUBSTRATE)
   end function MMK_flux
+  
+    function reverse_MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
+      !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
+      !NOTE: On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
+      real(r8):: flux ![gC/(m3 hr)]
+      real(r8), intent(in) :: C_SAP
+      real(r8), intent(in) :: C_SUBSTRATE
+      integer, intent (in) :: MMK_nr
+      !TODO: this works, but should not depend on Vmax & Km from mycmim mod
+      flux = C_SUBSTRATE*Vmax(MMK_nr)*C_SAP/(Km(MMK_nr)+C_SAP)
+    end function reverse_MMK_flux
 
   function Km_function(temperature) result(K_m)
     real(r8),dimension(MM_eqs)             :: K_m
     real(r8), intent(in)                   :: temperature
     K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
+    
   end function Km_function
 
   function Vmax_function(temperature, moisture) result(V_max)
     real(r8),dimension(MM_eqs)             :: V_max
     real(r8), intent(in)                   :: temperature
     real(r8), intent(in)                   :: moisture
-    V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod!*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+    V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
   end function Vmax_function
 
-  subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix, C_plant, N_plant, isVert) !This subroutine calculates the fluxes in and out of the SOM pools.
+  subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer         :: depth !depth level
     integer         :: nlevdecomp
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
     real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
-    real(r8)        :: C_plant, N_plant
-    logical         :: isVert
 
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
@@ -64,32 +75,13 @@ module fluxMod
     N_SOMc => N_pool_matrix(depth, 10)
     N_IN => N_pool_matrix(depth, 11)
 
-
     !------------------CARBON FLUXES----------------------------:
-    !
-    ! !Plant Carbon to mycorrhiza: = delta*P_N*N_PS     !TODO: differentiate between the different mycorrhizae (By using myc specific gamma_rs?)
-    P_N = calc_PN(CPlant)
-    N_PS = N_plant/(1+ gamma_rs)         !N in plant shoots
-                                                   !NOTE: Divide by layer depth to distrubute input from plant between the layers.
-    C_PlantEcM = delta*P_N*N_PS/soil_depth
-
-    ! C_PlantErM = 0.0!delta*0.3*P_N*N_PS/delta_z(depth)    !gC/m3h  (?)
-    ! C_PlantAM = 0.0!delta*0.3*P_N*N_PS/delta_z(depth)
-    !
-     !Used to calculate litter production in flux subroutine:
-    Total_plant_mortality = calc_plant_mortality(CPlant) !gC/m2h
-    ! !Plant mortality/litter production:
-    C_PlantLITm = fMET*Total_plant_mortality/soil_depth     !gC/m2h
-    C_PlantLITs =(1-fMET)*Total_plant_mortality/soil_depth  !TODO: Blir det riktig a bruke fMET for a dele opp totalproduksjonen?
-    !
-
     !Decomposition of LIT by SAP:
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
     C_LITmSAPb=MMK_flux(C_SAPb,C_LITm,1)
     C_LITsSAPb=MMK_flux(C_SAPb,C_LITs,2)
     C_LITmSAPf=MMK_flux(C_SAPf,C_LITm,4)
     C_LITsSAPf=MMK_flux(C_SAPf,C_LITs,5)
-
     !Decomposition of SOMa by SAP. Based on the equations from SOMa to microbial pools in mimics.
     !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
     C_SOMaSAPb=MMK_flux(C_SAPb,C_SOMa,3)
@@ -140,17 +132,10 @@ module fluxMod
 
     !Inorganic N taken up directly by plant roots   !Unsure about units!
     N_InPlant = V_max_plant*N_in*(1-delta)*(CPlant/(CPlant + Km_plant/soil_depth)) !NOTE Changed from Baskaran: Use CPlant instead of C_plant shoot
-    !Deposition and leaching from the inorganic N pool
-    Deposition = Deposition_rate/soil_depth     !Unsure about units!
-    Leaching = Leaching_rate*N_in/soil_depth
-  !  print*, Deposition,Deposition_rate, Leaching, Leaching_rate
+
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
     N_INAM = 0.0!V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
-
-    !Plant mortality
-    N_PlantLITm = C_PlantLITm*N_Plant/C_Plant
-    N_PlantLITs = C_PlantLITs*N_Plant/C_Plant
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
@@ -202,7 +187,6 @@ module fluxMod
       N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*N_SAPf/C_SAPf
     else
       N_SAPfIN = 0.0
-
     end if
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
@@ -210,7 +194,7 @@ module fluxMod
       N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*N_EcM/C_EcM  !gN/m3h
     else
       N_EcMPlant = 0.0
-      print*,"N_EcMPlant is zero!"
+      count_occurences=count_occurences+1
     end if
 !    if ((N_INErM + N_SOMaErM) > e_m*C_PlantErM*N_ErM/C_ErM ) then
 !      N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*N_ErM/C_ErM  !gN/m3h
@@ -268,52 +252,11 @@ module fluxMod
 
   end subroutine vertical_diffusion
 
-  function calc_PN(C_plant) result(productivity)
-    real(r8), intent(in) :: C_plant
-    real(r8)             :: productivity
-    P_N =  a-b*(C_plant/(1+ gamma_rs)) !Plant N productivity (as in Baskaran 2016, eq (12))
-
-  end function calc_PN
-
-  function calc_plant_growth_rate(C_plant, N_plant) result(growth_rate)
-    real(r8), intent(in) :: C_plant
-    real(r8), intent(in) :: N_plant
-    real(r8)             :: growth_rate
-
-    !Local
-    real(r8) :: C_PR,C_PS,N_PR,N_PS
-    real(r8) :: P_N
-    C_PR = gamma_rs*C_Plant/(1+gamma_rs) !Carbon in plant roots (Baskaran et al)
-    C_PS = C_plant/(1+ gamma_rs)         !Carbon in plant shoots
-    N_PR = gamma_rs*N_Plant/(1+gamma_rs) !N in plant roots
-    N_PS = N_plant/(1+ gamma_rs)         !N in plant shoots
-
-    P_N = calc_PN(C_plant)
-    if (P_N < 0) then
-      print*, "P_N < 0: ", P_N
-      P_N = 0
-    end if
-    !Plant growth rate
-    growth_rate = (1-delta)*P_N*N_PS                !NOTE Usikker paa enheter her
-  end function calc_plant_growth_rate
-
-  function calc_plant_mortality(C_plant) result(Total_mortality)
-      real(r8), intent(in) :: C_Plant
-      real(r8)             :: Total_mortality
-        !Used to calculate litter production in flux subroutine:
-        Total_mortality = (my_shoot + gamma_rs*my_root)*(C_plant/(1+gamma_rs))!gC/m2h
-
-  end function calc_plant_mortality
-
-
   subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist,nlevdecomp) !NOTE: Should maybe be placed somewhere else?
     integer :: nlevdecomp
     real(r8), intent(out), dimension(nlevdecomp) :: r_moist
     real(r8), intent(in), dimension(nlevdecomp)  :: theta_l, theta_sat, theta_f
     real(r8), dimension(nlevdecomp)  :: theta_frzn, theta_liq, air_filled_porosity
-
-
-
       !FROM mimics_cycle.f90 in testbed:
       ! ! Read in soil moisture data as in CORPSE
       !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
@@ -334,4 +277,62 @@ module fluxMod
     r_moist = max(0.05, r_moist)
 
   end subroutine moisture_func
+
+  subroutine input_rates(layer_nr,&
+                                  TOTC_LITFALL,LEAFC_TO_LIT,LEAFN_TO_LIT, &
+                                  C_EcMinput,N_LEACHinput,N_DEPinput,&
+                                  N_CWD,C_CWD, &
+                                  C_PlantLITm,C_PlantLITs,&
+                                  N_PlantLITm,N_PlantLITs,&
+                                  N_DEP,N_LEACH,C_PlantEcM)!, &
+                                  !N_IN)
+    !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
+    !in:
+    integer,  intent(in) :: layer_nr
+    real(r8), intent(in) :: TOTC_LITFALL
+    real(r8), intent(in) :: LEAFC_TO_LIT
+    real(r8), intent(in) :: LEAFN_TO_LIT  
+    real(r8), intent(in) :: C_EcMinput
+    real(r8), intent(in) :: N_LEACHinput(:)
+    real(r8), intent(in) :: N_DEPinput
+    !real(r8), intent(in) :: N_IN
+    real(r8), intent(in) :: N_CWD(:)
+    real(r8), intent(in) :: C_CWD(:)
+    
+    !out:
+    real(r8), intent(out) :: C_PlantLITm
+    real(r8), intent(out) :: C_PlantLITs
+    real(r8), intent(out) :: N_PlantLITm
+    real(r8), intent(out) :: N_PlantLITs
+    real(r8), intent(out) :: N_DEP
+    real(r8), intent(out) :: N_LEACH
+    real(r8), intent(out) :: C_PlantEcM
+
+    !local:
+    real(r8),parameter :: myc_depth=sum(delta_z(2:))            !all except top layer
+    real(r8)           :: FROOTC_TO_LIT
+    real(r8)           :: totC_LIT_input
+    real(r8)           :: totN_LIT_input
+    
+    
+    FROOTC_TO_LIT=TOTC_LITFALL-LEAFC_TO_LIT !NOTE: Assume that fine root litterfall can be calculated as clm variables LITFALL-LEAFC_TO_LITTER.
+    
+    totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr)  !gC/m3h TOTC_LITFALL/sum(delta_z(1:8)) !
+    C_PlantLITm=fMET* totC_LIT_input
+    C_PlantLITs=(1-fMET)*totC_LIT_input + C_CWD(layer_nr)
+    
+    totN_LIT_input = LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
+    N_PlantLITm=fMET*totN_LIT_input
+    N_PlantLITs=(1-fMET)*totN_LIT_input+ + N_CWD(layer_nr)
+    
+    N_DEP=N_DEPinput*ndep_prof(layer_nr) !gC/m2h / m
+    N_LEACH = N_DEP !gN/m3h N_DEPinput*ndep_prof(layer_nr)/N_IN
+    if (layer_nr==1) then 
+      C_PlantEcM = 0.0
+    else
+      C_PlantEcM = C_EcMinput/myc_depth
+    end if
+    !TODO: Figure out how to do mycorrhizal input vertically
+  end subroutine input_rates
+
 end module fluxMod
