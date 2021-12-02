@@ -24,22 +24,35 @@ module readMod
         call check(nf90_close(ncid))
       end subroutine read_time
 
-      subroutine read_WATSAT(clm_history_file,WATSAT, nlevdecomp) !Needed bc. WATSAT is only given in the first outputfile of the simulation.
+      subroutine read_WATSAT_and_profiles(clm_history_file,WATSAT,NDEP_PROF,FROOT_PROF,LEAF_PROF, nlevdecomp) !Needed bc. WATSAT is only given in the first outputfile of the simulation.
         !INPUT
         integer,intent(in)            :: nlevdecomp
-        character (len = *),intent(in):: clm_history_file
-        
+        character (len = *),intent(in):: clm_history_file        
         !OUTPUT
         real(r8), intent(out),dimension(nlevdecomp)          :: WATSAT
-        
+        real(r8), intent(out),dimension(nlevdecomp)          :: NDEP_PROF
+        real(r8), intent(out),dimension(nlevdecomp)          :: FROOT_PROF
+        real(r8), intent(out),dimension(nlevdecomp)          :: LEAF_PROF
+     
         !LOCAL
-        integer            :: ncid, WATSATid
+        integer            :: ncid, varid
+
+        
+        !allocate(NDEP_PROF(nlevdecomp),LEAF_PROF(nlevdecomp),FROOT_PROF(nlevdecomp))
         
         call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
-        call check(nf90_inq_varid(ncid, 'WATSAT', WATSATid))
-        call check(nf90_get_var(ncid, WATSATid, WATSAT,count=(/1,nlevdecomp/)))
+        call check(nf90_inq_varid(ncid, 'WATSAT', varid))
+        call check(nf90_get_var(ncid, varid, WATSAT,count=(/1,nlevdecomp/)))
+        
+        call check(nf90_inq_varid(ncid, 'LEAF_PROF', varid))
+        call check(nf90_get_var(ncid, varid, LEAF_PROF,count=(/1,nlevdecomp/)))       
+        call check(nf90_inq_varid(ncid, 'FROOT_PROF', varid))
+        call check(nf90_get_var(ncid, varid, FROOT_PROF,count=(/1,nlevdecomp/))) 
+        call check(nf90_inq_varid(ncid, 'NDEP_PROF', varid))
+        call check(nf90_get_var(ncid, varid, NDEP_PROF,count=(/1,nlevdecomp/))) 
+        
         call check(nf90_close(ncid))
-      end subroutine read_WATSAT
+      end subroutine read_WATSAT_and_profiles
       
       subroutine read_clay(clm_surface_file,mean_clay_content, nlevdecomp)
         !INPUT

@@ -192,10 +192,11 @@ module mycmim
                                 C_leaf_litter,date,TSOIL,SOILLIQ,SOILICE, &
                                 W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
 
-
-      call read_WATSAT(clm_input_path//'all.'//"1901.nc",WATSAT, nlevdecomp)
-  
-      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
+      allocate(ndep_prof(nlevdecomp),leaf_prof(nlevdecomp),froot_prof(nlevdecomp))   
+         
+      call read_WATSAT_and_profiles(clm_input_path//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)  
+      
+      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)               
     
       call read_clay(clm_surf_path,fCLAY,nlevdecomp)
   
@@ -488,6 +489,7 @@ module mycmim
       
       call total_mass_conservation(sum_input_total,HR_mass_accumulated,pool_C_start,pool_C_final,nlevdecomp,pool_types)
       call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total,pool_N_start,pool_N_final,nlevdecomp,pool_types_N)
+      deallocate(ndep_prof,leaf_prof,froot_prof)
     end subroutine decomp
 
   subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)

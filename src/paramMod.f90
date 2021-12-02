@@ -77,9 +77,9 @@ real(r8), parameter                          :: P = 44.247 !normalization of moi
 real(r8)                                     :: gas_diffusion
 integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
 
-real(r8), parameter, dimension(10)   :: ndep_prof=(/19.87594,7.3622293,2.9769452,1.1087304,0.27191943,0.05029088,0.0,0.0,0.0,0.0/)
-real(r8), parameter, dimension(10)   :: leaf_prof=(/19.87594,7.3622293,2.9769452,1.1087304,0.27191943,0.05029088,0.0,0.0,0.0,0.0/)
-real(r8), parameter, dimension(10)   :: froot_prof=(/6.25469,5.090693,3.633833,2.2859988,1.2048532,0.5035426,0.16965505,0.0470349,0.0,0.0/)
+real(r8),dimension(:),allocatable  :: ndep_prof
+real(r8),dimension(:),allocatable  :: leaf_prof
+real(r8),dimension(:),allocatable  :: froot_prof
 
 real(r8)                                     :: Loss_termN, Loss_termC, Loss_termNP, Loss_termCP, Plant_gainN,&
                                                 Plant_GainC, Plant_lossN, Plant_lossC, a_NPlant, a_CPlant
