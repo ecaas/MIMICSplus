@@ -111,14 +111,14 @@ character (len=*), dimension(pool_types),parameter:: an_variables = &
 &(/  "anLITm", "anLITs", "anSAPb","anSAPf", "anEcM ", "anErM ", "anAM  ", "anSOMp", "anSOMa", "anSOMc" /)
 character (len=*), dimension(*), parameter ::  C_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
-  "EcMSAPb ", "EcMSAPf ","ErMSAPb ","ErMSAPf ", "AMSAPb  ","AMSAPf  ","EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
+  "EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
   "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
   ,"PlantLITs","PlantEcM","PlantErM","PlantAM"]
 
 character (len=*), dimension(*), parameter ::  N_name_fluxes = &
-[character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
-  "EcMSAPb ", "EcMSAPf ","ErMSAPb ","ErMSAPf ", "AMSAPb  ","AMSAPf  ","EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
-  "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
+[character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc" &
+  ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
+  "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMaEcM","SOMpSOMa","SOMcSOMa","PlantLITm" &
   ,"PlantLITs","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
   "SAPbIN", "SAPfIN"]
 
