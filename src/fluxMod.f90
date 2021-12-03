@@ -2,8 +2,7 @@ module fluxMod
   use paramMod
   use dispmodule !External module to pretty print matrices (mainly for testing purposes)
   implicit none
-  integer :: count_occurences=0
-  
+
   contains
 
 
@@ -48,6 +47,8 @@ module fluxMod
     integer         :: nlevdecomp
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
     real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
+    !LOCAL:
+    real(r8)  :: N_for_sap
 
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
@@ -74,6 +75,7 @@ module fluxMod
     N_SOMa => N_pool_matrix(depth, 9)
     N_SOMc => N_pool_matrix(depth, 10)
     N_IN => N_pool_matrix(depth, 11)
+    
 
     !------------------CARBON FLUXES----------------------------:
     !Decomposition of LIT by SAP:
@@ -127,12 +129,12 @@ module fluxMod
     !-----------------------------------NITROGEN FLUXES----------------------------:
     !Nitrogen aquired bymycorrhiza via oxidation of SOMa  gN/m3h
     N_SOMaEcM = Decomp_ecm*N_SOMa/C_SOMa
-    N_SOMaErM = Decomp_erm*N_SOMa/C_SOMa
-    N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa
+    N_SOMaErM = 0.0!Decomp_erm/CN_ratio(9)!*N_SOMa/C_SOMa
+    N_SOMaAM  = 0.0!Decomp_am/CN_ratio(9)!*N_SOMa/C_SOMa
 
-    !Inorganic N taken up directly by plant roots   !Unsure about units!
-    N_InPlant = V_max_plant*N_in*(1-delta)*(CPlant/(CPlant + Km_plant/soil_depth)) !NOTE Changed from Baskaran: Use CPlant instead of C_plant shoot
-
+    !Inorganic N taken up directly by plant roots
+    N_InPlant = 0.0!4E-7*N_IN
+    
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
     N_INAM = 0.0!V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
@@ -171,52 +173,58 @@ module fluxMod
     !Transport from SOMc to SOMa:
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
 
-    !"Leftover" N in saprotrophs. Given to inorganic pool to ensure constant C:N ratios:
-    f = 0.5    !NOTE: A fraction, f, of the C made available by myc is decomposed by SAPb, the rest by SAPf
-    U_sb = (C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb+f*(Decomp_ecm + &
-    Decomp_erm + Decomp_am))    !The saprotrophs decompose the carbon that is made more available when the mycorrhiza take N from SOM.
-    U_sf = (C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf+ (1-f)*(Decomp_ecm + &
-    Decomp_erm + Decomp_am))
 
-    if  ((N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) > e_s*U_sb*N_SAPb/C_SAPb )then
-      N_SAPbIN = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb - e_s*U_sb*N_SAPb/C_SAPb
-    else
-      N_SAPbIN = 0.0
-    end if
-    if  ((N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf) > e_s*U_sf*N_SAPf/C_SAPf )then
-      N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - e_s*U_sf*N_SAPf/C_SAPf
-    else
-      N_SAPfIN = 0.0
-    end if
-
+    !Leaching based on Baskaran et al leaching rate:
+    Leaching=L_rate*N_IN!N_LEACHinput(layer_nr)
+    Deposition=100/(hr_pr_yr*soil_depth)
+    
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    if ((N_INEcM + N_SOMaEcM) > e_m*C_PlantEcM*N_EcM/C_EcM ) then
-      N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*N_EcM/C_EcM  !gN/m3h
-    else
+    N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM/CN_ratio(5)  !gN/m3h
+    if ( N_EcMPlant .LT. 0.) then
       N_EcMPlant = 0.0
-      count_occurences=count_occurences+1
     end if
-!    if ((N_INErM + N_SOMaErM) > e_m*C_PlantErM*N_ErM/C_ErM ) then
-!      N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*N_ErM/C_ErM  !gN/m3h
-!    else
-      N_ErMPlant = 0.0
-!    end if
-!    if ((N_INAM + N_SOMaAM) > e_m*C_PlantAM*N_AM/C_AM  ) then
-!      N_AMPlant = N_INAM + N_SOMaAM - e_m*C_PlantAM/*N_AM/C_AM  !gN/m3h
-!    else
-      N_AMPlant = 0.0
-!    end if
+    !NOTE: If there is insufficient N to supply both the plant and EcM itself, set it to zero
 
-    nullify( C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
+
+    N_ErMPlant = 0.0
+    N_AMPlant = 0.0
+
+    !Calculate amount of inorganic N saprotrophs have access to: 
+    N_for_sap  = N_IN + Deposition-Leaching - N_INPlant - N_INEcM
+
+    !total C uptake (growth + respiration) of saprotrophs
+    U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
+    U_sf = C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf
+
+    !Calculate SAP demand/excess of N (to ensure constant C:N ratio) 
+    N_SAPbIN = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) - CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
+    N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
+    
+    !If there is not enough inorganic N to fill SAP demand, decrease CUE:
+    do while (N_for_sap + N_SAPbIN+N_SAPfIN <0)
+      CUEmod_bacteria=0.9
+      CUEmod_fungi=0.9
+      CUE_bacteria_vr(depth)=CUE_bacteria_vr(depth)*CUEmod_bacteria
+      CUE_fungi_vr(depth)=CUE_fungi_vr(depth)*CUEmod_fungi
+      
+      N_SAPbIN = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) - CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
+      N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
+    end do 
+
+    
+    nullify( C_LITm,C_LITs,C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
+    nullify( N_LITm,N_LITs,N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb,N_SAPf,N_IN)
+    
   end subroutine calculate_fluxes
 
 
-  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert) !This subroutine calculates the vertical transport of carbon through the soil layers.
+  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,D) !This subroutine calculates the vertical transport of carbon through the soil layers.
 
       real(r8), intent(in)   :: pool_matrix(:,:)
       real(r8), intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
       real(r8), intent(out)  :: tot_diffusion_dummy ![gC/h]
       real(r8), allocatable, intent(out)  :: vert(:,:)
+      real(r8), intent(in)   :: D
 
       !Local
       integer                :: depth, pool !For iteration
@@ -279,23 +287,24 @@ module fluxMod
   end subroutine moisture_func
 
   subroutine input_rates(layer_nr,&
-                                  TOTC_LITFALL,LEAFC_TO_LIT,LEAFN_TO_LIT, &
+                                  TOTC_LITFALL,LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,FROOTN_TO_LIT, &
                                   C_EcMinput,N_LEACHinput,N_DEPinput,&
                                   N_CWD,C_CWD, &
                                   C_PlantLITm,C_PlantLITs,&
                                   N_PlantLITm,N_PlantLITs,&
-                                  N_DEP,N_LEACH,C_PlantEcM)!, &
-                                  !N_IN)
+                                  N_DEP,N_LEACH,C_PlantEcM)
+
     !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
     !in:
     integer,  intent(in) :: layer_nr
     real(r8), intent(in) :: TOTC_LITFALL
     real(r8), intent(in) :: LEAFC_TO_LIT
-    real(r8), intent(in) :: LEAFN_TO_LIT  
+    real(r8), intent(in) :: FROOTC_TO_LIT
+    real(r8), intent(in) :: LEAFN_TO_LIT
+    real(r8), intent(in) :: FROOTN_TO_LIT    
     real(r8), intent(in) :: C_EcMinput
     real(r8), intent(in) :: N_LEACHinput(:)
     real(r8), intent(in) :: N_DEPinput
-    !real(r8), intent(in) :: N_IN
     real(r8), intent(in) :: N_CWD(:)
     real(r8), intent(in) :: C_CWD(:)
     
@@ -309,29 +318,20 @@ module fluxMod
     real(r8), intent(out) :: C_PlantEcM
 
     !local:
-    real(r8),parameter :: myc_depth=sum(delta_z(2:))            !all except top layer
-    real(r8)           :: FROOTC_TO_LIT
     real(r8)           :: totC_LIT_input
     real(r8)           :: totN_LIT_input
+
+    totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !+ mortality*froot_prof(layer_nr) !gC/m3h 
+    C_PlantLITm   = fMET*totC_LIT_input
+    C_PlantLITs   = (1-fMET)*totC_LIT_input + C_CWD(layer_nr)
     
-    
-    FROOTC_TO_LIT=TOTC_LITFALL-LEAFC_TO_LIT !NOTE: Assume that fine root litterfall can be calculated as clm variables LITFALL-LEAFC_TO_LITTER.
-    
-    totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr)  !gC/m3h TOTC_LITFALL/sum(delta_z(1:8)) !
-    C_PlantLITm=fMET* totC_LIT_input
-    C_PlantLITs=(1-fMET)*totC_LIT_input + C_CWD(layer_nr)
-    
-    totN_LIT_input = LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
-    N_PlantLITm=fMET*totN_LIT_input
-    N_PlantLITs=(1-fMET)*totN_LIT_input+ + N_CWD(layer_nr)
-    
-    N_DEP=N_DEPinput*ndep_prof(layer_nr) !gC/m2h / m
-    N_LEACH = N_DEP !gN/m3h N_DEPinput*ndep_prof(layer_nr)/N_IN
-    if (layer_nr==1) then 
-      C_PlantEcM = 0.0
-    else
-      C_PlantEcM = C_EcMinput/myc_depth
-    end if
+    totN_LIT_input = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
+    N_PlantLITm    = fMET*totN_LIT_input
+    N_PlantLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)
+
+    N_DEP=100/(hr_pr_yr*soil_depth)!N_DEPinput/myc_depth!*ndep_prof(layer_nr) !gC/m2h / m
+
+    C_PlantEcM = (C_EcMinput*froot_prof(layer_nr))
     !TODO: Figure out how to do mycorrhizal input vertically
   end subroutine input_rates
 

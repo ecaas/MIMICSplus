@@ -42,6 +42,8 @@ module writeMod
       call check(nf90_def_var(ncid, "N_inorganic", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid,"HR_sum", NF90_DOUBLE, (/t_dimid /), varid ))
       call check(nf90_def_var(ncid,"HR_flux", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid,"CUEb", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid,"CUEf", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid, "Temp", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "Moisture", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "N_changeinorganic", NF90_DOUBLE,(/t_dimid, lev_dimid/), varid))
@@ -66,7 +68,7 @@ module writeMod
     end subroutine create_netcdf
 
     subroutine fill_netcdf(run_name, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, &
-      mcdate,HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, TSOIL, MOIST,levsoi)
+      mcdate,HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, TSOIL, MOIST,CUE_bacteria,CUE_fungi,levsoi)
       !INPUT:
       character (len = *),intent(in)   :: run_name
       real(r8), intent(in)             :: pool_matrix(levsoi,pool_types), Npool_matrix(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
@@ -81,6 +83,7 @@ module writeMod
       real(r8),intent(in)              :: HR_sum
       real(r8),dimension(levsoi), intent(in)       :: HR_flux
       real(r8),dimension(levsoi), intent(in)       :: TSOIL, MOIST  
+      real(r8),dimension(levsoi), intent(in)       :: CUE_bacteria,CUE_fungi
           
       !OUTPUT:
       
@@ -111,7 +114,13 @@ module writeMod
 
         call check(nf90_inq_varid(ncid, "HR_flux", varid))
         call check(nf90_put_var(ncid, varid, HR_flux(j), start = (/timestep, j/)))
-
+        
+        call check(nf90_inq_varid(ncid, "CUEb", varid))
+        call check(nf90_put_var(ncid, varid, CUE_bacteria(j), start = (/timestep, j/)))
+        
+        call check(nf90_inq_varid(ncid, "CUEf", varid))
+        call check(nf90_put_var(ncid, varid, CUE_fungi(j), start = (/timestep, j/)))
+        
         call check(nf90_inq_varid(ncid, "N_inorganic", varid))
         call check(nf90_put_var(ncid, varid, Npool_matrix(j,11), start = (/timestep, j/)))
 
@@ -180,7 +189,10 @@ module writeMod
     subroutine get_timestep(time, write_hour, timestep)
       integer, intent(in) :: time
       integer, intent(in) :: write_hour !hours between every output-writing.
+      
       integer, intent(out):: timestep
+      
+      integer,parameter:: step_frac=10
 
       if (write_hour == 1) then
         timestep = time/write_hour
@@ -188,7 +200,7 @@ module writeMod
         if (time == 1) then
           timestep = 1
         else
-          timestep = time/write_hour+1 !NOTE: Del write_hour på step_frac hvis step_frac ikke er lik 1!
+          timestep = time/(write_hour)+1 
         end if
       end if
     end subroutine get_timestep
@@ -317,6 +329,8 @@ module writeMod
       call check(nf90_put_var(ncid, varid, N_SOMaSAPb, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "N_SOMaSAPf", varid))
       call check(nf90_put_var(ncid, varid, N_SOMaSAPf, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "N_SOMaEcM", varid))
+      call check(nf90_put_var(ncid, varid, N_SOMaEcM, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "N_SAPbSOMp", varid))
       call check(nf90_put_var(ncid, varid, N_SAPbSOMp, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "N_SAPfSOMp", varid))
@@ -384,30 +398,34 @@ module writeMod
     end subroutine create_yearly_mean_netcdf
 
     subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, levsoi) !TODO: yearly HR and climate variables (if needed?)
-      character (len = *):: run_name
+      !INPUT
+      character (len = *),intent(in):: run_name
+      integer,intent(in)            :: year
+      real(r8), intent(in)          :: Cpool_yearly(levsoi,pool_types)  ! For storing C pool sizes [gC/m3]
+      real(r8),intent(in)           :: Npool_yearly(levsoi,pool_types_N)  
+      
+      !OUTPUT
+      !LOCAL
       integer :: levsoi
-      integer :: year,i,j,varid,ncid
-      real(r8), intent(in)          :: Cpool_yearly(levsoi,pool_types), Npool_yearly(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
+      integer :: i,j,varid,ncid
+      
     !  real(r8)                                   :: HR_sum
     !  real(r8) ,dimension(levsoi)                :: HR_flux!(levsoi) !HR_mass_accumulated
-      real(r8),dimension(levsoi)         :: TSOIL, MOIST
+    !  real(r8),dimension(levsoi)         :: TSOIL, MOIST
 
       call check(nf90_open(output_path//trim(run_name)//"_yearly_mean.nc", nf90_write, ncid))
       call check(nf90_inq_varid(ncid, "year_since_start", varid))
       call check(nf90_put_var(ncid, varid, year , start = (/ year /)))
 
-      ! call check(nf90_inq_varid(ncid, "C_Growth_sum", varid))
-      ! call check(nf90_put_var(ncid, varid, growth_sum, start = (/ year /)))
-      !
       ! call check(nf90_inq_varid(ncid, "HR_sum", varid))
       ! call check(nf90_put_var(ncid, varid, HR_sum, start = (/ year /)))
 
       do j=1,levsoi
         ! call check(nf90_inq_varid(ncid, "Temp",varid))
         ! call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/year,j/)))
-        !
-        !call check(nf90_inq_varid(ncid, "Moisture",varid))
-        !call check(nf90_put_var(ncid, varid, MOIST(j), start = (/year,j/)))
+        ! 
+        ! call check(nf90_inq_varid(ncid, "Moisture",varid))
+        ! call check(nf90_put_var(ncid, varid, MOIST(j), start = (/year,j/)))
 
         ! call check(nf90_inq_varid(ncid, "HR_flux", varid))
         ! call check(nf90_put_var(ncid, varid, HR_flux(j), start = (/year, j/)))

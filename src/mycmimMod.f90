@@ -82,14 +82,16 @@ module mycmim
       real(r8)                       :: N_LEACHinput(nlevdecomp)
       real(r8)                       :: C_EcMinput
       real(r8)                       :: C_leaf_litter
+      real(r8)                       :: C_root_litter
       real(r8)                       :: N_leaf_litter
+      real(r8)                       :: N_root_litter
       real(r8)                       :: C_litterfall
       real(r8)                       :: C_CWD_litter(nlevdecomp)
       real(r8)                       :: N_CWD_litter(nlevdecomp)
 
       real(r8)                       :: dt                            ! size of time step
       real(r8)                       :: time                          ! t*dt
-      real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss
+      real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss,N_exchange
       real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion
       real(r8)                       :: tot_diffN,upperN,lowerN                 ! For the call to vertical_diffusion
       real(r8)                       :: sum_input_step         ! Used for checking mass conservation
@@ -113,7 +115,6 @@ module mycmim
       integer                        :: j,i,t              !for iterations
       integer,parameter              ::t_init=1
       integer                        :: date
-      character (len=15)             :: file_suffix
       integer                       :: input_steps
 
       real(r8)                       :: change_sum(nlevdecomp, pool_types)
@@ -127,7 +128,9 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: WATSAT
       real(r8), dimension(nlevdecomp)          :: W_SCALAR
       real(r8), dimension(nlevdecomp)          :: r_moist
-
+      
+    
+      
       integer :: ncid
 
       dt= 1.0/step_frac !Setting the time step
@@ -144,8 +147,12 @@ module mycmim
 
                      !TODO: This can be done better
       end if
-
-
+      
+      allocate(CUE_bacteria_vr(nlevdecomp))
+      allocate(CUE_fungi_vr(nlevdecomp))
+      CUE_fungi_vr=0.5
+      CUE_bacteria_vr=0.5
+      
       ! Fracions of SAP that goes to different SOM pools
       fPHYS = 0.3!(/ 0.3 * exp(fCLAY), 0.3 * exp(fCLAY) /)
       fCHEM =  0.3!(/0.1 * exp(-3.0*fMET), 0.1 * exp(-3.0*fMET) /)
@@ -181,20 +188,23 @@ module mycmim
       day_counter = 0
       
       write_y=0
-
       call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
       !Check if inputdata is daily or monthly:
+      
       call read_time(clm_input_path//'all.'//year_char//'.nc',input_steps)
       
       !data from CLM file
       call read_clm_model_input(ncid,nlevdecomp,1, &
-                                C_litterfall,N_leaf_litter,C_EcMinput,N_DEPinput, &
-                                C_leaf_litter,date,TSOIL,SOILLIQ,SOILICE, &
+                                C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
+                                C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
                                 W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
 
-
+      allocate(ndep_prof(nlevdecomp),leaf_prof(nlevdecomp),froot_prof(nlevdecomp))   
+         
       call read_WATSAT_and_profiles(clm_input_path//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)  
-      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
+      
+      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)               
+
     
       call read_clay(clm_surf_path,fCLAY,nlevdecomp)
   
@@ -204,11 +214,11 @@ module mycmim
       
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
                        date, HR_mass_accumulated,HR, change_matrixC,change_matrixN,write_hour,current_month, &
-                      TSOIL, r_moist,levsoi=nlevdecomp)
+                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,levsoi=nlevdecomp)
                       
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
-      pscalar = 1.0/(2*exp(-2.0*dsqrt(fCLAY)))
-
+      pscalar = 1.0/(2*exp(-2.0*sqrt(fCLAY)))
+      Kmod = 0.4 ![real(r8) :: 0.125,0.5,0.25*pscalar,0.5,0.25,0.167*pscalar]
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
         time = t*dt
@@ -217,7 +227,7 @@ module mycmim
         month_counter = month_counter + 1 !Counts hours in a month
         day_counter = day_counter + 1
         ! !Update temp and moisture values monthly/daily 
-        if (month_counter == days_in_month(current_month)*24+1) then
+        if (month_counter == days_in_month(current_month)*24*step_frac+1) then
             month_counter = 1
             
             if (current_month == 12) then
@@ -228,16 +238,15 @@ module mycmim
              
             if (input_steps==12) then   
               call read_clm_model_input(ncid,nlevdecomp,current_month, &
-                                C_litterfall,N_leaf_litter,C_EcMinput,N_DEPinput, &
-                                C_leaf_litter,date,TSOIL,SOILLIQ,SOILICE, &
+                                C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
+                                C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
                                 W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)  
-              call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)
-                                
+              call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)             
             end if    
                                       
         end if 
         
-        if (day_counter == 24+1) then
+        if (day_counter == 24*step_frac+1) then
           if ( current_day == 366 ) then
             current_day = 1
           else 
@@ -245,14 +254,13 @@ module mycmim
           end if          
           if (input_steps==365) then
             call read_clm_model_input(ncid,nlevdecomp,current_day, &
-            C_litterfall,N_leaf_litter,C_EcMinput,N_DEPinput, &
-            C_leaf_litter,date,TSOIL,SOILLIQ,SOILICE, &
+            C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
+            C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
             W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)            
           end if        
           day_counter = 1   
         end if 
-      !  print*, time, current_month, current_day,day_counter,year_char,date,input_steps
 
         !print initial values to terminal
         if (t == 1) then
@@ -276,19 +284,23 @@ module mycmim
           ![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
 
           tau = (/ 5e-4*exp(0.1*fMET)*r_moist(j), 5e-4*exp(0.1*fMET)*r_moist(j)/)
-          e_s = e_s_slope*TSOIL(j)+e_s0
+          !tau = (/ 5.2e-4*exp(0.3*fMET)*r_moist(j), 2.4e-4*exp(0.1*fMET)*r_moist(j)/)
+          CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
+          CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
-          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
-          call input_rates(j,C_litterfall,C_leaf_litter,N_leaf_litter,&
-                                      C_EcMinput,N_LEACHinput,N_DEPinput,&
+          call input_rates(j,C_litterfall,C_leaf_litter,C_root_litter,N_leaf_litter,&
+                                      N_root_litter,C_EcMinput,N_LEACHinput,N_DEPinput,&
                                       N_CWD_litter,C_CWD_litter,&
                                       C_PlantLITm,C_PlantLITs, &
                                       N_PlantLITm,N_PlantLITs, &
-                                      Deposition,Leaching,C_PlantEcM  )
-          if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
+                                      Deposition,Leaching,C_PlantEcM)
+          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
+          
+          if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file
            call fluxes_netcdf(int(time), write_hour, j, run_name)
           end if !write fluxes
+          
           do i = 1,pool_types + 1 !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
@@ -298,27 +310,36 @@ module mycmim
               N_Loss = N_LITmSAPb + N_LITmSAPf
               C_Gain = C_PlantLITm
               C_Loss = C_LITmSAPb + C_LITmSAPf
-
+              
             elseif (i==2) then !LITs
               N_Gain = N_PlantLITs
               N_Loss = N_LITsSAPb + N_LITsSAPf
               C_Gain = C_PlantLITs
               C_Loss = C_LITsSAPb + C_LITsSAPf
 
-            elseif (i==3) then !SAPb
-            !TODO Sap: Check if MGE/efficiency still makes sense in the new setup.
-              C_Gain = e_s*(C_LITmSAPb + C_LITsSAPb &
-                + C_SOMaSAPb + 0.5*(Decomp_ecm + Decomp_erm + Decomp_am))
+            elseif (i==3) then !SAPb              
+              C_Gain = CUE_bacteria_vr(j)*(C_LITmSAPb + C_LITsSAPb &
+                + C_SOMaSAPb)
               C_Loss =  C_SAPbSOMp + C_SAPbSOMa + C_SAPbSOMc
               N_Gain = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb
-              N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMc + N_SAPbIN
+              N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMc
+              if ( N_SAPbIN<0 ) then
+                N_Gain = N_Gain - N_SAPbIN !two minus becomes +              
+              else
+                N_Loss=N_Loss+N_SAPbIN              
+              end if
 
             elseif (i==4) then !SAPf
-              C_Gain = e_s*(C_LITmSAPf + C_LITsSAPf &
-                + C_SOMaSAPf + 0.5*(Decomp_ecm + Decomp_erm + Decomp_am))
+              C_Gain = CUE_fungi_vr(j)*(C_LITmSAPf + C_LITsSAPf &
+                + C_SOMaSAPf)
               C_Loss =  C_SAPfSOMp + C_SAPfSOMa + C_SAPfSOMc
               N_Gain = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
-              N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMc + N_SAPfIN
+              N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMc
+              if ( N_SAPfIN<0 ) then
+                N_Gain = N_Gain - N_SAPfIN !two minus becomes +
+              else
+                N_Loss=N_Loss+N_SAPfIN
+              end if
 
             elseif (i==5) then !EcM
               C_Gain = e_m*C_PlantEcM
@@ -347,7 +368,7 @@ module mycmim
             elseif (i==9) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + &
                C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa
-               C_Loss = C_SOMaSAPb + C_SOMaSAPf +Decomp_ecm + Decomp_erm + Decomp_am
+               C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
                N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa
                N_Loss = N_SOMaSAPb + N_SOMaSAPf + N_SOMaEcM + N_SOMaErM + N_SOMaAM
@@ -359,33 +380,44 @@ module mycmim
               N_Loss = N_SOMcSOMa
 
             elseif (i == 11) then !Inorganic N
-              N_Gain = Deposition+ N_SAPbIN + N_SAPfIN
-              N_Loss = Leaching+N_INEcM + N_INErM + N_INAM + N_InPlant
-              change_matrixN(j,i) = N_Gain - N_loss
+              N_Gain = Deposition
+              N_exchange= N_SAPbIN + N_SAPfIN !N_exchange can act both as a sink and a source, depending on the SAP demand for N
+              N_Loss = Leaching + N_INEcM + N_InPlant !+ N_INErM + N_INAM 
+              change_matrixN(j,i) = N_Gain + N_exchange - N_loss 
+              ! print*, "Gain: ", Deposition, j,time
+              ! print*, "Loss: ", Leaching,N_INEcM,N_InPlant
+              ! print*, "Exchange: ", N_SAPbIN,N_SAPfIN
+              ! print*, change_matrixN(j,i), pool_matrixN(j,i)
+              ! print*, "-------------------------------------------------------------------------------------------------"
             else
               print*, 'Too many pool types expected, pool_types = ',pool_types, 'i: ', i
             end if !determine total gains and losses
-
+            
 
             if (i /= 11) then !Carbon matrix does only have 10 columns (if i == 11 this is handeled inside the loop over pools)
-                change_matrixC(j,i) = C_Gain - C_Loss
-                change_matrixN(j,i) = N_Gain - N_loss
+                change_matrixC(j,i) = C_Gain - C_Loss !net change in timestep
+                change_matrixN(j,i) = N_Gain - N_loss            
                 !For summarize total change between each written output
-                change_sum(j,i)= change_sum(j,i) + change_matrixC(j,i)*dt
+                !print*, change_sum(j,i) + change_matrixC(j,i)*dt
+                !change_sum(j,i)= change_sum(j,i) + change_matrixC(j,i)*dt
+                
                 !Store these values as temporary so that they can be used in the vertical diffusion subroutine
                 pool_temporaryC(j,i)=pool_matrixC(j,i) + change_matrixC(j,i)*dt
 
             end if
 
             pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt
-
+            !call disp("N change matrix;",change_matrixN) 
             if (isnan(pool_temporaryN(j,i))) then
               print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
               stop
             end if
             if (pool_temporaryN(j,i) < 0.000) then
               print*, 'Too small pool size: NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
-              print*, count_occurences
+              call disp(pool_temporaryN)
+              call disp(pool_temporaryC)
+              call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))
+              
               stop
             end if
 
@@ -403,9 +435,9 @@ module mycmim
           end do !i, pool_types
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t: NOTE: revise!
-          HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb + C_LITmSAPf &
-          + C_LITsSAPf + C_SOMaSAPf+Decomp_ecm + Decomp_erm + Decomp_am)*(1-e_s) &
-          + (C_PlantEcM + C_PlantErM + C_PlantAM)*(1-e_m))*dt
+          HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j)) + (C_LITmSAPf &
+          + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j))+ &
+           (C_PlantEcM + C_PlantErM + C_PlantAM)*(1-e_m))*dt
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t
           end if
@@ -421,24 +453,30 @@ module mycmim
         call respired_mass(HR, HR_mass,nlevdecomp)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
         if (isVertical) then
-          call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC)
-          call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN)
+          call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC,D_carbon)
+          call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN,D_nitrogen)
           pool_matrixC =  vertC*dt + pool_temporaryC
           pool_matrixN = vertN*dt + pool_temporaryN
+          !call disp("vertical change C : ", vertC)
+          !call disp("vertical change N : ", vertN)
         else
           pool_matrixC=pool_temporaryC
           pool_matrixN=pool_temporaryN
         end if!isVertical
 
+
+        
         !START Compute and write annual means
         sum_consN = sum_consN + pool_matrixN
         sum_consC = sum_consC + pool_matrixC
         !print*, ycounter
-        if (ycounter == 365*24) then
+        if (ycounter == 365*24*step_frac) then
           call check(nf90_close(ncid)) !Close netcdf file containing values for the past year
-          
+          ! call disp("C matrix : ",pool_matrixC)
+          ! call disp("N matrix : ",pool_matrixN)
+          ! call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))
           write_y =write_y+1
-          call annual_mean(sum_consC,sum_consN, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
+          !call annual_mean(sum_consC,sum_consN, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
           if (year == stop_year) then
             year = start_year         
           else 
@@ -458,11 +496,11 @@ module mycmim
         end if
         !END Compute and write annual means
 
-        if (counter == write_hour) then
+        if (counter == write_hour*step_frac) then
           counter = 0
           call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
            date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
-           TSOIL, r_moist,nlevdecomp)
+           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,nlevdecomp)
            change_sum = 0.0
           !vertC_change_sum = 0.0
         end if!writing
@@ -471,8 +509,10 @@ module mycmim
         if (t == nsteps) then
           call disp("pool_matrixC gC/m3 ",pool_matrixC)
           call disp("pool_matrixN gN/m3 ",pool_matrixN)          
+          call disp("C:N: ",pool_matrixC/pool_matrixN(:,1:10))
           pool_C_final=pool_matrixC
-          pool_N_final=pool_matrixN        
+          pool_N_final=pool_matrixN    
+          call store_parameters(run_name)    
         end if
         
         call test_mass_conservation(sum_input_step,HR_mass,pool_matrixC_previous,pool_matrixC,nlevdecomp,pool_types)
@@ -487,6 +527,8 @@ module mycmim
       
       call total_mass_conservation(sum_input_total,HR_mass_accumulated,pool_C_start,pool_C_final,nlevdecomp,pool_types)
       call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total,pool_N_start,pool_N_final,nlevdecomp,pool_types_N)
+      deallocate(ndep_prof,leaf_prof,froot_prof)
+      deallocate(CUE_bacteria_vr,CUE_fungi_vr)
     end subroutine decomp
 
   subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
