@@ -218,8 +218,8 @@ module mycmim
                       TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,levsoi=nlevdecomp)
                       
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
-      pscalar = 1.0/(2*exp(-2.0*dsqrt(fCLAY)))
-
+      pscalar = 1.0/(2*exp(-2.0*sqrt(fCLAY)))
+      Kmod = 0.4 ![real(r8) :: 0.125,0.5,0.25*pscalar,0.5,0.25,0.167*pscalar]
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
         time = t*dt

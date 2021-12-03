@@ -18,9 +18,9 @@ real(kind=r8),dimension(MM_eqs),parameter    :: Kint    = 3.19      !LITm, LITs,
 real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (10 mg/cm3 from german et al 2012)
 real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
-real(kind=r8)                     :: pscalar != 1.0/(2*exp(-2.0*dsqrt(fCLAY))) !Value range:  0.5-3.7
-real(kind=r8),dimension(MM_eqs)              :: Kmod    = 0.4!(/0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0, 0.2d0/)!LITm, LITs, SOMa entering SAPb, sapf
-real(kind=r8),dimension(MM_eqs)              :: Vmod    = 10!(/10.0,  10.0, 10.0, 10.0, 10.0, 2.0/)            !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8)                                :: pscalar != 1.0/(2*exp(-2.0*dsqrt(fCLAY))) !Value range:  0.5-3.7
+real(kind=r8),dimension(MM_eqs)              :: Kmod    !LITm, LITs, SOMa entering SAPb, sapf
+real(kind=r8),dimension(MM_eqs)              :: Vmod    = 10!(/10.0, 2.0, 10.0, 3.0,3.0, 2.0/)            !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter, dimension(2)        :: KO      =  4                    ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
 real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*10e3=[gC/m3]
 real(kind=r8),dimension(MM_eqs)              :: Vmax                            ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
@@ -35,14 +35,14 @@ integer, parameter                           :: pool_types = no_of_litter_pools 
 integer, parameter                           :: pool_types_N = pool_types+1
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
-real(r8),parameter                      :: fMET =0.4                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
+real(r8),parameter                      :: fMET =0.6                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
 real(r8), dimension(no_of_sap_pools)    :: tau  ![1/h]
 
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.3,0.4,0.3/)
 real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
-real(r8)                                :: desorb != 1.5e-5*exp(-1.5*(fclay))![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
+real(r8)                                :: desorb ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Depth & vertical transport
 real(r8)                             :: soil_depth           ![m] used if isVertical is False (sum(delta_z))
@@ -74,12 +74,13 @@ real(r8), parameter :: sec_pr_hr = 60*60        !For conversion
 real(r8), parameter :: hr_pr_yr = 365*24        !For conversion
 
 !From Baskaran et al 2016
-real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article)
-real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article)
+real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) CHANGED!
+real(r8), parameter :: V_max_myc = 20/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) CHANGED!
 real(r8), parameter :: e_m = 0.25                !Growth efficiency of mycorrhiza 
+real(r8), parameter :: L_rate=1/hr_pr_yr        ![gN/m2 hr] Leaching rate 
 
 !Decomposition rates:
-real(r8), parameter :: K_MO = 0.0003/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
+real(r8), parameter :: K_MO = 0.003/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
 !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
 real(r8), parameter                          :: P = 44.247 !normalization of moisture function
@@ -90,6 +91,7 @@ real(r8),dimension(:),allocatable  :: ndep_prof
 real(r8),dimension(:),allocatable  :: leaf_prof
 real(r8),dimension(:),allocatable  :: froot_prof
 
+ 
 real(r8)                                     :: Loss_termN, Loss_termC, Loss_termNP, Loss_termCP, Plant_gainN,&
                                                 Plant_GainC, Plant_lossN, Plant_lossC, a_NPlant, a_CPlant
 
