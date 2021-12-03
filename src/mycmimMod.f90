@@ -228,7 +228,7 @@ module mycmim
         month_counter = month_counter + 1 !Counts hours in a month
         day_counter = day_counter + 1
         ! !Update temp and moisture values monthly/daily 
-        if (month_counter == days_in_month(current_month)*24+1) then
+        if (month_counter == days_in_month(current_month)*24*step_frac+1) then
             month_counter = 1
             
             if (current_month == 12) then
@@ -247,7 +247,7 @@ module mycmim
                                       
         end if 
         
-        if (day_counter == 24+1) then
+        if (day_counter == 24*step_frac+1) then
           if ( current_day == 366 ) then
             current_day = 1
           else 
@@ -295,10 +295,13 @@ module mycmim
                                       N_CWD_litter,C_CWD_litter,&
                                       C_PlantLITm,C_PlantLITs, &
                                       N_PlantLITm,N_PlantLITs, &
-                                      Deposition,Leaching,C_PlantEcM  )
-          if (counter == write_hour .or. t==1) then !Write fluxes from calculate_fluxes to file
+                                      Deposition,Leaching,C_PlantEcM)
+          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
+          
+          if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file
            call fluxes_netcdf(int(time), write_hour, j, run_name)
           end if !write fluxes
+          
           do i = 1,pool_types + 1 !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
@@ -455,20 +458,26 @@ module mycmim
           call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN,D_nitrogen)
           pool_matrixC =  vertC*dt + pool_temporaryC
           pool_matrixN = vertN*dt + pool_temporaryN
+          !call disp("vertical change C : ", vertC)
+          !call disp("vertical change N : ", vertN)
         else
           pool_matrixC=pool_temporaryC
           pool_matrixN=pool_temporaryN
         end if!isVertical
 
+
+        
         !START Compute and write annual means
         sum_consN = sum_consN + pool_matrixN
         sum_consC = sum_consC + pool_matrixC
         !print*, ycounter
-        if (ycounter == 365*24) then
+        if (ycounter == 365*24*step_frac) then
           call check(nf90_close(ncid)) !Close netcdf file containing values for the past year
-          
+          ! call disp("C matrix : ",pool_matrixC)
+          ! call disp("N matrix : ",pool_matrixN)
+          ! call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))
           write_y =write_y+1
-          call annual_mean(sum_consC,sum_consN, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
+          !call annual_mean(sum_consC,sum_consN, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
           if (year == stop_year) then
             year = start_year         
           else 
@@ -488,7 +497,7 @@ module mycmim
         end if
         !END Compute and write annual means
 
-        if (counter == write_hour) then
+        if (counter == write_hour*step_frac) then
           counter = 0
           call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
            date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
