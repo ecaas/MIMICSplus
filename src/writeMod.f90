@@ -398,30 +398,34 @@ module writeMod
     end subroutine create_yearly_mean_netcdf
 
     subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, levsoi) !TODO: yearly HR and climate variables (if needed?)
-      character (len = *):: run_name
+      !INPUT
+      character (len = *),intent(in):: run_name
+      integer,intent(in)            :: year
+      real(r8), intent(in)          :: Cpool_yearly(levsoi,pool_types)  ! For storing C pool sizes [gC/m3]
+      real(r8),intent(in)           :: Npool_yearly(levsoi,pool_types_N)  
+      
+      !OUTPUT
+      !LOCAL
       integer :: levsoi
-      integer :: year,i,j,varid,ncid
-      real(r8), intent(in)          :: Cpool_yearly(levsoi,pool_types), Npool_yearly(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
+      integer :: i,j,varid,ncid
+      
     !  real(r8)                                   :: HR_sum
     !  real(r8) ,dimension(levsoi)                :: HR_flux!(levsoi) !HR_mass_accumulated
-      real(r8),dimension(levsoi)         :: TSOIL, MOIST
+    !  real(r8),dimension(levsoi)         :: TSOIL, MOIST
 
       call check(nf90_open(output_path//trim(run_name)//"_yearly_mean.nc", nf90_write, ncid))
       call check(nf90_inq_varid(ncid, "year_since_start", varid))
       call check(nf90_put_var(ncid, varid, year , start = (/ year /)))
 
-      ! call check(nf90_inq_varid(ncid, "C_Growth_sum", varid))
-      ! call check(nf90_put_var(ncid, varid, growth_sum, start = (/ year /)))
-      !
       ! call check(nf90_inq_varid(ncid, "HR_sum", varid))
       ! call check(nf90_put_var(ncid, varid, HR_sum, start = (/ year /)))
 
       do j=1,levsoi
         ! call check(nf90_inq_varid(ncid, "Temp",varid))
         ! call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/year,j/)))
-        !
-        !call check(nf90_inq_varid(ncid, "Moisture",varid))
-        !call check(nf90_put_var(ncid, varid, MOIST(j), start = (/year,j/)))
+        ! 
+        ! call check(nf90_inq_varid(ncid, "Moisture",varid))
+        ! call check(nf90_put_var(ncid, varid, MOIST(j), start = (/year,j/)))
 
         ! call check(nf90_inq_varid(ncid, "HR_flux", varid))
         ! call check(nf90_put_var(ncid, varid, HR_flux(j), start = (/year, j/)))
