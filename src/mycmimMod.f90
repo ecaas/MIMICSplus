@@ -147,8 +147,6 @@ module mycmim
 
                      !TODO: This can be done better
       end if
-
-
       
       allocate(CUE_bacteria_vr(nlevdecomp))
       allocate(CUE_fungi_vr(nlevdecomp))
@@ -285,13 +283,13 @@ module mycmim
           ![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
 
           tau = (/ 5e-4*exp(0.1*fMET)*r_moist(j), 5e-4*exp(0.1*fMET)*r_moist(j)/)
+          !tau = (/ 5.2e-4*exp(0.3*fMET)*r_moist(j), 2.4e-4*exp(0.1*fMET)*r_moist(j)/)
           CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
-          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
-          call input_rates(j,C_litterfall,C_leaf_litter,N_leaf_litter,&
-                                      C_EcMinput,N_LEACHinput,N_DEPinput,&
+          call input_rates(j,C_litterfall,C_leaf_litter,C_root_litter,N_leaf_litter,&
+                                      N_root_litter,C_EcMinput,N_LEACHinput,N_DEPinput,&
                                       N_CWD_litter,C_CWD_litter,&
                                       C_PlantLITm,C_PlantLITs, &
                                       N_PlantLITm,N_PlantLITs, &
@@ -510,8 +508,10 @@ module mycmim
         if (t == nsteps) then
           call disp("pool_matrixC gC/m3 ",pool_matrixC)
           call disp("pool_matrixN gN/m3 ",pool_matrixN)          
+          call disp("C:N: ",pool_matrixC/pool_matrixN(:,1:10))
           pool_C_final=pool_matrixC
-          pool_N_final=pool_matrixN        
+          pool_N_final=pool_matrixN    
+          call store_parameters(run_name)    
         end if
         
         call test_mass_conservation(sum_input_step,HR_mass,pool_matrixC_previous,pool_matrixC,nlevdecomp,pool_types)
@@ -528,7 +528,6 @@ module mycmim
       call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total,pool_N_start,pool_N_final,nlevdecomp,pool_types_N)
       deallocate(ndep_prof,leaf_prof,froot_prof)
       deallocate(CUE_bacteria_vr,CUE_fungi_vr)
-      deallocate(count_occurences_EcM,count_occurences_SAPb,count_occurences_SAPf)
     end subroutine decomp
 
   subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
