@@ -501,7 +501,7 @@ module mycmim
           counter = 0
           call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
            date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
-           TSOIL, r_moist,nlevdecomp)
+           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,nlevdecomp)
            change_sum = 0.0
           !vertC_change_sum = 0.0
         end if!writing
