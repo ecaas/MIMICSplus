@@ -174,25 +174,21 @@ module fluxMod
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
 
 
+    !Leaching based on Baskaran et al leaching rate:
+    Leaching=L_rate*N_IN!N_LEACHinput(layer_nr)
+    Deposition=100/(hr_pr_yr*soil_depth)
+    
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    if ((N_INEcM + N_SOMaEcM) > e_m*C_PlantEcM*N_EcM/C_EcM ) then
-      N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM*N_EcM/C_EcM  !gN/m3h
-    else
+    N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM/CN_ratio(5)  !gN/m3h
+    if ( N_EcMPlant .LT. 0.) then
       N_EcMPlant = 0.0
-      count_occurences=count_occurences+1
     end if
-!    if ((N_INErM + N_SOMaErM) > e_m*C_PlantErM*N_ErM/C_ErM ) then
-!      N_ErMPlant = N_INErM + N_SOMaErM - e_m*C_PlantErM*N_ErM/C_ErM  !gN/m3h
-!    else
-      N_ErMPlant = 0.0
-!    end if
-!    if ((N_INAM + N_SOMaAM) > e_m*C_PlantAM*N_AM/C_AM  ) then
-!      N_AMPlant = N_INAM + N_SOMaAM - e_m*C_PlantAM/*N_AM/C_AM  !gN/m3h
-!    else
-      N_AMPlant = 0.0
-!    end if
+    !NOTE: If there is insufficient N to supply both the plant and EcM itself, set it to zero
 
-    nullify( C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
+
+    N_ErMPlant = 0.0
+    N_AMPlant = 0.0
+
     !Calculate amount of inorganic N saprotrophs have access to: 
     N_for_sap  = N_IN + Deposition-Leaching - N_INPlant - N_INEcM
 
