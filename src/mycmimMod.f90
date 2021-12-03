@@ -369,7 +369,7 @@ module mycmim
             elseif (i==9) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + &
                C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa
-               C_Loss = C_SOMaSAPb + C_SOMaSAPf +Decomp_ecm + Decomp_erm + Decomp_am
+               C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
                N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa
                N_Loss = N_SOMaSAPb + N_SOMaSAPf + N_SOMaEcM + N_SOMaErM + N_SOMaAM
