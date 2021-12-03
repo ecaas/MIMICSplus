@@ -129,12 +129,12 @@ module fluxMod
     !-----------------------------------NITROGEN FLUXES----------------------------:
     !Nitrogen aquired bymycorrhiza via oxidation of SOMa  gN/m3h
     N_SOMaEcM = Decomp_ecm*N_SOMa/C_SOMa
-    N_SOMaErM = Decomp_erm*N_SOMa/C_SOMa
-    N_SOMaAM  = Decomp_am*N_SOMa/C_SOMa
+    N_SOMaErM = 0.0!Decomp_erm/CN_ratio(9)!*N_SOMa/C_SOMa
+    N_SOMaAM  = 0.0!Decomp_am/CN_ratio(9)!*N_SOMa/C_SOMa
 
-    !Inorganic N taken up directly by plant roots   !Unsure about units!
-    N_InPlant = V_max_plant*N_in*(1-delta)*(CPlant/(CPlant + Km_plant/soil_depth)) !NOTE Changed from Baskaran: Use CPlant instead of C_plant shoot
-
+    !Inorganic N taken up directly by plant roots
+    N_InPlant = 0.0!4E-7*N_IN
+    
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
     N_INAM = 0.0!V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
