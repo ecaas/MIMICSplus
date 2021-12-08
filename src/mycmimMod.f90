@@ -128,9 +128,7 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: WATSAT
       real(r8), dimension(nlevdecomp)          :: W_SCALAR
       real(r8), dimension(nlevdecomp)          :: r_moist
-      
-    
-      
+          
       integer :: ncid
 
       dt= 1.0/step_frac !Setting the time step
@@ -154,8 +152,8 @@ module mycmim
       CUE_bacteria_vr=0.5
       
       ! Fracions of SAP that goes to different SOM pools
-      fPHYS = 0.3!(/ 0.3 * exp(fCLAY), 0.3 * exp(fCLAY) /)
-      fCHEM =  0.3!(/0.1 * exp(-3.0*fMET), 0.1 * exp(-3.0*fMET) /)
+      fPHYS = (/ 0.3 * exp(fCLAY), 0.3 * exp(fCLAY) /)
+      fCHEM = (/0.1 * exp(-3.0*fMET), 0.1 * exp(-3.0*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
 
       !Set initial concentration values:
@@ -201,15 +199,12 @@ module mycmim
 
       allocate(ndep_prof(nlevdecomp),leaf_prof(nlevdecomp),froot_prof(nlevdecomp))   
          
-      call read_WATSAT_and_profiles(clm_input_path//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)  
-      
-      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)               
-
-    
+      call read_WATSAT_and_profiles(clm_input_path//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)        
+      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)                   
       call read_clay(clm_surf_path,fCLAY,nlevdecomp)
   
       !open and prepare files to store results. Store initial values
-      call create_yearly_mean_netcdf(run_name,nlevdecomp)
+      !call create_yearly_mean_netcdf(run_name,nlevdecomp)
       call create_netcdf(run_name, nlevdecomp)
       
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
@@ -218,7 +213,8 @@ module mycmim
                       
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
       pscalar = 1.0/(2*exp(-2.0*sqrt(fCLAY)))
-      Kmod = 0.4 ![real(r8) :: 0.125,0.5,0.25*pscalar,0.5,0.25,0.167*pscalar]
+      Kmod = [real(r8) :: 0.125,0.5,0.25*pscalar,0.5,0.25,0.167*pscalar]
+      L_rate = 2./(hr_pr_yr*soil_depth)
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
         time = t*dt
@@ -283,8 +279,8 @@ module mycmim
           !mimicsbiome%tauK(npt) = mimicsbiome%tauK(npt) * fW
           ![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
 
-          tau = (/ 5e-4*exp(0.1*fMET)*r_moist(j), 5e-4*exp(0.1*fMET)*r_moist(j)/)
-          !tau = (/ 5.2e-4*exp(0.3*fMET)*r_moist(j), 2.4e-4*exp(0.1*fMET)*r_moist(j)/)
+          !tau = (/ 5e-4*exp(0.1*fMET)*r_moist(j), 5e-4*exp(0.1*fMET)*r_moist(j)/)
+          tau = (/ 5.2e-4*exp(0.3*fMET)*r_moist(j), 2.4e-4*exp(0.1*fMET)*r_moist(j)/)
           CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
 
