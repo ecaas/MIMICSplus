@@ -5,6 +5,21 @@ module fluxMod
 
   contains
 
+  function set_N_dep(CLMdep,const_dep) result(Deposition)
+    real(r8)           :: Deposition
+    real(r8), optional :: CLMdep
+    real(r8), optional :: const_dep
+    Deposition = -999
+    if (present(CLMdep) .and. .not. present(const_dep)) then
+      Deposition = CLMdep
+    elseif (present(const_dep) .and. .not. present(CLMdep)) then
+      Deposition = const_dep/(hr_pr_yr*soil_depth)
+    elseif (.not. present(CLMdep) .and. .not. present(const_dep)) then
+      print*, "N dep not set correctly, stopping"
+      Deposition = -999
+      stop
+    end if
+  end function set_N_dep
 
   function MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
     !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
@@ -175,9 +190,8 @@ module fluxMod
 
 
     !Leaching based on Baskaran et al leaching rate:
-    Leaching=L_rate*N_IN!N_LEACHinput(layer_nr)
-    Deposition=100/(hr_pr_yr*soil_depth)
-    
+    Leaching=L_rate*N_IN
+
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
     N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM/CN_ratio(5)  !gN/m3h
     if ( N_EcMPlant .LT. 0.) then
@@ -288,11 +302,11 @@ module fluxMod
 
   subroutine input_rates(layer_nr,&
                                   TOTC_LITFALL,LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,FROOTN_TO_LIT, &
-                                  C_EcMinput,N_LEACHinput,N_DEPinput,&
+                                  C_EcMinput,N_LEACHinput,&
                                   N_CWD,C_CWD, &
                                   C_PlantLITm,C_PlantLITs,&
                                   N_PlantLITm,N_PlantLITs,&
-                                  N_DEP,N_LEACH,C_PlantEcM)
+                                  N_LEACH,C_PlantEcM)
 
     !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
     !in:
@@ -304,7 +318,6 @@ module fluxMod
     real(r8), intent(in) :: FROOTN_TO_LIT    
     real(r8), intent(in) :: C_EcMinput
     real(r8), intent(in) :: N_LEACHinput(:)
-    real(r8), intent(in) :: N_DEPinput
     real(r8), intent(in) :: N_CWD(:)
     real(r8), intent(in) :: C_CWD(:)
     
@@ -313,7 +326,6 @@ module fluxMod
     real(r8), intent(out) :: C_PlantLITs
     real(r8), intent(out) :: N_PlantLITm
     real(r8), intent(out) :: N_PlantLITs
-    real(r8), intent(out) :: N_DEP
     real(r8), intent(out) :: N_LEACH
     real(r8), intent(out) :: C_PlantEcM
 
@@ -329,7 +341,6 @@ module fluxMod
     N_PlantLITm    = fMET*totN_LIT_input
     N_PlantLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)
 
-    N_DEP=100/(hr_pr_yr*soil_depth)!N_DEPinput/myc_depth!*ndep_prof(layer_nr) !gC/m2h / m
 
     C_PlantEcM = (C_EcMinput*froot_prof(layer_nr))
     !TODO: Figure out how to do mycorrhizal input vertically

@@ -286,11 +286,14 @@ module mycmim
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call input_rates(j,C_litterfall,C_leaf_litter,C_root_litter,N_leaf_litter,&
-                                      N_root_litter,C_EcMinput,N_LEACHinput,N_DEPinput,&
+                                      N_root_litter,C_EcMinput,N_LEACHinput,&
                                       N_CWD_litter,C_CWD_litter,&
                                       C_PlantLITm,C_PlantLITs, &
                                       N_PlantLITm,N_PlantLITs, &
-                                      Deposition,Leaching,C_PlantEcM)
+                                      Leaching,C_PlantEcM)
+          !Determine deposition NOTE: Must specify name of parameters when using the set_N_dep function 
+          !,const_dep = 3d0
+          Deposition = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j))
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
           
           if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file
