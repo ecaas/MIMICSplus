@@ -61,6 +61,8 @@ real(r8)                             :: CUEmod_bacteria
 real(r8)                             :: CUEmod_fungi
 LOGICAL                              :: N_lim
 
+real(r8), parameter                  :: f_met_to_som=0.05 ! fraction of metabolic litter flux that goes directly to SOM pools
+
 
 real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
                                                                                           !NOTE: Wallander/Rousk may have data more suited for Boreal/Arctic conditions
@@ -98,7 +100,7 @@ real(r8)                                     :: Loss_termN, Loss_termC, Loss_ter
 !Fluxes etc:
 real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_ErMSOMp, C_ErMSOMa, C_ErMSOMc, C_AMSOMp, &
 C_LITmSAPf, C_LITsSAPf, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa, &
-C_SAPbSOMa, C_SAPbSOMp, C_SAPbSOMc,C_SAPfSOMa, C_SAPfSOMp, C_SAPfSOMc, &
+C_SAPbSOMa, C_SAPbSOMp, C_SAPbSOMc,C_SAPfSOMa, C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp,C_PlantSOMa, &
 N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc, N_ErMSOMp, N_ErMSOMa, N_ErMSOMc, N_AMSOMp, N_AMSOMa,&
 N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, N_LITmSAPf, N_LITsSAPf, N_SOMaEcM, N_SOMaErM,N_SOMaAM,&
 N_PlantLITs, N_PlantLITm, N_INPlant, N_INEcM, N_INErM, N_INAM, N_EcMPlant, N_ErMPlant, N_AMPlant, &
@@ -123,7 +125,7 @@ character (len=*), dimension(*), parameter ::  C_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
   "EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
   "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
-  ,"PlantLITs","PlantEcM","PlantErM","PlantAM"]
+  ,"PlantLITs","PlantEcM","PlantErM","PlantAM","PlantSOMc","PlantSOMp","PlantSOMa"]
 
 character (len=*), dimension(*), parameter ::  N_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc" &

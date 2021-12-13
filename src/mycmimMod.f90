@@ -359,21 +359,21 @@ module mycmim
               N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
 
             elseif (i==8) then !SOMp
-              C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp
+              C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp+ C_PlantSOMp
               C_Loss = C_SOMpSOMa
               N_Gain =  N_SAPbSOMp + N_SAPfSOMp + N_EcMSOMp + N_ErMSOMp + N_AMSOMp
               N_Loss = N_SOMpSOMa
 
             elseif (i==9) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + &
-               C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa
+               C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa
                C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
                N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa
                N_Loss = N_SOMaSAPb + N_SOMaSAPf + N_SOMaEcM + N_SOMaErM + N_SOMaAM
 
             elseif (i==10) then !SOMc
-              C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc
+              C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc+C_PlantSOMc
               C_Loss = C_SOMcSOMa
               N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_ErMSOMc + N_AMSOMc
               N_Loss = N_SOMcSOMa
@@ -441,7 +441,7 @@ module mycmim
             print*, 'Negative HR: ', HR(j), t
           end if
           
-          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+C_PlantEcM)*dt*delta_z(j) !g/m2
+          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+C_PlantEcM*e_m+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
           
           sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+Deposition)*dt*delta_z(j) !g/m2
           sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_INPlant+Leaching)*dt*delta_z(j)

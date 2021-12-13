@@ -334,13 +334,16 @@ module fluxMod
     real(r8)           :: totN_LIT_input
 
     totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !+ mortality*froot_prof(layer_nr) !gC/m3h 
-    C_PlantLITm   = fMET*totC_LIT_input
+    C_PlantLITm   = fMET*totC_LIT_input*(1-f_met_to_som)
     C_PlantLITs   = (1-fMET)*totC_LIT_input + C_CWD(layer_nr)
+    C_PlantSOMp = fMET*totC_LIT_input*f_met_to_som*fPHYS(1)
+    C_PlantSOMc = fMET*totC_LIT_input*f_met_to_som*fCHEM(1)
+    C_PlantSOMa = fMET*totC_LIT_input*f_met_to_som*fAVAIL(1)
+    
     
     totN_LIT_input = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
     N_PlantLITm    = fMET*totN_LIT_input
     N_PlantLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)
-
 
     C_PlantEcM = (C_EcMinput*froot_prof(layer_nr))
     !TODO: Figure out how to do mycorrhizal input vertically
