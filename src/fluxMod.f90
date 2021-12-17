@@ -114,9 +114,9 @@ module fluxMod
     C_ErMSOMa=0.0!C_ErM*k_mycsom(2)*fErMSOM(2)
     C_ErMSOMc=0.0!C_ErM*k_mycsom(2)*fErMSOM(3)
 
-    C_AMSOMp=0.0!C_AM*k_mycsom(3)*fAMSOM(1)
-    C_AMSOMa=0.0!C_AM*k_mycsom(3)*fAMSOM(2)
-    C_AMSOMc=0.0!C_AM*k_mycsom(3)*fAMSOM(3)
+    C_AMSOMp=C_AM*k_mycsom(3)*fAMSOM(1)
+    C_AMSOMa=C_AM*k_mycsom(3)*fAMSOM(2)
+    C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(3)
 
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
     C_SAPbSOMp=C_SAPb*tau(1)*fPHYS(1)   !gC/m3h
@@ -137,22 +137,23 @@ module fluxMod
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
     !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
-    Decomp_ecm = K_MO*soil_depth*C_EcM*C_SOMa   ![gC/m3h]
-    Decomp_erm = 0.0!K_MO*delta_z(depth)*C_ErM*C_SOMa
-    Decomp_am  = 0.0!K_MO*delta_z(depth)*C_AM*C_SOMa
+    C_EcMdecompSOMp = K_MO*soil_depth*C_EcM*C_SOMp   ![gC/m3h]
+    C_EcMdecompSOMc = K_MO*soil_depth*C_EcM*C_SOMc   ![gC/m3h]
+    
 
     !-----------------------------------NITROGEN FLUXES----------------------------:
-    !Nitrogen aquired bymycorrhiza via oxidation of SOMa  gN/m3h
-    N_SOMaEcM = Decomp_ecm*N_SOMa/C_SOMa
-    N_SOMaErM = 0.0!Decomp_erm/CN_ratio(9)!*N_SOMa/C_SOMa
-    N_SOMaAM  = 0.0!Decomp_am/CN_ratio(9)!*N_SOMa/C_SOMa
+    !Nitrogen aquired bymycorrhiza via oxidation of protected SOM pools.  gN/m3h
+    !TODO: Should we also include SOMa?
+    N_SOMpEcM = C_EcMdecompSOMp*N_SOMp/C_SOMp
+    N_SOMcEcM = C_EcMdecompSOMc*N_SOMc/C_SOMc
+    
 
     !Inorganic N taken up directly by plant roots
-    N_InPlant = 0.0!4E-7*N_IN
+    N_InPlant = 4E-7*N_IN
     
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
-    N_INAM = 0.0!V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
+    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
@@ -188,24 +189,29 @@ module fluxMod
     !Transport from SOMc to SOMa:
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
 
-
     !Leaching based on Baskaran et al leaching rate:
     Leaching=L_rate*N_IN
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    N_EcMPlant = N_INEcM + N_SOMaEcM - e_m*C_PlantEcM/CN_ratio(5)  !gN/m3h
+    N_EcMPlant = N_INEcM + N_SOMpEcM + N_SOMcEcM - e_m*C_PlantEcM/CN_ratio(5)  !gN/m3h
     if ( N_EcMPlant .LT. 0.) then
       N_EcMPlant = 0.0
     end if
-    !NOTE: If there is insufficient N to supply both the plant and EcM itself, set it to zero
+    
+    N_AMPlant = N_INAM  - e_m*C_PlantAM/CN_ratio(7)  !gN/m3h
+    if ( N_AMPlant .LT. 0.) then
+      N_AMPlant = 0.0
+    end if    
 
 
     N_ErMPlant = 0.0
-    N_AMPlant = 0.0
+
 
     !Calculate amount of inorganic N saprotrophs have access to: 
-    N_for_sap  = N_IN + Deposition-Leaching - N_INPlant - N_INEcM
-
+    N_for_sap  = N_IN + Deposition - Leaching - N_INPlant - N_INEcM - N_INAM
+    ! print*, N_IN,Deposition,Leaching,N_INPlant,N_INEcM, N_for_sap
+    ! print*, N_for_sap + N_SAPbIN+N_SAPfIN, N_SAPbIN,N_SAPfIN
+    ! print*,"*************"
     !total C uptake (growth + respiration) of saprotrophs
     U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
     U_sf = C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf
@@ -213,18 +219,17 @@ module fluxMod
     !Calculate SAP demand/excess of N (to ensure constant C:N ratio) 
     N_SAPbIN = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) - CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
     N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
-    
+
     !If there is not enough inorganic N to fill SAP demand, decrease CUE:
     do while (N_for_sap + N_SAPbIN+N_SAPfIN <0)
       CUEmod_bacteria=0.9
       CUEmod_fungi=0.9
       CUE_bacteria_vr(depth)=CUE_bacteria_vr(depth)*CUEmod_bacteria
       CUE_fungi_vr(depth)=CUE_fungi_vr(depth)*CUEmod_fungi
-      
+
       N_SAPbIN = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) - CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
       N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
     end do 
-
     
     nullify( C_LITm,C_LITs,C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
     nullify( N_LITm,N_LITs,N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb,N_SAPf,N_IN)
@@ -306,7 +311,7 @@ module fluxMod
                                   N_CWD,C_CWD, &
                                   C_PlantLITm,C_PlantLITs,&
                                   N_PlantLITm,N_PlantLITs,&
-                                  N_LEACH,C_PlantEcM)
+                                  N_LEACH,C_PlantEcM,C_PlantAM)
 
     !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
     !in:
@@ -328,6 +333,8 @@ module fluxMod
     real(r8), intent(out) :: N_PlantLITs
     real(r8), intent(out) :: N_LEACH
     real(r8), intent(out) :: C_PlantEcM
+    real(r8), intent(out) :: C_PlantAM
+    
 
     !local:
     real(r8)           :: totC_LIT_input
@@ -345,7 +352,10 @@ module fluxMod
     N_PlantLITm    = fMET*totN_LIT_input
     N_PlantLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)
 
+
     C_PlantEcM = (C_EcMinput*froot_prof(layer_nr))
+    C_PlantAM = 0.0!(C_EcMinput*froot_prof(layer_nr))
+    
     !TODO: Figure out how to do mycorrhizal input vertically
   end subroutine input_rates
 

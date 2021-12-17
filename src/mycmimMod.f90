@@ -142,7 +142,6 @@ module mycmim
         !delta_z=soil_depth !So that delta_z will not be 1st on delta_z from parametersMod
         allocate (vertC, mold = pool_matrixC)
         allocate (vertN, mold = pool_matrixN)
-
                      !TODO: This can be done better
       end if
       
@@ -186,9 +185,11 @@ module mycmim
       day_counter = 0
       
       write_y=0
-      call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
-      !Check if inputdata is daily or monthly:
+
       
+      call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year  
+      
+      !Check if inputdata is daily or monthly:      
       call read_time(clm_input_path//'all.'//year_char//'.nc',input_steps)
       
       !data from CLM file
@@ -290,10 +291,10 @@ module mycmim
                                       N_CWD_litter,C_CWD_litter,&
                                       C_PlantLITm,C_PlantLITs, &
                                       N_PlantLITm,N_PlantLITs, &
-                                      Leaching,C_PlantEcM)
+                                      Leaching,C_PlantEcM,C_PlantAM)
           !Determine deposition NOTE: Must specify name of parameters when using the set_N_dep function 
           !,const_dep = 3d0
-          Deposition = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j))
+          Deposition = set_N_dep(const_dep = 3d0)
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
           
           if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file
@@ -343,30 +344,30 @@ module mycmim
             elseif (i==5) then !EcM
               C_Gain = e_m*C_PlantEcM
               C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc
-              N_Gain = N_INEcM + N_SOMaEcM
+              N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
 
             elseif (i==6) then !ErM
               C_Gain = e_m*C_PlantErM
               C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc
-              N_Gain = N_INErM + N_SOMaErM
+              N_Gain = N_INErM
               N_Loss = N_ErMPlant + N_ErMSOMa + N_ErMSOMp + N_ErMSOMc
 
             elseif (i==7) then !AM
               C_Gain = e_m*C_PlantAM
               C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc
-              N_Gain = N_INAM + N_SOMaAM
+              N_Gain = N_INAM 
               N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
 
             elseif (i==8) then !SOMp
               C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp+ C_PlantSOMp
-              C_Loss = C_SOMpSOMa
+              C_Loss = C_SOMpSOMa+C_EcMdecompSOMp
               N_Gain =  N_SAPbSOMp + N_SAPfSOMp + N_EcMSOMp + N_ErMSOMp + N_AMSOMp
-              N_Loss = N_SOMpSOMa
+              N_Loss = N_SOMpSOMa + N_SOMpEcM
 
             elseif (i==9) then !SOMa
-               C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + &
-               C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa
+               C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc &
+               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa
                C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
                N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa
@@ -374,9 +375,9 @@ module mycmim
 
             elseif (i==10) then !SOMc
               C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc+C_PlantSOMc
-              C_Loss = C_SOMcSOMa
+              C_Loss = C_SOMcSOMa+C_EcMdecompSOMc
               N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_ErMSOMc + N_AMSOMc
-              N_Loss = N_SOMcSOMa
+              N_Loss = N_SOMcSOMa + N_SOMcEcM
 
             elseif (i == 11) then !Inorganic N
               N_Gain = Deposition

@@ -105,9 +105,9 @@ N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc, N_ErMSOMp, N_ErMSOMa, N
 N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, N_LITmSAPf, N_LITsSAPf, N_SOMaEcM, N_SOMaErM,N_SOMaAM,&
 N_PlantLITs, N_PlantLITm, N_INPlant, N_INEcM, N_INErM, N_INAM, N_EcMPlant, N_ErMPlant, N_AMPlant, &
 N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc, N_SAPfIN, N_SAPbIN,&
-C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, Decomp_ecm, &
-Decomp_erm, Decomp_am, Leaching, Deposition, C_PR, C_PS,N_PR, N_PS, Total_plant_mortality,f, U_sb, U_sf, CPlant,&
-NPlant, P_N, Plant_CN, CPlant_tstep, NPlant_tstep
+N_SOMcEcM,N_SOMpEcM, &
+C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp,C_EcMdecompSOMc, &
+ Leaching, Deposition,f, U_sb, U_sf
 
 !For writing to file:
 character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/sites/'
@@ -125,13 +125,14 @@ character (len=*), dimension(*), parameter ::  C_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
   "EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
   "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
-  ,"PlantLITs","PlantEcM","PlantErM","PlantAM","PlantSOMc","PlantSOMp","PlantSOMa"]
+  ,"PlantLITs","PlantEcM","PlantErM","PlantAM","PlantSOMc  ","PlantSOMp  ","PlantSOMa  ", &
+  "EcMdecoSOMp","EcMdecoSOMc"]
 
 character (len=*), dimension(*), parameter ::  N_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc" &
   ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
   "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMaEcM","SOMpSOMa","SOMcSOMa","PlantLITm" &
   ,"PlantLITs","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
-  "SAPbIN", "SAPfIN"]
+  "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM"]
 
 end module paramMod
