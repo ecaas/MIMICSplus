@@ -76,10 +76,11 @@ real(r8), parameter :: sec_pr_hr = 60*60        !For conversion
 real(r8), parameter :: hr_pr_yr = 365*24        !For conversion
 
 !From Baskaran et al 2016
-real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) CHANGED!
-real(r8), parameter :: V_max_myc = 20/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) CHANGED!
-real(r8), parameter :: e_m = 0.25                !Growth efficiency of mycorrhiza 
-real(r8), parameter :: L_rate=1/hr_pr_yr        ![gN/m2 hr] Leaching rate 
+real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) 
+real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) 
+real(r8), parameter :: e_m = 1                !Growth efficiency of mycorrhiza 
+
+real(r8)            :: L_rate        ![1/ hr] Leaching rate 
 
 !Decomposition rates:
 real(r8), parameter :: K_MO = 0.003/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
@@ -93,9 +94,6 @@ real(r8),dimension(:),allocatable  :: ndep_prof
 real(r8),dimension(:),allocatable  :: leaf_prof
 real(r8),dimension(:),allocatable  :: froot_prof
 
- 
-real(r8)                                     :: Loss_termN, Loss_termC, Loss_termNP, Loss_termCP, Plant_gainN,&
-                                                Plant_GainC, Plant_lossN, Plant_lossC, a_NPlant, a_CPlant
 
 !Fluxes etc:
 real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_ErMSOMp, C_ErMSOMa, C_ErMSOMc, C_AMSOMp, &
