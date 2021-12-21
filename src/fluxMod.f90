@@ -137,9 +137,8 @@ module fluxMod
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
     !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
-    C_EcMdecompSOMp = K_MO*soil_depth*C_EcM*C_SOMp   ![gC/m3h]
-    C_EcMdecompSOMc = K_MO*soil_depth*C_EcM*C_SOMc   ![gC/m3h]
-    
+    C_EcMdecompSOMp = K_MO*soil_depth*C_EcM*C_SOMp*(C_PlantEcM/max_mining)   ![gC/m3h]
+    C_EcMdecompSOMc = K_MO*soil_depth*C_EcM*C_SOMc*(C_PlantEcM/max_mining)   ![gC/m3h]
 
     !-----------------------------------NITROGEN FLUXES----------------------------:
     !Nitrogen aquired bymycorrhiza via oxidation of protected SOM pools.  gN/m3h
