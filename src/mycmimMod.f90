@@ -439,13 +439,12 @@ module mycmim
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t: NOTE: revise!
           HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j)) + (C_LITmSAPf &
-          + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j)) + (1-e_m)*(C_PlantErM+C_PlantErM+C_PlantAM))*dt
+          + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j)))*dt
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t
           end if
           
-          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+C_PlantEcM+C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
-          print*, C_PlantLITm,C_PlantLITs,C_PlantEcM,C_PlantErM,C_PlantAM,C_PlantSOMc,C_PlantSOMp,C_PlantSOMa
+          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+e_m*C_PlantEcM+e_m*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
           sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+Deposition)*dt*delta_z(j) !g/m2
           sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_INPlant+Leaching)*dt*delta_z(j)
 
