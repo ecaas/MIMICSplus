@@ -186,23 +186,26 @@ module mycmim
       
       write_y=0
 
-      
-      call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year  
-      
+      print*, "test1"
+      call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year  
+      print*, "test2"
+
       !Check if inputdata is daily or monthly:      
-      call read_time(clm_input_path//'all.'//year_char//'.nc',input_steps)
-      
+      call read_time(adjustr(clm_input_path)//'all.'//year_char//'.nc',input_steps)
+      print*, "test3"
+
       !data from CLM file
       call read_clm_model_input(ncid,nlevdecomp,1, &
                                 C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
                                 C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
                                 W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
+      print*, "test4"
 
       allocate(ndep_prof(nlevdecomp),leaf_prof(nlevdecomp),froot_prof(nlevdecomp))   
          
-      call read_WATSAT_and_profiles(clm_input_path//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)        
+      call read_WATSAT_and_profiles(adjustr(clm_input_path)//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)        
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)                   
-      call read_clay(clm_surf_path,fCLAY,nlevdecomp)
+      call read_clay(adjustr(clm_surf_path),fCLAY,nlevdecomp)
   
       !open and prepare files to store results. Store initial values
       !call create_yearly_mean_netcdf(run_name,nlevdecomp)
@@ -487,8 +490,8 @@ module mycmim
           month_counter=0
           current_month=1
           write (year_char,year_fmt) year
-          call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
-          call read_time(clm_input_path//'all.'//year_char//'.nc',input_steps)     
+          call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
+          call read_time(adjustr(clm_input_path)//'all.'//year_char//'.nc',input_steps)     
           ycounter = 0
           sum_consN =0
           sum_consC =0

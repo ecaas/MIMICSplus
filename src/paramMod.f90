@@ -132,5 +132,15 @@ character (len=*), dimension(*), parameter ::  N_name_fluxes = &
   "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMaEcM","SOMpSOMa","SOMcSOMa","PlantLITm" &
   ,"PlantLITs","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
   "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM"]
+  
+character (len=*), dimension(42),parameter :: site_names = &
+[character(len=18) :: &
+ 'NR32249_Vik       ','NR32182_Stryn     ','NR31881_Sande     ','NR31578_Kvinesdal ','32288_Sortland    ','31463_Hurdal      ',&
+ '31464_Hurdal      ','32087_Dovre       ','32124_Engerdal    ','32379_Hemne       ','32441_Sel         ','32258_Maaselv     ',&
+ '32032_VestreToten ','32246_SoerVaranger','31984_Namdalseid  ','31976_Namdalseid  ','31461_Nittedal    ','31513_Nes         ',&
+ '31539_Modum       ','31652_Bygland     ','31767_Kongsvinger ','31780_Vaaler      ','31941_Roeyrvik    ','31997_Verdal      ',&
+ '32088_Lesja       ','32103_Halden      ','32139_Rennebu     ','32374_Saltdal     ','32404_Vinje       ','32409_Vang        ',&
+ '32438_Porsanger   ','31519_Nissedal    ','31650_Valle       ','31714_Flaa        ','32085_Skjaak      ','NR31906_Voss      ',&
+ 'NR31908_Ullensvang','NR31927_Os        ','NR31677_Suldal    ','NR31577_Kvinesdal ','NR31579_Kvinesdal ','NR31590_Farsund   ']
 
 end module paramMod
