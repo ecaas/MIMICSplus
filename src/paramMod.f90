@@ -78,7 +78,7 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
 !From Baskaran et al 2016
 real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) 
 real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) 
-real(r8), parameter :: e_m = 1                !Growth efficiency of mycorrhiza 
+real(r8), parameter :: e_m = 0.25             !Growth efficiency of mycorrhiza 
 
 real(r8)            :: L_rate        ![1/ hr] Leaching rate 
 

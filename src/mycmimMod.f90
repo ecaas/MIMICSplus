@@ -345,20 +345,20 @@ module mycmim
               end if
 
             elseif (i==5) then !EcM
-              C_Gain = e_m*C_PlantEcM
-              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc
+              C_Gain = C_PlantEcM
+              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + (1-e_m)*C_PlantEcM
               N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
 
             elseif (i==6) then !ErM
-              C_Gain = e_m*C_PlantErM
-              C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc
+              C_Gain = C_PlantErM
+              C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc + (1-e_m)*C_PlantErM
               N_Gain = N_INErM
               N_Loss = N_ErMPlant + N_ErMSOMa + N_ErMSOMp + N_ErMSOMc
 
             elseif (i==7) then !AM
-              C_Gain = e_m*C_PlantAM
-              C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc
+              C_Gain = C_PlantAM
+              C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc + (1-e_m)*C_PlantAM
               N_Gain = N_INAM 
               N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
 
@@ -439,14 +439,13 @@ module mycmim
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t: NOTE: revise!
           HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j)) + (C_LITmSAPf &
-          + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j))+ &
-           (C_PlantEcM + C_PlantErM + C_PlantAM)*(1-e_m))*dt
+          + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j)) + (1-e_m)*(C_PlantErM+C_PlantErM+C_PlantAM))*dt
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t
           end if
           
-          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+C_PlantEcM*e_m+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
-          
+          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+C_PlantEcM+C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
+          print*, C_PlantLITm,C_PlantLITs,C_PlantEcM,C_PlantErM,C_PlantAM,C_PlantSOMc,C_PlantSOMp,C_PlantSOMa
           sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+Deposition)*dt*delta_z(j) !g/m2
           sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_INPlant+Leaching)*dt*delta_z(j)
 
@@ -548,7 +547,7 @@ module mycmim
     yearly_meanC=yearly_sumC/hr_in_year
     yearly_meanN=yearly_sumN/hr_in_year
 
-    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,nlevels)
+    !call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,nlevels)
 
   end subroutine annual_mean
 
