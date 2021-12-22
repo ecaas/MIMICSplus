@@ -5,6 +5,8 @@ implicit none
 
 !Define variables
 
+real(r8), parameter :: sec_pr_hr = 60*60        !For conversion
+real(r8), parameter :: hr_pr_yr = 365*24        !For conversion
 real(kind=r8)                                :: T_soil_const =5.18              ![degC]
 real(kind=r8)                                :: GEP                             ![gC/(m2 h)] Gross ecosystem productivity
 real(kind=r8)                                :: fCLAY                          ![-] fraction of clay in soil
@@ -72,8 +74,6 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
                                                                                           !LITs, ErM, AM: Guesses!
 
 
-real(r8), parameter :: sec_pr_hr = 60*60        !For conversion
-real(r8), parameter :: hr_pr_yr = 365*24        !For conversion
 
 !From Baskaran et al 2016
 real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) 
