@@ -114,9 +114,9 @@ module fluxMod
     C_ErMSOMa=0.0!C_ErM*k_mycsom(2)*fErMSOM(2)
     C_ErMSOMc=0.0!C_ErM*k_mycsom(2)*fErMSOM(3)
 
-    C_AMSOMp=C_AM*k_mycsom(3)*fAMSOM(1)
-    C_AMSOMa=C_AM*k_mycsom(3)*fAMSOM(2)
-    C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(3)
+    C_AMSOMp=0.0!C_AM*k_mycsom(3)*fAMSOM(1)
+    C_AMSOMa=0.0!C_AM*k_mycsom(3)*fAMSOM(2)
+    C_AMSOMc=0.0!C_AM*k_mycsom(3)*fAMSOM(3)
 
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
     C_SAPbSOMp=C_SAPb*tau(1)*fPHYS(1)   !gC/m3h
@@ -152,7 +152,7 @@ module fluxMod
     
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
-    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
+    N_INAM = 0.0!V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
@@ -197,11 +197,12 @@ module fluxMod
       N_EcMPlant = 0.0
     end if
     
-    N_AMPlant = N_INAM  - e_m*C_PlantAM/CN_ratio(7)  !gN/m3h
-    if ( N_AMPlant .LT. 0.) then
-      N_AMPlant = 0.0
-    end if    
+    ! N_AMPlant = N_INAM  - e_m*C_PlantAM/CN_ratio(7)  !gN/m3h
+    ! if ( N_AMPlant .LT. 0.) then
+    !   N_AMPlant = 0.0
+    ! end if    
 
+    N_AMPlant = 0.0
 
     N_ErMPlant = 0.0
 
