@@ -65,6 +65,7 @@ LOGICAL                              :: N_lim
 
 real(r8), parameter                  :: f_met_to_som=0.05 ! fraction of metabolic litter flux that goes directly to SOM pools
 real(r8), parameter                  :: max_mining = 0.3
+real(r8), parameter                  :: enzyme_pct = 0.1
 
 real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
                                                                                           !NOTE: Wallander/Rousk may have data more suited for Boreal/Arctic conditions

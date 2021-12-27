@@ -192,7 +192,7 @@ module fluxMod
     Leaching=L_rate*N_IN
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    N_EcMPlant = N_INEcM + N_SOMpEcM + N_SOMcEcM - e_m*C_PlantEcM/CN_ratio(5)  !gN/m3h
+    N_EcMPlant = N_INEcM + N_SOMpEcM + N_SOMcEcM - e_m*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)  !gN/m3h
     if ( N_EcMPlant .LT. 0.) then
       N_EcMPlant = 0.0
     end if

@@ -186,20 +186,16 @@ module mycmim
       
       write_y=0
 
-      print*, "test1"
       call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year  
-      print*, "test2"
 
       !Check if inputdata is daily or monthly:      
       call read_time(adjustr(clm_input_path)//'all.'//year_char//'.nc',input_steps)
-      print*, "test3"
 
       !data from CLM file
       call read_clm_model_input(ncid,nlevdecomp,1, &
                                 C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
                                 C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
                                 W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
-      print*, "test4"
 
       allocate(ndep_prof(nlevdecomp),leaf_prof(nlevdecomp),froot_prof(nlevdecomp))   
          
@@ -346,7 +342,7 @@ module mycmim
 
             elseif (i==5) then !EcM
               C_Gain = C_PlantEcM
-              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + (1-e_m)*C_PlantEcM
+              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + (1-e_m)*C_PlantEcM + e_m*C_PlantEcM*enzyme_pct
               N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
 
@@ -370,7 +366,7 @@ module mycmim
 
             elseif (i==9) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc &
-               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa
+               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ e_m*C_PlantEcM*enzyme_pct
                C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
                N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa
