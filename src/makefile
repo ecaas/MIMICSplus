@@ -1,7 +1,7 @@
 
 #-------------------------------------------------------------------------------
 
-PROG = ./run_script
+PROG = ./run_script_dev
 LIB = /home/ecaas/anaconda3/envs/nc-fortran/lib
 INCS = /home/ecaas/anaconda3/envs/nc-fortran/include
 
