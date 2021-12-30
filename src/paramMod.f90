@@ -14,7 +14,7 @@ real(kind=r8),dimension(3)                   :: k_mycsom                        
 
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
 integer, parameter                           :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters
-real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = 0.017!(/0.017, 0.027, 0.017, 0.017, 0.027, 0.017/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = (/0.017, 0.027, 0.017, 0.017, 0.027, 0.017/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),dimension(MM_eqs),parameter    :: Vslope  = (/0.063, 0.063, 0.063, 0.063, 0.063, 0.063/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),dimension(MM_eqs),parameter    :: Kint    = 3.19      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
@@ -61,7 +61,6 @@ real(r8),parameter                   :: CUE_0=0.50
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
 real(r8)                             :: CUEmod_bacteria
 real(r8)                             :: CUEmod_fungi
-LOGICAL                              :: N_lim
 
 real(r8), parameter                  :: f_met_to_som=0.05 ! fraction of metabolic litter flux that goes directly to SOM pools
 real(r8), parameter                  :: max_mining = 0.3
@@ -134,14 +133,14 @@ character (len=*), dimension(*), parameter ::  N_name_fluxes = &
   ,"PlantLITs","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
   "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM"]
   
-character (len=*), dimension(42),parameter :: site_names = &
+character (len=*), dimension(39),parameter :: site_names = &
 [character(len=18) :: &
  'NR32249_Vik       ','NR32182_Stryn     ','NR31881_Sande     ','NR31578_Kvinesdal ','32288_Sortland    ','31463_Hurdal      ',&
- '31464_Hurdal      ','32087_Dovre       ','32124_Engerdal    ','32379_Hemne       ','32441_Sel         ','32258_Maaselv     ',&
- '32032_VestreToten ','32246_SoerVaranger','31984_Namdalseid  ','31976_Namdalseid  ','31461_Nittedal    ','31513_Nes         ',&
+ '31464_Hurdal      ','32087_Dovre       ','32379_Hemne       ','32441_Sel         ','32258_Maaselv     ',&
+ '32032_VestreToten ','31984_Namdalseid  ','31976_Namdalseid  ','31461_Nittedal    ','31513_Nes         ',&
  '31539_Modum       ','31652_Bygland     ','31767_Kongsvinger ','31780_Vaaler      ','31941_Roeyrvik    ','31997_Verdal      ',&
  '32088_Lesja       ','32103_Halden      ','32139_Rennebu     ','32374_Saltdal     ','32404_Vinje       ','32409_Vang        ',&
  '32438_Porsanger   ','31519_Nissedal    ','31650_Valle       ','31714_Flaa        ','32085_Skjaak      ','NR31906_Voss      ',&
- 'NR31908_Ullensvang','NR31927_Os        ','NR31677_Suldal    ','NR31577_Kvinesdal ','NR31579_Kvinesdal ','NR31590_Farsund   ']
-
+ 'NR31908_Ullensvang','NR31677_Suldal    ','NR31577_Kvinesdal ','NR31579_Kvinesdal ','NR31590_Farsund   ']
+! '32124_Engerdal    ', '32246_SoerVaranger'  ,'NR31927_Os        '
 end module paramMod
