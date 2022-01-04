@@ -242,6 +242,12 @@ module writeMod
       call check(nf90_put_var(ncid, varid, C_PlantErM, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "C_PlantAM", varid))
       call check(nf90_put_var(ncid, varid, C_PlantAM, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "C_PlantSOMc", varid))
+      call check(nf90_put_var(ncid, varid, C_PlantSOMc, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "C_PlantSOMp", varid))
+      call check(nf90_put_var(ncid, varid, C_PlantSOMp, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "C_PlantSOMa", varid))
+      call check(nf90_put_var(ncid, varid, C_PlantSOMa, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "C_LITmSAPb", varid))
       call check(nf90_put_var(ncid, varid, C_LITmSAPb, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "C_LITsSAPb", varid))
@@ -286,6 +292,11 @@ module writeMod
       call check(nf90_put_var(ncid, varid, C_SAPbSOMc, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "C_SAPfSOMc", varid))
       call check(nf90_put_var(ncid, varid, C_SAPfSOMc, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "C_EcMdecoSOMp", varid))
+      call check(nf90_put_var(ncid, varid, C_EcMdecompSOMp, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "C_EcMdecoSOMc", varid))
+      call check(nf90_put_var(ncid, varid, C_EcMdecompSOMc, start = (/ timestep, depth_level /)))
+
     end subroutine write_Cfluxes
     subroutine write_Nfluxes(ncid,timestep,depth_level)
       integer, intent(in) :: ncid
@@ -365,6 +376,10 @@ module writeMod
       call check(nf90_put_var(ncid, varid, N_AMPlant, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "N_InPlant", varid))
       call check(nf90_put_var(ncid, varid, N_InPlant, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "N_SOMpEcM", varid))
+      call check(nf90_put_var(ncid, varid, N_SOMpEcM, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "N_SOMcEcM", varid))
+      call check(nf90_put_var(ncid, varid, N_SOMcEcM, start = (/ timestep, depth_level /)))
     end subroutine write_Nfluxes
 
     subroutine create_yearly_mean_netcdf(run_name, levsoi)

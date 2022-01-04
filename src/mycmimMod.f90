@@ -128,9 +128,7 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: WATSAT
       real(r8), dimension(nlevdecomp)          :: W_SCALAR
       real(r8), dimension(nlevdecomp)          :: r_moist
-      
-    
-      
+          
       integer :: ncid
 
       dt= 1.0/step_frac !Setting the time step
@@ -144,7 +142,6 @@ module mycmim
         !delta_z=soil_depth !So that delta_z will not be 1st on delta_z from parametersMod
         allocate (vertC, mold = pool_matrixC)
         allocate (vertN, mold = pool_matrixN)
-
                      !TODO: This can be done better
       end if
       
@@ -154,8 +151,8 @@ module mycmim
       CUE_bacteria_vr=0.5
       
       ! Fracions of SAP that goes to different SOM pools
-      fPHYS = 0.3!(/ 0.3 * exp(fCLAY), 0.3 * exp(fCLAY) /)
-      fCHEM =  0.3!(/0.1 * exp(-3.0*fMET), 0.1 * exp(-3.0*fMET) /)
+      fPHYS = (/ 0.3 * exp(fCLAY), 0.3 * exp(fCLAY) /)
+      fCHEM = (/0.1 * exp(-3.0*fMET), 0.1 * exp(-3.0*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
 
       !Set initial concentration values:
@@ -188,11 +185,12 @@ module mycmim
       day_counter = 0
       
       write_y=0
-      call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
-      !Check if inputdata is daily or monthly:
-      
-      call read_time(clm_input_path//'all.'//year_char//'.nc',input_steps)
-      
+
+      call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year  
+
+      !Check if inputdata is daily or monthly:      
+      call read_time(adjustr(clm_input_path)//'all.'//year_char//'.nc',input_steps)
+
       !data from CLM file
       call read_clm_model_input(ncid,nlevdecomp,1, &
                                 C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
@@ -201,15 +199,12 @@ module mycmim
 
       allocate(ndep_prof(nlevdecomp),leaf_prof(nlevdecomp),froot_prof(nlevdecomp))   
          
-      call read_WATSAT_and_profiles(clm_input_path//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)  
-      
-      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)               
-
-    
-      call read_clay(clm_surf_path,fCLAY,nlevdecomp)
+      call read_WATSAT_and_profiles(adjustr(clm_input_path)//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)        
+      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)                   
+      call read_clay(adjustr(clm_surf_path),fCLAY,nlevdecomp)
   
       !open and prepare files to store results. Store initial values
-      call create_yearly_mean_netcdf(run_name,nlevdecomp)
+      !call create_yearly_mean_netcdf(run_name,nlevdecomp)
       call create_netcdf(run_name, nlevdecomp)
       
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
@@ -218,7 +213,8 @@ module mycmim
                       
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
       pscalar = 1.0/(2*exp(-2.0*sqrt(fCLAY)))
-      Kmod = 0.4 ![real(r8) :: 0.125,0.5,0.25*pscalar,0.5,0.25,0.167*pscalar]
+      Kmod = [real(r8) :: 0.125,0.5,0.25*pscalar,0.5,0.25,0.167*pscalar]
+      L_rate = 2./(hr_pr_yr*soil_depth)
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
         time = t*dt
@@ -283,18 +279,21 @@ module mycmim
           !mimicsbiome%tauK(npt) = mimicsbiome%tauK(npt) * fW
           ![1/h] Microbial turnover rate (SAP to SOM), SAPr,(/1.39E-3*exp(0.3*fMET), 2.3E-4*exp(0.1*fMET)/)
 
-          tau = (/ 5e-4*exp(0.1*fMET)*r_moist(j), 5e-4*exp(0.1*fMET)*r_moist(j)/)
-          !tau = (/ 5.2e-4*exp(0.3*fMET)*r_moist(j), 2.4e-4*exp(0.1*fMET)*r_moist(j)/)
+          !tau = (/ 5e-4*exp(0.1*fMET)*r_moist(j), 5e-4*exp(0.1*fMET)*r_moist(j)/)
+          tau = (/ 5.2e-4*exp(0.3*fMET)*r_moist(j), 2.4e-4*exp(0.1*fMET)*r_moist(j)/)
           CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call input_rates(j,C_litterfall,C_leaf_litter,C_root_litter,N_leaf_litter,&
-                                      N_root_litter,C_EcMinput,N_LEACHinput,N_DEPinput,&
+                                      N_root_litter,C_EcMinput,N_LEACHinput,&
                                       N_CWD_litter,C_CWD_litter,&
                                       C_PlantLITm,C_PlantLITs, &
                                       N_PlantLITm,N_PlantLITs, &
-                                      Deposition,Leaching,C_PlantEcM)
+                                      Leaching,C_PlantEcM,C_PlantAM)
+          !Determine deposition NOTE: Must specify name of parameters when using the set_N_dep function 
+          !,const_dep = 3d0
+          Deposition = set_N_dep(const_dep = 3d0)
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
           
           if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file
@@ -342,42 +341,42 @@ module mycmim
               end if
 
             elseif (i==5) then !EcM
-              C_Gain = e_m*C_PlantEcM
-              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc
-              N_Gain = N_INEcM + N_SOMaEcM
+              C_Gain = C_PlantEcM
+              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + (1-e_m)*C_PlantEcM + e_m*C_PlantEcM*enzyme_pct
+              N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
 
             elseif (i==6) then !ErM
-              C_Gain = e_m*C_PlantErM
-              C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc
-              N_Gain = N_INErM + N_SOMaErM
+              C_Gain = C_PlantErM
+              C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc + (1-e_m)*C_PlantErM
+              N_Gain = N_INErM
               N_Loss = N_ErMPlant + N_ErMSOMa + N_ErMSOMp + N_ErMSOMc
 
             elseif (i==7) then !AM
-              C_Gain = e_m*C_PlantAM
-              C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc
-              N_Gain = N_INAM + N_SOMaAM
+              C_Gain = C_PlantAM
+              C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc + (1-e_m)*C_PlantAM
+              N_Gain = N_INAM 
               N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
 
             elseif (i==8) then !SOMp
-              C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp
-              C_Loss = C_SOMpSOMa
+              C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp+ C_PlantSOMp
+              C_Loss = C_SOMpSOMa+C_EcMdecompSOMp
               N_Gain =  N_SAPbSOMp + N_SAPfSOMp + N_EcMSOMp + N_ErMSOMp + N_AMSOMp
-              N_Loss = N_SOMpSOMa
+              N_Loss = N_SOMpSOMa + N_SOMpEcM
 
             elseif (i==9) then !SOMa
-               C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + &
-               C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa
+               C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc &
+               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ e_m*C_PlantEcM*enzyme_pct
                C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
                N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa
-               N_Loss = N_SOMaSAPb + N_SOMaSAPf + N_SOMaEcM + N_SOMaErM + N_SOMaAM
+               N_Loss = N_SOMaSAPb + N_SOMaSAPf 
 
             elseif (i==10) then !SOMc
-              C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc
-              C_Loss = C_SOMcSOMa
+              C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc+C_PlantSOMc
+              C_Loss = C_SOMcSOMa+C_EcMdecompSOMc
               N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_ErMSOMc + N_AMSOMc
-              N_Loss = N_SOMcSOMa
+              N_Loss = N_SOMcSOMa + N_SOMcEcM
 
             elseif (i == 11) then !Inorganic N
               N_Gain = Deposition
@@ -436,14 +435,12 @@ module mycmim
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t: NOTE: revise!
           HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j)) + (C_LITmSAPf &
-          + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j))+ &
-           (C_PlantEcM + C_PlantErM + C_PlantAM)*(1-e_m))*dt
+          + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j)))*dt
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t
           end if
           
-          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+C_PlantEcM)*dt*delta_z(j) !g/m2
-          
+          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+e_m*C_PlantEcM+e_m*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
           sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+Deposition)*dt*delta_z(j) !g/m2
           sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_INPlant+Leaching)*dt*delta_z(j)
 
@@ -487,8 +484,8 @@ module mycmim
           month_counter=0
           current_month=1
           write (year_char,year_fmt) year
-          call check(nf90_open(trim(clm_input_path//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
-          call read_time(clm_input_path//'all.'//year_char//'.nc',input_steps)     
+          call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
+          call read_time(adjustr(clm_input_path)//'all.'//year_char//'.nc',input_steps)     
           ycounter = 0
           sum_consN =0
           sum_consC =0
@@ -545,7 +542,7 @@ module mycmim
     yearly_meanC=yearly_sumC/hr_in_year
     yearly_meanN=yearly_sumN/hr_in_year
 
-    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,nlevels)
+    !call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,nlevels)
 
   end subroutine annual_mean
 
