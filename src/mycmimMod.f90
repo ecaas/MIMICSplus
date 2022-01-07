@@ -79,13 +79,11 @@ module mycmim
       real(r8)                       :: sum_consN(nlevdecomp, pool_types+1) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
       real(r8)                       :: N_DEPinput
-      real(r8)                       :: N_LEACHinput(nlevdecomp)
       real(r8)                       :: C_EcMinput
       real(r8)                       :: C_leaf_litter
       real(r8)                       :: C_root_litter
       real(r8)                       :: N_leaf_litter
       real(r8)                       :: N_root_litter
-      real(r8)                       :: C_litterfall
       real(r8)                       :: C_CWD_litter(nlevdecomp)
       real(r8)                       :: N_CWD_litter(nlevdecomp)
 
@@ -128,6 +126,8 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: WATSAT
       real(r8), dimension(nlevdecomp)          :: W_SCALAR
       real(r8), dimension(nlevdecomp)          :: r_moist
+      real(r8)                                 :: drain
+      real(r8)                                 :: h2o_liq_tot
           
       integer :: ncid
 
@@ -193,9 +193,9 @@ module mycmim
 
       !data from CLM file
       call read_clm_model_input(ncid,nlevdecomp,1, &
-                                C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
+                                N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
                                 C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-                                W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
+                                W_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
 
       allocate(ndep_prof(nlevdecomp),leaf_prof(nlevdecomp),froot_prof(nlevdecomp))   
          
@@ -214,7 +214,6 @@ module mycmim
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
       pscalar = 1.0/(2*exp(-2.0*sqrt(fCLAY)))
       Kmod = [real(r8) :: 0.125,0.5,0.25*pscalar,0.5,0.25,0.167*pscalar]
-      L_rate = 2./(hr_pr_yr*soil_depth)
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
         time = t*dt
@@ -232,12 +231,14 @@ module mycmim
               current_month = current_month + 1 
             end if             
              
-            if (input_steps==12) then   
+            if (input_steps==12) then  
+              !print*, ncid,nlevdecomp,current_month,time
               call read_clm_model_input(ncid,nlevdecomp,current_month, &
-                                C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
+                                N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
                                 C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-                                W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)  
-              call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)             
+                                W_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
+         
+              call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)   
             end if    
                                       
         end if 
@@ -250,9 +251,9 @@ module mycmim
           end if          
           if (input_steps==365) then
             call read_clm_model_input(ncid,nlevdecomp,current_day, &
-            C_litterfall,N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
+            N_leaf_litter,N_root_litter,C_EcMinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-            W_SCALAR,C_CWD_litter,N_CWD_litter,N_LEACHinput)
+            W_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)            
           end if        
           day_counter = 1   
@@ -285,15 +286,17 @@ module mycmim
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
-          call input_rates(j,C_litterfall,C_leaf_litter,C_root_litter,N_leaf_litter,&
-                                      N_root_litter,C_EcMinput,N_LEACHinput,&
+          call input_rates(j,C_leaf_litter,C_root_litter,N_leaf_litter,&
+                                      N_root_litter,C_EcMinput, &
                                       N_CWD_litter,C_CWD_litter,&
                                       C_PlantLITm,C_PlantLITs, &
                                       N_PlantLITm,N_PlantLITs, &
-                                      Leaching,C_PlantEcM,C_PlantAM)
+                                      C_PlantEcM,C_PlantAM)
           !Determine deposition NOTE: Must specify name of parameters when using the set_N_dep function 
           !,const_dep = 3d0
-          Deposition = set_N_dep(const_dep = 3d0)
+          Deposition = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j))
+          Leaching = calc_Leaching(drain,h2o_liq_tot,pool_matrixN(j,11))
+          
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
           
           if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file

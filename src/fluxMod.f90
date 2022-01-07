@@ -20,6 +20,15 @@ module fluxMod
       stop
     end if
   end function set_N_dep
+  
+  function calc_Leaching(drain,h2o_tot, N_inorganic) result(Leach)
+    real(r8)           :: Leach       !gN/m3 s
+    real(r8)           :: drain       !mmH20/s = kgH20/m2 s
+    real(r8)           :: h2o_tot     !kgH20/m2
+    real(r8)           :: N_inorganic !gN/m3
+    Leach = N_inorganic*drain/h2o_tot
+  end function calc_Leaching
+
 
   function MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
     !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
@@ -188,9 +197,6 @@ module fluxMod
     !Transport from SOMc to SOMa:
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
 
-    !Leaching based on Baskaran et al leaching rate:
-    Leaching=L_rate*N_IN
-
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
     N_EcMPlant = N_INEcM + N_SOMpEcM + N_SOMcEcM - e_m*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)  !gN/m3h
     if ( N_EcMPlant .LT. 0.) then
@@ -306,23 +312,21 @@ module fluxMod
   end subroutine moisture_func
 
   subroutine input_rates(layer_nr,&
-                                  TOTC_LITFALL,LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,FROOTN_TO_LIT, &
-                                  C_EcMinput,N_LEACHinput,&
+                                  LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,FROOTN_TO_LIT, &
+                                  C_EcMinput,&
                                   N_CWD,C_CWD, &
                                   C_PlantLITm,C_PlantLITs,&
                                   N_PlantLITm,N_PlantLITs,&
-                                  N_LEACH,C_PlantEcM,C_PlantAM)
+                                  C_PlantEcM,C_PlantAM)
 
     !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
     !in:
     integer,  intent(in) :: layer_nr
-    real(r8), intent(in) :: TOTC_LITFALL
     real(r8), intent(in) :: LEAFC_TO_LIT
     real(r8), intent(in) :: FROOTC_TO_LIT
     real(r8), intent(in) :: LEAFN_TO_LIT
     real(r8), intent(in) :: FROOTN_TO_LIT    
     real(r8), intent(in) :: C_EcMinput
-    real(r8), intent(in) :: N_LEACHinput(:)
     real(r8), intent(in) :: N_CWD(:)
     real(r8), intent(in) :: C_CWD(:)
     
@@ -331,7 +335,6 @@ module fluxMod
     real(r8), intent(out) :: C_PlantLITs
     real(r8), intent(out) :: N_PlantLITm
     real(r8), intent(out) :: N_PlantLITs
-    real(r8), intent(out) :: N_LEACH
     real(r8), intent(out) :: C_PlantEcM
     real(r8), intent(out) :: C_PlantAM
     

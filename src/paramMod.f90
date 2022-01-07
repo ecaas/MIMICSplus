@@ -80,7 +80,6 @@ real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constan
 real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) 
 real(r8), parameter :: e_m = 0.25             !Growth efficiency of mycorrhiza 
 
-real(r8)            :: L_rate        ![1/ hr] Leaching rate 
 
 !Decomposition rates:
 real(r8), parameter :: K_MO = 0.003/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
