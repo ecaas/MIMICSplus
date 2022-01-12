@@ -31,37 +31,37 @@ module writeMod
       call check(nf90_def_dim(ncid, "NoMMKeqs", MM_eqs, mmk_dimid))
       call check(nf90_def_dim(ncid,"SAPpools",size(fPHYS),fracid))
       do v = 1, size(variables)
-        call check(nf90_def_var(ncid, trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
-        call check(nf90_def_var(ncid, "change"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
-        call check(nf90_def_var(ncid, "vert_change"//trim(variables(v)), NF90_DOUBLE, (/t_dimid, lev_dimid/), varid))
-        call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
-        call check(nf90_def_var(ncid, "N_change"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
-        call check(nf90_def_var(ncid, "N_vert_change"//trim(variables(v)), NF90_DOUBLE, (/t_dimid, lev_dimid/), varid))
+        call check(nf90_def_var(ncid, trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
+        !call check(nf90_def_var(ncid, "change"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, "vert_change"//trim(variables(v)), NF90_FLOAT, (/t_dimid, lev_dimid/), varid))
+        call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
+        !call check(nf90_def_var(ncid, "N_change"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, "N_vert_change"//trim(variables(v)), NF90_FLOAT, (/t_dimid, lev_dimid/), varid))
 
       end do
-      call check(nf90_def_var(ncid, "N_inorganic", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid))
-      call check(nf90_def_var(ncid,"HR_sum", NF90_DOUBLE, (/t_dimid /), varid ))
-      call check(nf90_def_var(ncid,"HR_flux", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
-      call check(nf90_def_var(ncid,"CUEb", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
-      call check(nf90_def_var(ncid,"CUEf", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
-      call check(nf90_def_var(ncid, "Temp", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
-      call check(nf90_def_var(ncid, "Moisture", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
-      call check(nf90_def_var(ncid, "N_changeinorganic", NF90_DOUBLE,(/t_dimid, lev_dimid/), varid))
-      call check(nf90_def_var(ncid, "N_InPlant", NF90_DOUBLE,(/t_dimid, lev_dimid/), varid))
+      call check(nf90_def_var(ncid, "N_inorganic", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid,"HR_sum", NF90_FLOAT, (/t_dimid /), varid ))
+      call check(nf90_def_var(ncid,"HR_flux", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid,"CUEb", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid,"CUEf", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid, "Temp", NF90_FLOAT, (/t_dimid, lev_dimid/),varid))
+      call check(nf90_def_var(ncid, "Moisture", NF90_FLOAT, (/t_dimid, lev_dimid/),varid))
+      !call check(nf90_def_var(ncid, "N_changeinorganic", NF90_FLOAT,(/t_dimid, lev_dimid/), varid))
+      call check(nf90_def_var(ncid, "N_InPlant", NF90_FLOAT,(/t_dimid, lev_dimid/), varid))
       
 
 
       do v = 1, size(C_name_fluxes)
-         call check(nf90_def_var(ncid, "C_"//trim(C_name_fluxes(v)), NF90_double, (/t_dimid, lev_dimid /), varid))
+         call check(nf90_def_var(ncid, "C_"//trim(C_name_fluxes(v)), NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       end do
 
       do v = 1, size(N_name_fluxes)
-         call check(nf90_def_var(ncid, "N_"//trim(N_name_fluxes(v)), NF90_double, (/t_dimid, lev_dimid /), varid))
+         call check(nf90_def_var(ncid, "N_"//trim(N_name_fluxes(v)), NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       end do
       
-      call check(nf90_def_var(ncid, "mcdate", NF90_DOUBLE,(/t_dimid/), varid))
-      call check(nf90_def_var(ncid, "time", NF90_DOUBLE, (/t_dimid /), varid))
-      call check(nf90_def_var(ncid, "month", NF90_DOUBLE, (/t_dimid /), varid))
+      call check(nf90_def_var(ncid, "mcdate", NF90_INT,(/t_dimid/), varid))
+      call check(nf90_def_var(ncid, "time", NF90_INT, (/t_dimid /), varid))
+      call check(nf90_def_var(ncid, "month", NF90_INT, (/t_dimid /), varid))
       call check(nf90_enddef(ncid))
 
       call check( nf90_close(ncid) )
@@ -124,8 +124,8 @@ module writeMod
         call check(nf90_inq_varid(ncid, "N_inorganic", varid))
         call check(nf90_put_var(ncid, varid, Npool_matrix(j,11), start = (/timestep, j/)))
 
-        call check(nf90_inq_varid(ncid, "N_changeinorganic", varid))
-        call check(nf90_put_var(ncid, varid, Nchange_matrix(j,11), start = (/timestep, j/)))
+        !call check(nf90_inq_varid(ncid, "N_changeinorganic", varid))
+        !call check(nf90_put_var(ncid, varid, Nchange_matrix(j,11), start = (/timestep, j/)))
         do i = 1,pool_types
           !C:
           call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
@@ -135,13 +135,13 @@ module writeMod
           call check(nf90_put_var(ncid, varid, Npool_matrix(j,i), start = (/ timestep, j /)))
 
           !C change:
-          call check(nf90_inq_varid(ncid, trim(change_variables(i)), varidchange))
-          call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ timestep, j /)))
+        !  call check(nf90_inq_varid(ncid, trim(change_variables(i)), varidchange))
+        !  call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ timestep, j /)))
           call check(nf90_inq_varid(ncid, "vert_change"//trim(variables(i)), vertid))
           call check(nf90_put_var(ncid, vertid, vert_sum(j,i), start = (/timestep,j/)))
           !N change:
-          call check(nf90_inq_varid(ncid, "N_"//trim(change_variables(i)), varidchange))
-          call check(nf90_put_var(ncid, varidchange, Nchange_matrix(j,i), start = (/ timestep, j /)))
+        !  call check(nf90_inq_varid(ncid, "N_"//trim(change_variables(i)), varidchange))
+        !  call check(nf90_put_var(ncid, varidchange, Nchange_matrix(j,i), start = (/ timestep, j /)))
           call check(nf90_inq_varid(ncid, "N_vert_change"//trim(variables(i)), vertid))
           call check(nf90_put_var(ncid, vertid, Nvert_sum(j,i), start = (/timestep,j/)))
         end do !pool_types
@@ -151,29 +151,27 @@ module writeMod
 
    subroutine store_parameters(run_name)
      character (len = *):: run_name
-     integer :: tsoiID, clayID, desorbID, kmID, vmID, fmetID, tauID, gepID, depthID, fphysID, fchemID, favailID
+     integer :: tsoiID, clayID, desorbID, kmID, vmID, fmetID, tauID, depthID, fphysID, fchemID, favailID
      integer:: ncid
      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, ncid))
 
-     call check(nf90_def_var(ncid, "tsoi", NF90_double, tsoiID))
-     call check(nf90_def_var(ncid, "f_clay", NF90_double, clayID))
-     call check(nf90_def_var(ncid, "desorb", NF90_double, desorbID))
-     call check(nf90_def_var(ncid, "Km",NF90_double,mmk_dimid, kmID))
-     call check(nf90_def_var(ncid, "Vmax", NF90_double,mmk_dimid,vmID))
-     call check(nf90_def_var(ncid, "GEP", NF90_double,gepID))
-     call check(nf90_def_var(ncid, "tau", NF90_double,fracid,tauID))
-     call check(nf90_def_var(ncid, "f_phys", NF90_double,fracid,fphysID))
-     call check(nf90_def_var(ncid, "f_avail", NF90_double,fracid,favailID))
-     call check(nf90_def_var(ncid, "f_chem", NF90_double,fracid,fchemID))
-     call check(nf90_def_var(ncid, "depth", NF90_double,depthID))
-     call check(nf90_def_var(ncid, "f_met", NF90_double,fmetID))
+     call check(nf90_def_var(ncid, "tsoi", NF90_FLOAT, tsoiID))
+     call check(nf90_def_var(ncid, "f_clay", NF90_FLOAT, clayID))
+     call check(nf90_def_var(ncid, "desorb", NF90_FLOAT, desorbID))
+     call check(nf90_def_var(ncid, "Km",NF90_FLOAT,mmk_dimid, kmID))
+     call check(nf90_def_var(ncid, "Vmax", NF90_FLOAT,mmk_dimid,vmID))
+     call check(nf90_def_var(ncid, "tau", NF90_FLOAT,fracid,tauID))
+     call check(nf90_def_var(ncid, "f_phys", NF90_FLOAT,fracid,fphysID))
+     call check(nf90_def_var(ncid, "f_avail", NF90_FLOAT,fracid,favailID))
+     call check(nf90_def_var(ncid, "f_chem", NF90_FLOAT,fracid,fchemID))
+     call check(nf90_def_var(ncid, "depth", NF90_FLOAT,depthID))
+     call check(nf90_def_var(ncid, "f_met", NF90_FLOAT,fmetID))
 
      call check(nf90_enddef(ncid))
 
      call check(nf90_put_var(ncid, tsoiID, T_soil_const))
      call check(nf90_put_var(ncid, clayID, fCLAY))
      call check(nf90_put_var(ncid, desorbID, desorb))
-     call check(nf90_put_var(ncid, gepID, GEP))
      call check(nf90_put_var(ncid, fphysID, fPHYS))
      call check(nf90_put_var(ncid, fchemID, fCHEM))
      call check(nf90_put_var(ncid, favailID, fAVAIL))
@@ -396,17 +394,17 @@ module writeMod
       call check(nf90_def_dim(ncid, "levsoi", levsoi, lev_dimid))
 
       do v = 1, size(variables)
-        call check(nf90_def_var(ncid, trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
-        call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_DOUBLE, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
       end do
 
-      call check(nf90_def_var(ncid, "N_inorganic", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid))
-      call check(nf90_def_var(ncid,"HR_sum", NF90_DOUBLE, (/t_dimid /), varid ))
-      call check(nf90_def_var(ncid,"HR_flux", NF90_DOUBLE, (/t_dimid, lev_dimid /), varid ))
-      call check(nf90_def_var(ncid, "Temp", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
-      call check(nf90_def_var(ncid, "Moisture", NF90_DOUBLE, (/t_dimid, lev_dimid/),varid))
+      call check(nf90_def_var(ncid, "N_inorganic", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid,"HR_sum", NF90_FLOAT, (/t_dimid /), varid ))
+      call check(nf90_def_var(ncid,"HR_flux", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid, "Temp", NF90_FLOAT, (/t_dimid, lev_dimid/),varid))
+      call check(nf90_def_var(ncid, "Moisture", NF90_FLOAT, (/t_dimid, lev_dimid/),varid))
 
-      call check(nf90_def_var(ncid, "year_since_start", NF90_DOUBLE, (/t_dimid /), varid))
+      call check(nf90_def_var(ncid, "year_since_start", NF90_FLOAT, (/t_dimid /), varid))
       call check(nf90_enddef(ncid))
 
       call check( nf90_close(ncid) )
