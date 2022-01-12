@@ -7,18 +7,16 @@ module testMod
   
 contains
 
-  subroutine cons_to_mass(matrix, mass_matrix,nlevdecomp,pool_types) !Convert from g/m3 to g/m2 !Tested and works
+  subroutine cons_to_mass(matrix, mass_matrix,layers,pools) !Convert from g/m3 to g/m2 !Tested and works
     !INPUT
-    integer, intent(in)                                    :: nlevdecomp
-    integer, intent(in)                                    :: pool_types
-    real(r8),intent(in), dimension(nlevdecomp, pool_types) :: matrix
+    integer, intent(in)                                    :: layers
+    integer, intent(in)                                    :: pools
+    real(r8),intent(in), dimension(layers, pools) :: matrix
     
     !OUTPUT
-    real(r8),intent(out),dimension(nlevdecomp, pool_types) :: mass_matrix
-
-
-    do i = 1,pool_types
-      mass_matrix(:,i) = matrix(:,i)*delta_z(1:nlevdecomp)
+    real(r8),intent(out),dimension(layers, pools) :: mass_matrix
+    do i = 1,pools
+      mass_matrix(:,i) = matrix(:,i)*delta_z(1:layers)
     end do
   end subroutine cons_to_mass
 
@@ -97,11 +95,11 @@ contains
     HR_mass_tot = sum(HR_mass_vr)
   end subroutine respired_mass
 
-  subroutine test_mass_conservation(mass_input, mass_respiration, old, new,nlevdecomp,no_of_pools) !Checking that mass is conserved during a time step. Tested and works
+  subroutine test_mass_conservation(mass_input, mass_out, old, new,nlevdecomp,no_of_pools) !Checking that mass is conserved during a time step. Tested and works
     !INPUT
     real(r8),intent(in), dimension(nlevdecomp, no_of_pools) :: old !g/m3
     real(r8),intent(in), dimension(nlevdecomp, no_of_pools) :: new !g/m3
-    real(r8),intent(in)                                    :: mass_respiration !g/m2
+    real(r8),intent(in)                                    :: mass_out !g/m2
     real(r8),intent(in)                                    :: mass_input !g/m2
     integer, intent(in)                                    :: nlevdecomp
     integer, intent(in)                                    :: no_of_pools
@@ -115,22 +113,29 @@ contains
     real(r8) :: goal
 
     real(r8), dimension(nlevdecomp, no_of_pools) :: mass_old, mass_new
+    
+
     call cons_to_mass(old, mass_old,nlevdecomp,no_of_pools)
     call cons_to_mass(new, mass_new,nlevdecomp,no_of_pools)
 
     sum_old = sum(mass_old)
     sum_new = sum(mass_new)
 
-    goal = sum_old + mass_input - mass_respiration
+    goal = sum_old + mass_input - mass_out
     diff = sum_new-goal
     
     if (abs(diff) > 1e-4) then
+      if ( no_of_pools .eq. 11 ) then
+        print*, "Mass conservation NITROGEN"
+      else
+        print*, "MASS conservation CARBON"
+      end if
       print*, '-----------------------------------------------------------'
-      print*, '(mass at t+dt) - (mass at t + Input - respiration): ', diff
-      print*, 'sum of respired mass: ', mass_respiration
-      print*, 'sum of input        : ', mass_input
-      print*, 'mass before timestep: ', sum_old
-      print*, 'mass after timestep : ', sum_new
+      print*, '(mass at t+dt) - (mass at t + Input - out): ', diff
+      print*, 'sum of mass out of system: ', mass_out
+      print*, 'sum of input             : ', mass_input
+      print*, 'mass before timestep     : ', sum_old
+      print*, 'mass after timestep      : ', sum_new
       print*, '-----------------------------------------------------------'
     end if
   end subroutine test_mass_conservation

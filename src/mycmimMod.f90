@@ -71,6 +71,7 @@ module mycmim
       real(r8)                       :: change_matrixC(nlevdecomp,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: pool_temporaryC(nlevdecomp,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
       real(r8)                       :: pool_matrixC_previous(nlevdecomp,pool_types) !Used for checking mass conservation
+      real(r8)                       :: pool_matrixN_previous(nlevdecomp,pool_types+1) !Used for checking mass conservation
       real(r8)                       :: pool_temporaryN(nlevdecomp,pool_types+1)! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
       real(r8)                       :: pool_matrixN(nlevdecomp,pool_types+1)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types+1) ! For storing dC/dt for each time step [gN/(m3*hour)]
@@ -159,6 +160,8 @@ module mycmim
       pool_matrixC=pool_C_start
       pool_matrixN=pool_N_start
       pool_matrixC_previous = pool_C_start
+      pool_matrixN_previous = pool_N_start
+      
       !Make sure things start from zero
       change_matrixC = 0.0
       change_matrixN = 0.0
@@ -516,7 +519,9 @@ module mycmim
         end if
         
         call test_mass_conservation(sum_input_step,HR_mass,pool_matrixC_previous,pool_matrixC,nlevdecomp,pool_types)
+        call test_mass_conservation(sum_N_input_step,sum_N_out_step,pool_matrixN_previous,pool_matrixN,nlevdecomp,pool_types+1)
         pool_matrixC_previous=pool_matrixC
+        pool_matrixN_previous=pool_matrixN
         sum_input_total=sum_input_total+sum_input_step
         sum_input_step=0.0
         sum_N_input_total=sum_N_input_total+sum_N_input_step  
