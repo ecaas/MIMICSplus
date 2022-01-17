@@ -52,12 +52,12 @@ contains
 
     !TODO: Find better initial values!
     do j=1,nlevdecomp
-       pools_C(j,:) = (/2500,3700,5,5,100,100,100,50,2000,2000/)
+       pools_C(j,:) = (/1.,1.,1.,1.,1.,1.,1.,1.,1.,1./)
       ! pools_C(j,:)=[real(r8) :: 0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001]*1000
        pools_N(j,1:10) = pools_C(j,1:10)/CN_ratio
      end do
     
-    pools_N(:,11) = 50
+    pools_N(:,11) = 1.
 
   end subroutine initialize
 

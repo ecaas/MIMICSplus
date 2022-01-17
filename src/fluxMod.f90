@@ -5,18 +5,18 @@ module fluxMod
 
   contains
 
-  function set_N_dep(CLMdep,const_dep) result(Deposition)
-    real(r8)           :: Deposition
+  function set_N_dep(CLMdep,const_dep) result(Dep)
+    real(r8)           :: Dep
     real(r8), optional :: CLMdep
     real(r8), optional :: const_dep
     Deposition = -999
     if (present(CLMdep) .and. .not. present(const_dep)) then
-      Deposition = CLMdep
+      Dep = CLMdep
     elseif (present(const_dep) .and. .not. present(CLMdep)) then
-      Deposition = const_dep/(hr_pr_yr*soil_depth)
+      Dep = const_dep/(hr_pr_yr*soil_depth)
     elseif (.not. present(CLMdep) .and. .not. present(const_dep)) then
       print*, "N dep not set correctly, stopping"
-      Deposition = -999
+      Dep = -999
       stop
     end if
   end function set_N_dep
@@ -215,9 +215,7 @@ module fluxMod
 
     !Calculate amount of inorganic N saprotrophs have access to: 
     N_for_sap  = N_IN + Deposition - Leaching - N_INPlant - N_INEcM - N_INAM
-    ! print*, N_IN,Deposition,Leaching,N_INPlant,N_INEcM, N_for_sap
-    ! print*, N_for_sap + N_SAPbIN+N_SAPfIN, N_SAPbIN,N_SAPfIN
-    ! print*,"*************"
+
     !total C uptake (growth + respiration) of saprotrophs
     U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
     U_sf = C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf

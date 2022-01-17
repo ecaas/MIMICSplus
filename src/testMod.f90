@@ -20,24 +20,6 @@ contains
     end do
   end subroutine cons_to_mass
 
-  ! subroutine tot_mass_input(change_matrix, tot_input,nlevdecomp,no_of) !Merge input arrays and calculate the total mass of the input in the different layers
-  !   !INPUT
-  !   integer,intent(in)  ::  nlevdecomp
-  !   real(r8), intent(in) :: change_matrix()
-  ! 
-  !   !OUTPUT
-  !   real(r8), intent(out), dimension(nlevdecomp, nlevdecomp) :: tot_input
-  ! 
-  !   !LOCAL
-  ! 
-  ! 
-  !   do i = 1,nlevdecomp
-  !     tot_input(:,i) = tot_input(:,i)*delta_z(i)
-  !   end do
-  ! !  call disp('mass_tot_input', tot_input)
-  ! !  print*, 'sum of input: ', sum(tot_input)
-  ! end subroutine tot_mass_input
-  
   
   subroutine mass_conservation_pool(in_layer_change, vert_change ,old, new,diff,nlevdecomp) !Checking that mass is conserved during a time step in the vertical layer NOTE: Not finished!!
     

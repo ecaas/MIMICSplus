@@ -73,8 +73,6 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
                                                                                           !LITm: MIMICS-CN manuscript
                                                                                           !LITs, ErM, AM: Guesses!
 
-
-
 !From Baskaran et al 2016
 real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) 
 real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) 
@@ -132,14 +130,15 @@ character (len=*), dimension(*), parameter ::  N_name_fluxes = &
   ,"PlantLITs","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
   "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM"]
   
-character (len=*), dimension(39),parameter :: site_names = &
-[character(len=18) :: &
- 'NR32249_Vik       ','NR32182_Stryn     ','NR31881_Sande     ','NR31578_Kvinesdal ','32288_Sortland    ','31463_Hurdal      ',&
- '31464_Hurdal      ','32087_Dovre       ','32379_Hemne       ','32441_Sel         ','32258_Maaselv     ',&
- '32032_VestreToten ','31984_Namdalseid  ','31976_Namdalseid  ','31461_Nittedal    ','31513_Nes         ',&
- '31539_Modum       ','31652_Bygland     ','31767_Kongsvinger ','31780_Vaaler      ','31941_Roeyrvik    ','31997_Verdal      ',&
- '32088_Lesja       ','32103_Halden      ','32139_Rennebu     ','32374_Saltdal     ','32404_Vinje       ','32409_Vang        ',&
- '32438_Porsanger   ','31519_Nissedal    ','31650_Valle       ','31714_Flaa        ','32085_Skjaak      ','NR31906_Voss      ',&
- 'NR31908_Ullensvang','NR31677_Suldal    ','NR31577_Kvinesdal ','NR31579_Kvinesdal ','NR31590_Farsund   ']
-! '32124_Engerdal    ', '32246_SoerVaranger'  ,'NR31927_Os        '
+character (len=*), dimension(38),parameter :: site_names = &
+[character(len=19) :: &
+ 'NR31585_Flekkefjord','NR31581_Lyngdal    ','NR32361_Lyngdal    ','NR31682_Tysvar     ','32288_Sortland     ',&
+ 'NR32249_Vik        ','NR32182_Stryn      ','NR31881_Sande      ','NR31578_Kvinesdal  ',&
+ '31463_Hurdal       ','31464_Hurdal       ','32087_Dovre        ','32379_Hemne        ','32441_Sel          ','32258_Maaselv      ',&
+ '32032_VestreToten  ','31984_Namdalseid   ','31976_Namdalseid   ','31461_Nittedal     ','31513_Nes          ',&
+ '31539_Modum        ','31652_Bygland      ','31767_Kongsvinger  ','31780_Vaaler       ','31941_Roeyrvik     ','31997_Verdal       ',&
+ '32088_Lesja        ','32103_Halden       ','32139_Rennebu      ','32374_Saltdal      ','32404_Vinje        ','32409_Vang         ',&
+ '32438_Porsanger    ','31519_Nissedal     ','31650_Valle        ','31714_Flaa         ','32085_Skjaak       ','NR31906_Voss       ' ]
+! '32124_Engerdal     ', '32246_SoerVaranger '  ,'NR31927_Os         ',,'NR31590_Farsund    ', 'NR31908_Ullensvang ','NR32485_Stord      '
+!'NR31579_Kvinesdal  ','NR31577_Kvinesdal  ',,'NR31677_Suldal     '
 end module paramMod

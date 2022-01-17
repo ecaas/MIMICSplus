@@ -334,6 +334,8 @@ module writeMod
       call check(nf90_put_var(ncid, varid, N_AMSOMa, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "N_AMSOMc", varid))
       call check(nf90_put_var(ncid, varid, N_AMSOMc, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "N_AMSOMp", varid))
+      call check(nf90_put_var(ncid, varid, N_AMSOMp, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "N_SOMaSAPb", varid))
       call check(nf90_put_var(ncid, varid, N_SOMaSAPb, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "N_SOMaSAPf", varid))
