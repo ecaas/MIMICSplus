@@ -23,6 +23,29 @@ module readMod
         call check(nf90_inquire_dimension(ncid, timeid, len = steps))
         call check(nf90_close(ncid))
       end subroutine read_time
+      
+      function read_maxC(ncid,EcM_frac,time_steps) result(max_Cpay)
+        real(r8)   :: max_Cpay
+        integer, intent(in)   :: ncid
+        integer, intent(in)   :: time_steps
+        real(r8), intent(in)  :: EcM_frac
+        
+        !Local
+        integer    :: varid
+        real(r8), dimension(time_steps) :: NPP_tot
+        real(r8), dimension(time_steps) :: NPP_nonmyc
+        real(r8), dimension(time_steps) :: NPP_myc
+        
+        call check(nf90_inq_varid(ncid, 'NPP_NACTIVE', varid))
+        call check(nf90_get_var(ncid, varid, NPP_tot(:),start = (/1,1/),count = (/1,time_steps/)))
+        call check(nf90_inq_varid(ncid, 'NPP_NNONMYC', varid))
+        call check(nf90_get_var(ncid, varid, NPP_nonmyc(:),start = (/1,1/),count = (/1,time_steps/)))
+        
+        NPP_myc = (NPP_tot-NPP_nonmyc)*60*60
+
+        max_Cpay = maxval(NPP_myc)*EcM_frac
+        
+      end function read_maxC
 
       subroutine read_WATSAT_and_profiles(clm_history_file,WATSAT,NDEP_PROF,FROOT_PROF,LEAF_PROF, nlevdecomp) !Needed bc. WATSAT is only given in the first outputfile of the simulation.
         !INPUT

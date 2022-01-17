@@ -208,6 +208,8 @@ module mycmim
       call read_clay(adjustr(clm_surf_path),fCLAY,nlevdecomp)
       call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
       f_EcM = calc_EcMfrac(PFT_distribution)
+      max_mining = read_maxC(ncid,f_EcM,input_steps)
+      
 
       !open and prepare files to store results. Store initial values
       !call create_yearly_mean_netcdf(run_name,nlevdecomp)
@@ -242,8 +244,8 @@ module mycmim
                                 N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
                                 C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
                                 W_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
-         
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)   
+              max_mining = read_maxC(ncid,f_EcM,input_steps)
             end if    
                                       
         end if 
@@ -259,7 +261,9 @@ module mycmim
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
             W_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
-            call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)            
+            call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)        
+            max_mining = read_maxC(ncid,f_EcM,input_steps)
+                
           end if        
           day_counter = 1   
         end if 
