@@ -22,8 +22,8 @@ module fluxMod
   end function set_N_dep
   
   function calc_Leaching(drain,h2o_tot, N_inorganic) result(Leach)
-    real(r8)           :: Leach       !gN/m3 s
-    real(r8)           :: drain       !mmH20/s = kgH20/m2 s
+    real(r8)           :: Leach       !gN/m3 h
+    real(r8)           :: drain       !mmH20/h = kgH20/m2 h
     real(r8)           :: h2o_tot     !kgH20/m2
     real(r8)           :: N_inorganic !gN/m3
     Leach = N_inorganic*drain/h2o_tot
@@ -55,7 +55,7 @@ module fluxMod
   function Km_function(temperature) result(K_m)
     real(r8),dimension(MM_eqs)             :: K_m
     real(r8), intent(in)                   :: temperature
-    K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*10e3=[gC/m3]
+    K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*1e4=[gC/m3]
     
   end function Km_function
 
@@ -123,9 +123,9 @@ module fluxMod
     C_ErMSOMa=0.0!C_ErM*k_mycsom(2)*fErMSOM(2)
     C_ErMSOMc=0.0!C_ErM*k_mycsom(2)*fErMSOM(3)
 
-    C_AMSOMp=0.0!C_AM*k_mycsom(3)*fAMSOM(1)
-    C_AMSOMa=0.0!C_AM*k_mycsom(3)*fAMSOM(2)
-    C_AMSOMc=0.0!C_AM*k_mycsom(3)*fAMSOM(3)
+    C_AMSOMp=C_AM*k_mycsom(3)*fAMSOM(1)
+    C_AMSOMa=C_AM*k_mycsom(3)*fAMSOM(2)
+    C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(3)
 
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
     C_SAPbSOMp=C_SAPb*tau(1)*fPHYS(1)   !gC/m3h
@@ -157,11 +157,11 @@ module fluxMod
     
 
     !Inorganic N taken up directly by plant roots
-    N_InPlant = 4E-7*N_IN
+    N_InPlant =  5E-4*N_IN
     
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
-    N_INAM = 0.0!V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/delta_z(depth)))
+    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth)
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
@@ -177,12 +177,19 @@ module fluxMod
     N_EcMSOMp = C_EcMSOMp*(N_EcM/C_EcM)
     N_EcMSOMa = C_EcMSOMa*(N_EcM/C_EcM)
     N_EcMSOMc = C_EcMSOMc*(N_EcM/C_EcM)
-    N_ErMSOMp = C_ErMSOMp*(N_ErM/C_ErM)
-    N_ErMSOMa = C_ErMSOMa*(N_ErM/C_ErM)
-    N_ErMSOMc = C_ErMSOMc*(N_ErM/C_ErM)
-    N_AMSOMp = C_AMSOMp*(N_AM/C_AM)
-    N_AMSOMa = C_AMSOMa*(N_AM/C_AM)
-    N_AMSOMc = C_AMSOMc*(N_AM/C_AM)
+    N_ErMSOMp = 0.0!C_ErMSOMp*(N_ErM/C_ErM)
+    N_ErMSOMa = 0.0!C_ErMSOMa*(N_ErM/C_ErM)
+    N_ErMSOMc = 0.0!C_ErMSOMc*(N_ErM/C_ErM)
+    if ( C_AM .LT. 1.175494351E-38 ) then
+      N_AMSOMp=0.0
+      N_AMSOMa=0.0
+      N_AMSOMc=0.0
+    else
+      N_AMSOMp = max(C_AMSOMp*(N_AM/C_AM),1.175494351E-38) !Hack to ensure that the numbers can be written as floats to netcdf files
+      N_AMSOMa = max(C_AMSOMa*(N_AM/C_AM),1.175494351E-38)
+      N_AMSOMc = max(C_AMSOMc*(N_AM/C_AM),1.175494351E-38)
+  end if
+    
     !Dead saphrotroph biomass enters SOM pools
     N_SAPbSOMp = C_SAPbSOMp*N_SAPb/C_SAPb
     N_SAPbSOMa = C_SAPbSOMa*N_SAPb/C_SAPb
@@ -203,13 +210,18 @@ module fluxMod
       N_EcMPlant = 0.0
     end if
     
-    ! N_AMPlant = N_INAM  - e_m*C_PlantAM/CN_ratio(7)  !gN/m3h
-    ! if ( N_AMPlant .LT. 0.) then
-    !   N_AMPlant = 0.0
-    ! end if    
 
-    N_AMPlant = 0.0
 
+    if ( C_PlantAM == 0.0 ) then
+      N_AMPlant = 0.0
+      N_INAM = 0.0
+    else 
+      N_AMPlant = N_INAM  - e_m*C_PlantAM/CN_ratio(7)  !gN/m3h
+      if ( N_AMPlant .LT. 0.) then
+        N_AMPlant = 0.0
+      end if
+    end if    
+  !  print*, N_INAM, e_m*C_PlantAM/CN_ratio(7),N_INAM  - e_m*C_PlantAM/CN_ratio(7),N_AMPlant
     N_ErMPlant = 0.0
 
 
@@ -309,32 +321,35 @@ module fluxMod
 
   end subroutine moisture_func
 
-  subroutine input_rates(layer_nr,&
-                                  LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,FROOTN_TO_LIT, &
-                                  C_EcMinput,&
-                                  N_CWD,C_CWD, &
-                                  C_PlantLITm,C_PlantLITs,&
-                                  N_PlantLITm,N_PlantLITs,&
-                                  C_PlantEcM,C_PlantAM)
+  subroutine input_rates(layer_nr,f_EcM,&
+                        LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,FROOTN_TO_LIT, &
+                        C_MYCinput,N_CWD,C_CWD, &
+                        C_inLITm,C_inLITs,N_inLITm,N_inLITs, C_inEcM,C_inAM, &
+                        C_inSOMp,C_inSOMa,C_inSOMc)
 
     !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
     !in:
     integer,  intent(in) :: layer_nr
+    real(r8), intent(in) :: f_EcM
     real(r8), intent(in) :: LEAFC_TO_LIT
     real(r8), intent(in) :: FROOTC_TO_LIT
     real(r8), intent(in) :: LEAFN_TO_LIT
     real(r8), intent(in) :: FROOTN_TO_LIT    
-    real(r8), intent(in) :: C_EcMinput
+    real(r8), intent(in) :: C_MYCinput
     real(r8), intent(in) :: N_CWD(:)
     real(r8), intent(in) :: C_CWD(:)
     
     !out:
-    real(r8), intent(out) :: C_PlantLITm
-    real(r8), intent(out) :: C_PlantLITs
-    real(r8), intent(out) :: N_PlantLITm
-    real(r8), intent(out) :: N_PlantLITs
-    real(r8), intent(out) :: C_PlantEcM
-    real(r8), intent(out) :: C_PlantAM
+    real(r8), intent(out) :: C_inLITm
+    real(r8), intent(out) :: C_inLITs
+    real(r8), intent(out) :: N_inLITm
+    real(r8), intent(out) :: N_inLITs
+    real(r8), intent(out) :: C_inEcM
+    real(r8), intent(out) :: C_inAM
+    real(r8), intent(out) :: C_inSOMp
+    real(r8), intent(out) :: C_inSOMa
+    real(r8), intent(out) :: C_inSOMc
+    
     
 
     !local:
@@ -342,22 +357,33 @@ module fluxMod
     real(r8)           :: totN_LIT_input
 
     totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !+ mortality*froot_prof(layer_nr) !gC/m3h 
-    C_PlantLITm   = fMET*totC_LIT_input*(1-f_met_to_som)
-    C_PlantLITs   = (1-fMET)*totC_LIT_input + C_CWD(layer_nr)
-    C_PlantSOMp = fMET*totC_LIT_input*f_met_to_som*fPHYS(1)
-    C_PlantSOMc = fMET*totC_LIT_input*f_met_to_som*fCHEM(1)
-    C_PlantSOMa = fMET*totC_LIT_input*f_met_to_som*fAVAIL(1)
+    C_inLITm   = fMET*totC_LIT_input*(1-f_met_to_som)
+    C_inLITs   = (1-fMET)*totC_LIT_input + C_CWD(layer_nr)
+    C_inSOMp = fMET*totC_LIT_input*f_met_to_som*fPHYS(1)
+    C_inSOMc = fMET*totC_LIT_input*f_met_to_som*fCHEM(1)
+    C_inSOMa = fMET*totC_LIT_input*f_met_to_som*fAVAIL(1)
     
     
     totN_LIT_input = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
-    N_PlantLITm    = fMET*totN_LIT_input
-    N_PlantLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)
+    N_inLITm    = fMET*totN_LIT_input
+    N_inLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)
 
-
-    C_PlantEcM = (C_EcMinput*froot_prof(layer_nr))
-    C_PlantAM = 0.0!(C_EcMinput*froot_prof(layer_nr))
+    C_inEcM = f_EcM*C_MYCinput*froot_prof(layer_nr)
+    C_inAM = (1-f_EcM)*C_MYCinput*froot_prof(layer_nr)
     
     !TODO: Figure out how to do mycorrhizal input vertically
   end subroutine input_rates
+  
+  function calc_EcMfrac(PFT_dist) result(EcM_frac)
+    real(r8)                             :: EcM_frac
+    real(r8),dimension(15)               :: PFT_dist
+    real(r8),dimension(15),parameter     :: EcM_fraction=(/1.,1.,1.,1.,0.,0.,0.,0.5,1.,1.,1.,1.,1.,0.,0./)
+    integer                              :: i
+    EcM_frac = 0.0
+    do i = 1, 15, 1
+        EcM_frac = EcM_frac + PFT_dist(i)*EcM_fraction(i)
+    end do
+    EcM_frac = EcM_frac/100.
+  end function calc_EcMfrac
 
 end module fluxMod
