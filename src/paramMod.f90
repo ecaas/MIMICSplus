@@ -91,7 +91,7 @@ real(r8),dimension(:),allocatable  :: ndep_prof
 real(r8),dimension(:),allocatable  :: leaf_prof
 real(r8),dimension(:),allocatable  :: froot_prof
 
-
+integer(r8)     :: clock_rate,clock_start,clock_stop
 !Fluxes etc:
 real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_ErMSOMp, C_ErMSOMa, C_ErMSOMc, C_AMSOMp, &
 C_LITmSAPf, C_LITsSAPf, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa, &

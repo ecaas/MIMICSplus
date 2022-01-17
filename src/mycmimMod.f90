@@ -132,7 +132,10 @@ module mycmim
       real(r8)                                 :: h2o_liq_tot
           
       integer :: ncid
-
+      
+      call system_clock(count_rate=clock_rate) !Find the time rate
+      call system_clock(count=clock_start)     !Start Timer  
+      
       dt= 1.0/step_frac !Setting the time step
       
       if (nlevdecomp>1) then
@@ -189,11 +192,10 @@ module mycmim
       day_counter = 0
       
       write_y=0
-
       call check(nf90_open(trim(adjustr(clm_input_path)//'_'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year  
 
       !Check if inputdata is daily or monthly:      
-      call read_time(adjustr(clm_input_path)//'_'//year_char//'.nc',input_steps)
+      call read_time(ncid,input_steps)
 
       !data from CLM file
       call read_clm_model_input(ncid,nlevdecomp,1, &
@@ -546,6 +548,10 @@ module mycmim
       call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total,pool_N_start,pool_N_final,nlevdecomp,pool_types_N)
       deallocate(ndep_prof,leaf_prof,froot_prof)
       deallocate(CUE_bacteria_vr,CUE_fungi_vr)
+      call system_clock(count=clock_stop)      ! Stop Timer
+      print*, "Total time for decomp subroutine in seconds: ", real(clock_stop-clock_start)/real(clock_rate)
+      print*, "Total time for decomp subroutine in minutes: ", (real(clock_stop-clock_start)/real(clock_rate))/60
+      
     end subroutine decomp
 
   subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
