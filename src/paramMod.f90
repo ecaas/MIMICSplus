@@ -63,7 +63,7 @@ real(r8)                             :: CUEmod_bacteria
 real(r8)                             :: CUEmod_fungi
 
 real(r8), parameter                  :: f_met_to_som=0.05 ! fraction of metabolic litter flux that goes directly to SOM pools
-real(r8), parameter                  :: max_mining = 0.3
+real(r8)                             :: max_mining 
 real(r8), parameter                  :: enzyme_pct = 0.1
 
 real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
@@ -72,8 +72,6 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
                                                                                           !SOM: From CLM documentation, table 21.3 (Mendeley version)
                                                                                           !LITm: MIMICS-CN manuscript
                                                                                           !LITs, ErM, AM: Guesses!
-
-
 
 !From Baskaran et al 2016
 real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) 
@@ -93,7 +91,7 @@ real(r8),dimension(:),allocatable  :: ndep_prof
 real(r8),dimension(:),allocatable  :: leaf_prof
 real(r8),dimension(:),allocatable  :: froot_prof
 
-
+integer(r8)     :: clock_rate,clock_start,clock_stop
 !Fluxes etc:
 real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_ErMSOMp, C_ErMSOMa, C_ErMSOMc, C_AMSOMp, &
 C_LITmSAPf, C_LITsSAPf, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa, &
@@ -132,14 +130,15 @@ character (len=*), dimension(*), parameter ::  N_name_fluxes = &
   ,"PlantLITs","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
   "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM"]
   
-character (len=*), dimension(39),parameter :: site_names = &
-[character(len=18) :: &
- 'NR32249_Vik       ','NR32182_Stryn     ','NR31881_Sande     ','NR31578_Kvinesdal ','32288_Sortland    ','31463_Hurdal      ',&
- '31464_Hurdal      ','32087_Dovre       ','32379_Hemne       ','32441_Sel         ','32258_Maaselv     ',&
- '32032_VestreToten ','31984_Namdalseid  ','31976_Namdalseid  ','31461_Nittedal    ','31513_Nes         ',&
- '31539_Modum       ','31652_Bygland     ','31767_Kongsvinger ','31780_Vaaler      ','31941_Roeyrvik    ','31997_Verdal      ',&
- '32088_Lesja       ','32103_Halden      ','32139_Rennebu     ','32374_Saltdal     ','32404_Vinje       ','32409_Vang        ',&
- '32438_Porsanger   ','31519_Nissedal    ','31650_Valle       ','31714_Flaa        ','32085_Skjaak      ','NR31906_Voss      ',&
- 'NR31908_Ullensvang','NR31677_Suldal    ','NR31577_Kvinesdal ','NR31579_Kvinesdal ','NR31590_Farsund   ']
-! '32124_Engerdal    ', '32246_SoerVaranger'  ,'NR31927_Os        '
+character (len=*), dimension(38),parameter :: site_names = &
+[character(len=19) :: &
+ 'NR31585_Flekkefjord','NR31581_Lyngdal    ','NR32361_Lyngdal    ','NR31682_Tysvar     ','32288_Sortland     ',&
+ 'NR32249_Vik        ','NR32182_Stryn      ','NR31881_Sande      ','NR31578_Kvinesdal  ',&
+ '31463_Hurdal       ','31464_Hurdal       ','32087_Dovre        ','32379_Hemne        ','32441_Sel          ','32258_Maaselv      ',&
+ '32032_VestreToten  ','31984_Namdalseid   ','31976_Namdalseid   ','31461_Nittedal     ','31513_Nes          ',&
+ '31539_Modum        ','31652_Bygland      ','31767_Kongsvinger  ','31780_Vaaler       ','31941_Roeyrvik     ','31997_Verdal       ',&
+ '32088_Lesja        ','32103_Halden       ','32139_Rennebu      ','32374_Saltdal      ','32404_Vinje        ','32409_Vang         ',&
+ '32438_Porsanger    ','31519_Nissedal     ','31650_Valle        ','31714_Flaa         ','32085_Skjaak       ','NR31906_Voss       ' ]
+! '32124_Engerdal     ', '32246_SoerVaranger '  ,'NR31927_Os         ',,'NR31590_Farsund    ', 'NR31908_Ullensvang ','NR32485_Stord      '
+!'NR31579_Kvinesdal  ','NR31577_Kvinesdal  ',,'NR31677_Suldal     '
 end module paramMod
