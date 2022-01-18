@@ -279,7 +279,7 @@ module mycmim
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
           !Michaelis Menten parameters:
 
-          k_mycsom  = (/1.14,1.14,1.14/)*1e-4  ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
+          k_mycsom  = (/1.14,1.14,1.14/)*1e-5  ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision
 
           Km      = Km_function(TSOIL(j))
           Vmax    = Vmax_function(TSOIL(j),r_moist(j)) !  ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
@@ -484,8 +484,8 @@ module mycmim
 
         
         !START Compute and write annual means
-        sum_consN = sum_consN + pool_matrixN
-        sum_consC = sum_consC + pool_matrixC
+        !sum_consN = sum_consN + pool_matrixN
+        !sum_consC = sum_consC + pool_matrixC
         !print*, ycounter
         if (ycounter == 365*24*step_frac) then
           call check(nf90_close(ncid)) !Close netcdf file containing values for the past year
@@ -505,7 +505,7 @@ module mycmim
           current_month=1
           write (year_char,year_fmt) year
           call check(nf90_open(trim(adjustr(clm_input_path)//'_'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
-          call read_time(adjustr(clm_input_path)//'_'//year_char//'.nc',input_steps)     
+          call read_time(ncid,input_steps)     
           ycounter = 0
           sum_consN =0
           sum_consC =0
@@ -514,11 +514,15 @@ module mycmim
         !END Compute and write annual means
 
         if (counter == write_hour*step_frac) then
-          counter = 0
+          counter = 0        
           call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
            date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
            TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,nlevdecomp)
+
            change_sum = 0.0
+          ! call disp("pool_matrixC gC/m3 ",pool_matrixC)
+          ! call disp("pool_matrixN gN/m3 ",pool_matrixN)          
+          ! call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))           
           !vertC_change_sum = 0.0
         end if!writing
 
@@ -526,7 +530,7 @@ module mycmim
         if (t == nsteps) then
           call disp("pool_matrixC gC/m3 ",pool_matrixC)
           call disp("pool_matrixN gN/m3 ",pool_matrixN)          
-          call disp("C:N: ",pool_matrixC/pool_matrixN(:,1:10))
+!          call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))
           pool_C_final=pool_matrixC
           pool_N_final=pool_matrixN    
           call store_parameters(run_name)    
@@ -571,5 +575,5 @@ module mycmim
     !call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,nlevels)
 
   end subroutine annual_mean
-
+  
 end module mycmim

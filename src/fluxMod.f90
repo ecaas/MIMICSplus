@@ -155,13 +155,12 @@ module fluxMod
     N_SOMpEcM = C_EcMdecompSOMp*N_SOMp/C_SOMp
     N_SOMcEcM = C_EcMdecompSOMc*N_SOMc/C_SOMc
     
-
     !Inorganic N taken up directly by plant roots
     N_InPlant =  5E-4*N_IN
     
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
-    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth)
+    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
@@ -211,10 +210,8 @@ module fluxMod
     end if
     
 
-
     if ( C_PlantAM == 0.0 ) then
       N_AMPlant = 0.0
-      N_INAM = 0.0
     else 
       N_AMPlant = N_INAM  - e_m*C_PlantAM/CN_ratio(7)  !gN/m3h
       if ( N_AMPlant .LT. 0.) then
@@ -226,7 +223,7 @@ module fluxMod
 
 
     !Calculate amount of inorganic N saprotrophs have access to: 
-    N_for_sap  = N_IN + Deposition - Leaching - N_INPlant - N_INEcM - N_INAM
+    N_for_sap  = N_IN + (Deposition - Leaching - N_INPlant - N_INEcM - N_INAM)*dt
 
     !total C uptake (growth + respiration) of saprotrophs
     U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
@@ -235,9 +232,14 @@ module fluxMod
     !Calculate SAP demand/excess of N (to ensure constant C:N ratio) 
     N_SAPbIN = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) - CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
     N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
-
+    ! print*, '-----------------------'
+    ! print*, "N_for_sap  :", N_for_sap
+    ! print*, "N_SAPbIN   :", N_SAPbIN, U_sb, N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb, U_sb/(N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb), CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
+    ! print*, "N_SAPfIN   :", N_SAPfIN, U_sf, N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf, U_sf/(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf), CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
+    ! print*, "N_for_sap + N_SAPbIN+N_SAPfIN: ", N_for_sap + N_SAPbIN+N_SAPfIN
+    ! print*, '-----------------------'
     !If there is not enough inorganic N to fill SAP demand, decrease CUE:
-    do while (N_for_sap + N_SAPbIN+N_SAPfIN <0)
+    do while (N_for_sap + (N_SAPbIN+N_SAPfIN)*dt <0)
       CUEmod_bacteria=0.9
       CUEmod_fungi=0.9
       CUE_bacteria_vr(depth)=CUE_bacteria_vr(depth)*CUEmod_bacteria
@@ -350,28 +352,24 @@ module fluxMod
     real(r8), intent(out) :: C_inSOMa
     real(r8), intent(out) :: C_inSOMc
     
-    
-
     !local:
     real(r8)           :: totC_LIT_input
     real(r8)           :: totN_LIT_input
 
-    totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !+ mortality*froot_prof(layer_nr) !gC/m3h 
+    totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !gC/m3h 
     C_inLITm   = fMET*totC_LIT_input*(1-f_met_to_som)
     C_inLITs   = (1-fMET)*totC_LIT_input + C_CWD(layer_nr)
     C_inSOMp = fMET*totC_LIT_input*f_met_to_som*fPHYS(1)
     C_inSOMc = fMET*totC_LIT_input*f_met_to_som*fCHEM(1)
     C_inSOMa = fMET*totC_LIT_input*f_met_to_som*fAVAIL(1)
-    
-    
+        
     totN_LIT_input = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
     N_inLITm    = fMET*totN_LIT_input
     N_inLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)
-
+            
     C_inEcM = f_EcM*C_MYCinput*froot_prof(layer_nr)
     C_inAM = (1-f_EcM)*C_MYCinput*froot_prof(layer_nr)
-    
-    !TODO: Figure out how to do mycorrhizal input vertically
+
   end subroutine input_rates
   
   function calc_EcMfrac(PFT_dist) result(EcM_frac)

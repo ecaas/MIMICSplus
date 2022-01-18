@@ -26,7 +26,7 @@ program main
   character (len=200)  :: clm_data_file 
   character (len=200)  :: clm_surface_file
 
-  do name = 1, 2, 1    
+  do name = 5, 10, 1    
     clm_data_file='/home/ecaas/nird/all_sites_decomp/'//trim(site_names(name))//'_hist_for_decomp/lnd/hist/'//trim(site_names(name))
     print*, trim(adjustr(clm_data_file))
     clm_surface_file = '/home/ecaas/nird/surface_files/'//trim(site_names(name))//'/surfdata_'//trim(site_names(name))//'_simyr2000.nc'
@@ -43,12 +43,12 @@ program main
     !1: INITIALIZE
     call initialize(C_matrix_init,N_matrix_init,levels)
     !2: SPINUP
-    call decomp(nsteps=20*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"Spunup"),nlevdecomp=levels, step_frac=1, write_hour=24*365*10,&
+    call decomp(nsteps=1000*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"Spunup"),nlevdecomp=levels, step_frac=1, write_hour=24*365*10,&
     pool_C_start=C_matrix_init,pool_N_start=N_matrix_init, pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,&
     start_year=1850,stop_year=1870,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
     !|
     !| Use output of last timestep to initialize step 2
-    
+  
     !3: RUN WITH MONTHLY UPDATES of inputdata:
     call decomp(nsteps=71*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"to1970"),nlevdecomp=levels, step_frac=1, write_hour=1*24*365*10, &
     pool_C_start=C_matrix_Spunup,pool_N_start=N_matrix_Spunup, pool_C_final=C_matrix_1970,pool_N_final=N_matrix_1970,&
