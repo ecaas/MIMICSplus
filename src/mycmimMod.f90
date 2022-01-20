@@ -317,7 +317,7 @@ module mycmim
           
           nh4_frac = pool_matrixN(j,11)/(pool_matrixN(j,11) + pool_matrixN(j,12))
           
-          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
+          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN,dt)
           
           if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file
            call fluxes_netcdf(int(time), write_hour, j, run_name)
