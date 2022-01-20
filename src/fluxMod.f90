@@ -3,8 +3,50 @@ module fluxMod
   use dispmodule !External module to pretty print matrices (mainly for testing purposes)
   implicit none
 
-  contains
+contains 
+  function nitrification(nh4,t_scalar,w_scalar,soil_temp) result(f_nit)
+    real(r8) :: f_nit
+    !IN:
+    real(r8),intent(in):: nh4
+    real(r8),intent(in) :: t_scalar
+    real(r8),intent(in) :: w_scalar
+    real(r8),intent(in) :: soil_temp
+    
+    !local
+    real(r8) :: anaerobic_frac
+    real(r8),parameter :: pH = 6.5_r8
+    real(r8),parameter :: rpi = 3.14159265358979323846_R8
+    real(R8),parameter :: SHR_CONST_TKFRZ   = 0.0_R8! freezing T of fresh water          ~ degC
+    real(r8),parameter :: k_nitr_max = 0.1_r8/24._r8 !from paramfile ctsm51_params.c210528.nc = 0.1/day, converted to /hour
+    real(r8) :: k_nitr_t_vr,k_nitr_ph_vr,k_nitr_h2o_vr,k_nitr
+    ! follows CENTURY nitrification scheme (Parton et al., (2001, 1996))
 
+    ! assume nitrification temp function equal to the HR scalar
+    k_nitr_t_vr = min(t_scalar, 1._r8)
+
+    ! ph function from Parton et al., (2001, 1996)
+    k_nitr_ph_vr = 0.56_r8 + atan(rpi * 0.45_r8 * (-5._r8+pH)/rpi)
+
+    ! moisture function-- assume the same moisture function as limits heterotrophic respiration
+    ! Parton et al. base their nitrification- soil moisture rate constants based on heterotrophic rates-- can we do the same?
+    k_nitr_h2o_vr = w_scalar
+
+    ! nitrification constant is a set scalar * temp, moisture, and ph scalars
+    ! note that k_nitr_max_perday is converted from 1/day to 1/s
+    k_nitr = k_nitr_max * k_nitr_t_vr * k_nitr_h2o_vr * k_nitr_ph_vr
+
+    ! first-order decay of ammonium pool with scalar defined above
+    f_nit = max(nh4 * k_nitr, 0._r8) !g/m3 h
+    anaerobic_frac=0._r8
+    ! limit to oxic fraction of soils
+    f_nit  = f_nit* (1._r8 - anaerobic_frac)
+
+    !limit to non-frozen soil layers
+    if ( soil_temp <= SHR_CONST_TKFRZ ) then
+       f_nit = 0._r8
+     end if 
+  end function nitrification
+  
   function set_N_dep(CLMdep,const_dep) result(Dep)
     real(r8)           :: Dep
     real(r8), optional :: CLMdep
@@ -73,10 +115,12 @@ module fluxMod
     real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
     !LOCAL:
     real(r8)  :: N_for_sap
+    real(r8)  :: N_IN
+    
 
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
-    C_SAPb, C_SAPf, N_LITm, N_LITs, N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb, N_SAPf, N_IN
+    C_SAPb, C_SAPf, N_LITm, N_LITs, N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb, N_SAPf, N_NH4,N_NO3
     C_LITm => C_pool_matrix(depth, 1)
     C_LITs => C_pool_matrix(depth, 2)
     C_SAPb => C_pool_matrix(depth, 3)
@@ -98,7 +142,8 @@ module fluxMod
     N_SOMp => N_pool_matrix(depth, 8)
     N_SOMa => N_pool_matrix(depth, 9)
     N_SOMc => N_pool_matrix(depth, 10)
-    N_IN => N_pool_matrix(depth, 11)
+    N_NH4 => N_pool_matrix(depth, 11)
+    N_NO3 => N_pool_matrix(depth, 12)
     
 
     !------------------CARBON FLUXES----------------------------:
@@ -150,6 +195,7 @@ module fluxMod
     C_EcMdecompSOMc = K_MO*soil_depth*C_EcM*C_SOMc*(C_PlantEcM/(max_mining*froot_prof(depth)))   ![gC/m3h]
 
     !-----------------------------------NITROGEN FLUXES----------------------------:
+    N_IN = N_NH4+ N_NO3
     !Nitrogen aquired bymycorrhiza via oxidation of protected SOM pools.  gN/m3h
     !TODO: Should we also include SOMa?
     N_SOMpEcM = C_EcMdecompSOMp*N_SOMp/C_SOMp
@@ -250,8 +296,8 @@ module fluxMod
     end do 
     
     nullify( C_LITm,C_LITs,C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
-    nullify( N_LITm,N_LITs,N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb,N_SAPf,N_IN)
-    
+    nullify( N_LITm,N_LITs,N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb,N_SAPf,N_NH4,N_NO3)
+
   end subroutine calculate_fluxes
 
 

@@ -34,7 +34,7 @@ integer, parameter                           :: no_of_myc_pools = 3            !
 integer, parameter                           :: no_of_som_pools = 3            !Physically protected, chemically protected, available carbon
 integer, parameter                           :: pool_types = no_of_litter_pools + no_of_myc_pools + &
                                                 no_of_sap_pools + no_of_som_pools
-integer, parameter                           :: pool_types_N = pool_types+1
+integer, parameter                           :: pool_types_N = pool_types + 2 !pool_types + NH4 + NO3
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
 real(r8),parameter                      :: fMET =0.6                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
@@ -102,20 +102,18 @@ N_PlantLITs, N_PlantLITm, N_INPlant, N_INEcM, N_INErM, N_INAM, N_EcMPlant, N_ErM
 N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc, N_SAPfIN, N_SAPbIN,&
 N_SOMcEcM,N_SOMpEcM, &
 C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp,C_EcMdecompSOMc, &
- Leaching, Deposition,f, U_sb, U_sf
+ Leaching, Deposition,nitrif_rate,f, U_sb, U_sf
 
 !For writing to file:
 character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/sites/'
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
 character (len=4), dimension(pool_types)     :: variables = &
 (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
-character (len=*), dimension(pool_types+1), parameter:: N_variables = &
-(/  "N_LITm", "N_LITs", "N_SAPb","N_SAPf", "N_EcM ", "N_ErM ", "N_AM  ", "N_SOMp", "N_SOMa", "N_SOMc", "N_Inor"/)
+character (len=*), dimension(pool_types_N), parameter:: N_variables = &
+(/  "N_LITm", "N_LITs", "N_SAPb","N_SAPf", "N_EcM ", "N_ErM ", "N_AM  ", "N_SOMp", "N_SOMa", "N_SOMc", "NH4   ","NO3   "/)
 character (len=10), dimension(pool_types):: change_variables = &
 (/  "changeLITm", "changeLITs", "changeSAPb","changeSAPf", "changeEcM ", "changeErM ",&
     "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
-character (len=*), dimension(pool_types),parameter:: an_variables = &
-&(/  "anLITm", "anLITs", "anSAPb","anSAPf", "anEcM ", "anErM ", "anAM  ", "anSOMp", "anSOMa", "anSOMc" /)
 character (len=*), dimension(*), parameter ::  C_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
   "EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
@@ -128,7 +126,7 @@ character (len=*), dimension(*), parameter ::  N_name_fluxes = &
   ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
   "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMaEcM","SOMpSOMa","SOMcSOMa","PlantLITm" &
   ,"PlantLITs","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
-  "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM"]
+  "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM","nitrif_rate"]
   
 character (len=*), dimension(38),parameter :: site_names = &
 [character(len=19) :: &

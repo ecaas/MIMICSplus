@@ -54,12 +54,12 @@ module mycmim
      !|nlevdecomp __________________________________________|
 
      !Shape of the pool_matrixN/change_matrixN
-     !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc IN|
-     !|level1   1   2    3    4   5   6   7   8    9    10  11|
-     !|level2                                                 |
-     !| .                                                     |
-     !| .                                                     |
-     !|nlevdecomp ____________________________________________|
+     !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc NH4 NO3|
+     !|level1   1   2    3    4   5   6   7   8    9    10  11  12 |
+     !|level2                                                      |
+     !| .                                                          |
+     !| .                                                          |
+     !|nlevdecomp _________________________________________________|
      
       !LOCAL
       character (len=4)              :: year_fmt
@@ -121,12 +121,16 @@ module mycmim
       real(r8)                       :: vertC_change_sum(nlevdecomp, pool_types)
       real(r8),dimension(15)         :: PFT_distribution
       real(r8)                       :: f_EcM
+      real(r8)                       :: nh4_frac
+      
+      
       !For reading soil temperature and moisture from CLM output file
       real(r8), dimension(nlevdecomp)          :: TSOIL
       real(r8), dimension(nlevdecomp)          :: SOILLIQ
       real(r8), dimension(nlevdecomp)          :: SOILICE
       real(r8), dimension(nlevdecomp)          :: WATSAT
       real(r8), dimension(nlevdecomp)          :: W_SCALAR
+      real(r8), dimension(nlevdecomp)          :: T_SCALAR
       real(r8), dimension(nlevdecomp)          :: r_moist
       real(r8)                                 :: drain
       real(r8)                                 :: h2o_liq_tot
@@ -201,7 +205,7 @@ module mycmim
       call read_clm_model_input(ncid,nlevdecomp,1, &
                                 N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
                                 C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-                                W_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
+                                W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
 
       allocate(ndep_prof(nlevdecomp),leaf_prof(nlevdecomp),froot_prof(nlevdecomp))   
          
@@ -242,10 +246,11 @@ module mycmim
              
             if (input_steps==12) then  
               !print*, ncid,nlevdecomp,current_month,time
+
               call read_clm_model_input(ncid,nlevdecomp,current_month, &
                                 N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
                                 C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-                                W_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
+                                W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)   
               max_mining = read_maxC(ncid,f_EcM,input_steps)
             end if    
@@ -262,7 +267,7 @@ module mycmim
             call read_clm_model_input(ncid,nlevdecomp,current_day, &
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-            W_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
+            W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)        
             max_mining = read_maxC(ncid,f_EcM,input_steps)
                 
@@ -307,7 +312,10 @@ module mycmim
           !Determine deposition NOTE: Must specify name of parameters when using the set_N_dep function 
           !,const_dep = 3d0
           Deposition = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j))
-          Leaching = calc_Leaching(drain,h2o_liq_tot,pool_matrixN(j,11))
+          Leaching = calc_Leaching(drain,h2o_liq_tot,pool_matrixN(j,12))
+          nitrif_rate=nitrification(pool_matrixN(j,11),W_SCALAR(j),T_SCALAR(j),TSOIL(j))
+          
+          nh4_frac = pool_matrixN(j,11)/(pool_matrixN(j,11) + pool_matrixN(j,12))
           
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN)
           
@@ -393,22 +401,23 @@ module mycmim
               N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_ErMSOMc + N_AMSOMc
               N_Loss = N_SOMcSOMa + N_SOMcEcM
 
-            elseif (i == 11) then !Inorganic N
+            elseif (i == 11) then !NH4 inorganic N
               N_Gain = Deposition
-              N_exchange= N_SAPbIN + N_SAPfIN !N_exchange can act both as a sink and a source, depending on the SAP demand for N
-              N_Loss = Leaching + N_INEcM + N_InPlant  + N_INAM !+ N_INErM
+              N_exchange= nh4_frac*(N_SAPbIN + N_SAPfIN) !N_exchange can act both as a sink and a source, depending on the SAP demand for N
+              N_Loss = nitrif_rate + nh4_frac*(N_INEcM + N_InPlant  + N_INAM )!+ N_INErM
               change_matrixN(j,i) = N_Gain + N_exchange - N_loss 
-              ! print*, "Gain: ", Deposition, j,time
-              ! print*, "Loss: ", Leaching,N_INEcM,N_InPlant
-              ! print*, "Exchange: ", N_SAPbIN,N_SAPfIN
-              ! print*, change_matrixN(j,i), pool_matrixN(j,i)
-              ! print*, "-------------------------------------------------------------------------------------------------"
+
+            elseif (i == 12) then !NO3 inorganic N
+              N_Gain = nitrif_rate
+              N_exchange= (1-nh4_frac)*(N_SAPbIN + N_SAPfIN) !N_exchange can act both as a sink and a source, depending on the SAP demand for N
+              N_Loss = Leaching + (1-nh4_frac)*(N_INEcM + N_InPlant  + N_INAM )!+ N_INErM
+              change_matrixN(j,i) = N_Gain + N_exchange - N_loss 
             else
               print*, 'Too many pool types expected, pool_types = ',pool_types, 'i: ', i
             end if !determine total gains and losses
             
 
-            if (i /= 11) then !Carbon matrix does only have 10 columns (if i == 11 this is handeled inside the loop over pools)
+            if (i < 11) then !Carbon matrix does only have 10 columns (if i == 11 or 12 this is handeled inside the loop over pools)
                 change_matrixC(j,i) = C_Gain - C_Loss !net change in timestep
                 change_matrixN(j,i) = N_Gain - N_loss            
                 !For summarize total change between each written output
@@ -440,7 +449,7 @@ module mycmim
               stop
             end if
 
-            if (i /=11 ) then
+            if (i < 11 ) then
               if (isnan(pool_temporaryC(j,i))) then
                 print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
                 stop
@@ -537,7 +546,7 @@ module mycmim
         end if
         
         call test_mass_conservation(sum_input_step,HR_mass,pool_matrixC_previous,pool_matrixC,nlevdecomp,pool_types)
-        call test_mass_conservation(sum_N_input_step,sum_N_out_step,pool_matrixN_previous,pool_matrixN,nlevdecomp,pool_types+1)
+        call test_mass_conservation(sum_N_input_step,sum_N_out_step,pool_matrixN_previous,pool_matrixN,nlevdecomp,pool_types_N)
         pool_matrixC_previous=pool_matrixC
         pool_matrixN_previous=pool_matrixN
         sum_input_total=sum_input_total+sum_input_step

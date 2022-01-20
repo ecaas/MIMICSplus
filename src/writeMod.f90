@@ -39,7 +39,9 @@ module writeMod
         call check(nf90_def_var(ncid, "N_vert_change"//trim(variables(v)), NF90_FLOAT, (/t_dimid, lev_dimid/), varid))
 
       end do
-      call check(nf90_def_var(ncid, "N_inorganic", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "NH4", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "NO3", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "N_SMIN", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid,"HR_sum", NF90_FLOAT, (/t_dimid /), varid ))
       call check(nf90_def_var(ncid,"HR_flux", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"CUEb", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
@@ -90,7 +92,7 @@ module writeMod
       !LOCAL:
       integer                          :: i , j !for looping
       integer                          :: varidchange,varid,ncid, timestep,vertid 
-
+      real(r8)                         :: N_SMIN
 
 
       call get_timestep(time, write_hour, timestep)
@@ -121,11 +123,15 @@ module writeMod
         call check(nf90_inq_varid(ncid, "CUEf", varid))
         call check(nf90_put_var(ncid, varid, CUE_fungi(j), start = (/timestep, j/)))
         
-        call check(nf90_inq_varid(ncid, "N_inorganic", varid))
+        call check(nf90_inq_varid(ncid, "NH4", varid))
         call check(nf90_put_var(ncid, varid, Npool_matrix(j,11), start = (/timestep, j/)))
+        call check(nf90_inq_varid(ncid, "NO3", varid))
+        call check(nf90_put_var(ncid, varid, Npool_matrix(j,12), start = (/timestep, j/)))
 
-        !call check(nf90_inq_varid(ncid, "N_changeinorganic", varid))
-        !call check(nf90_put_var(ncid, varid, Nchange_matrix(j,11), start = (/timestep, j/)))
+        N_SMIN = Npool_matrix(j,11)+Npool_matrix(j,12)
+        call check(nf90_inq_varid(ncid, "N_SMIN", varid))
+        call check(nf90_put_var(ncid, varid, N_SMIN, start = (/timestep, j/)))        
+
         do i = 1,pool_types
           !C:
           call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
@@ -380,6 +386,9 @@ module writeMod
       call check(nf90_put_var(ncid, varid, N_SOMpEcM, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "N_SOMcEcM", varid))
       call check(nf90_put_var(ncid, varid, N_SOMcEcM, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "N_nitrif_rate", varid))
+      call check(nf90_put_var(ncid, varid, nitrif_rate, start = (/ timestep, depth_level /)))
+
     end subroutine write_Nfluxes
 
     subroutine create_yearly_mean_netcdf(run_name, levsoi)
