@@ -265,7 +265,7 @@ contains
         N_AMPlant = 0.0
       end if
     end if    
-  !  print*, N_INAM, e_m*C_PlantAM/CN_ratio(7),N_INAM  - e_m*C_PlantAM/CN_ratio(7),N_AMPlant
+
     N_ErMPlant = 0.0
 
 
@@ -278,13 +278,8 @@ contains
 
     !Calculate SAP demand/excess of N (to ensure constant C:N ratio) 
     N_SAPbIN = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) - CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
-    N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
-    ! print*, '-----------------------'
-    ! print*, "N_for_sap  :", N_for_sap
-    ! print*, "N_SAPbIN   :", N_SAPbIN, U_sb, N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb, U_sb/(N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb), CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
-    ! print*, "N_SAPfIN   :", N_SAPfIN, U_sf, N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf, U_sf/(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf), CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
-    ! print*, "N_for_sap + N_SAPbIN+N_SAPfIN: ", N_for_sap + N_SAPbIN+N_SAPfIN
-    ! print*, '-----------------------'
+    N_SAPfIN = (N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf) - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
+
     !If there is not enough inorganic N to fill SAP demand, decrease CUE:
     do while (N_for_sap + (N_SAPbIN+N_SAPfIN)*dt <0)
       CUEmod_bacteria=0.9

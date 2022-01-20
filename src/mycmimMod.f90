@@ -33,7 +33,7 @@ module mycmim
       integer,intent(in)                        :: nlevdecomp           ! number of vertical layers
       integer,intent(in)                        :: write_hour           !How often output is written to file
       real(r8),intent(in)                      :: pool_C_start(nlevdecomp,pool_types)     ! For store and output final C pool sizes 
-      real(r8),intent(in)                      :: pool_N_start(nlevdecomp,pool_types+1)   ! For storing and output final N pool sizes [gN/m3] 
+      real(r8),intent(in)                      :: pool_N_start(nlevdecomp,pool_types_N)   ! For storing and output final N pool sizes [gN/m3] 
       integer, intent(in)                       :: start_year !Forcing start year
       integer, intent(in)                       :: stop_year !Forcing end year, i.e. forcing loops over interval start_year-stop_year
       character (len=*) ,intent(in)             :: clm_input_path             ! file path for input
@@ -42,7 +42,7 @@ module mycmim
       
       !OUTPUT
       real(r8),intent(out)                      :: pool_C_final(nlevdecomp,pool_types)     ! For store and output final C pool sizes 
-      real(r8),intent(out)                      :: pool_N_final(nlevdecomp,pool_types+1)   ! For storing and output final N pool sizes [gN/m3] 
+      real(r8),intent(out)                      :: pool_N_final(nlevdecomp,pool_types_N)   ! For storing and output final N pool sizes [gN/m3] 
       
       
      !Shape of pool_matrixC/change_matrixC
@@ -71,13 +71,13 @@ module mycmim
       real(r8)                       :: change_matrixC(nlevdecomp,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: pool_temporaryC(nlevdecomp,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
       real(r8)                       :: pool_matrixC_previous(nlevdecomp,pool_types) !Used for checking mass conservation
-      real(r8)                       :: pool_matrixN_previous(nlevdecomp,pool_types+1) !Used for checking mass conservation
-      real(r8)                       :: pool_temporaryN(nlevdecomp,pool_types+1)! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
-      real(r8)                       :: pool_matrixN(nlevdecomp,pool_types+1)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
-      real(r8)                       :: change_matrixN(nlevdecomp,pool_types+1) ! For storing dC/dt for each time step [gN/(m3*hour)]
+      real(r8)                       :: pool_matrixN_previous(nlevdecomp,pool_types_N) !Used for checking mass conservation
+      real(r8)                       :: pool_temporaryN(nlevdecomp,pool_types_N)! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
+      real(r8)                       :: pool_matrixN(nlevdecomp,pool_types_N)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
+      real(r8)                       :: change_matrixN(nlevdecomp,pool_types_N) ! For storing dC/dt for each time step [gN/(m3*hour)]
       
 
-      real(r8)                       :: sum_consN(nlevdecomp, pool_types+1) !g/m3 for calculating annual mean
+      real(r8)                       :: sum_consN(nlevdecomp, pool_types_N) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
       real(r8)                       :: N_DEPinput
       real(r8)                       :: C_MYCinput
@@ -196,8 +196,7 @@ module mycmim
       day_counter = 0
       
       write_y=0
-      call check(nf90_open(trim(adjustr(clm_input_path)//'_'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year  
-
+      call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year  
       !Check if inputdata is daily or monthly:      
       call read_time(ncid,input_steps)
 
@@ -209,7 +208,7 @@ module mycmim
 
       allocate(ndep_prof(nlevdecomp),leaf_prof(nlevdecomp),froot_prof(nlevdecomp))   
          
-      call read_WATSAT_and_profiles(adjustr(clm_input_path)//'_'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)        
+      call read_WATSAT_and_profiles(adjustr(clm_input_path)//'_historical.clm2.all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)        
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)                   
       call read_clay(adjustr(clm_surf_path),fCLAY,nlevdecomp)
       call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
@@ -323,7 +322,7 @@ module mycmim
            call fluxes_netcdf(int(time), write_hour, j, run_name)
           end if !write fluxes
           
-          do i = 1,pool_types + 1 !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
+          do i = 1,pool_types_N !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
 
@@ -380,7 +379,7 @@ module mycmim
               C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc
               N_Gain = N_INAM 
               N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
-              !print*, N_INAM,N_AMPlant, N_AMSOMa,N_AMSOMp,N_AMSOMc, j
+
             elseif (i==8) then !SOMp
               C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp+ C_PlantSOMp
               C_Loss = C_SOMpSOMa+C_EcMdecompSOMp
@@ -470,6 +469,7 @@ module mycmim
           end if
           
           sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+e_m*C_PlantEcM+e_m*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
+          
           sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+Deposition)*dt*delta_z(j) !g/m2
           sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_AMPlant+N_INPlant+Leaching)*dt*delta_z(j)
 
@@ -513,7 +513,7 @@ module mycmim
           month_counter=0
           current_month=1
           write (year_char,year_fmt) year
-          call check(nf90_open(trim(adjustr(clm_input_path)//'_'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
+          call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
           call read_time(ncid,input_steps)     
           ycounter = 0
           sum_consN =0
@@ -569,13 +569,13 @@ module mycmim
 
   subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
     REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: yearly_sumC
-    REAL(r8), DIMENSION(nlevels,pool_types+1), intent(in):: yearly_sumN
+    REAL(r8), DIMENSION(nlevels,pool_types_N), intent(in):: yearly_sumN
     integer, intent(in) :: year
     integer , intent(in):: nlevels
     CHARACTER (len = *), intent(in):: run_name
     !Local
     REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
-    REAL(r8), DIMENSION(nlevels,pool_types+1) :: yearly_meanN
+    REAL(r8), DIMENSION(nlevels,pool_types_N) :: yearly_meanN
     integer, parameter                         :: hr_in_year = 24*365
 
     yearly_meanC=yearly_sumC/hr_in_year

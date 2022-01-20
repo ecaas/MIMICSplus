@@ -141,13 +141,9 @@ module writeMod
           call check(nf90_put_var(ncid, varid, Npool_matrix(j,i), start = (/ timestep, j /)))
 
           !C change:
-        !  call check(nf90_inq_varid(ncid, trim(change_variables(i)), varidchange))
-        !  call check(nf90_put_var(ncid, varidchange, change_matrix(j,i), start = (/ timestep, j /)))
           call check(nf90_inq_varid(ncid, "vert_change"//trim(variables(i)), vertid))
           call check(nf90_put_var(ncid, vertid, vert_sum(j,i), start = (/timestep,j/)))
           !N change:
-        !  call check(nf90_inq_varid(ncid, "N_"//trim(change_variables(i)), varidchange))
-        !  call check(nf90_put_var(ncid, varidchange, Nchange_matrix(j,i), start = (/ timestep, j /)))
           call check(nf90_inq_varid(ncid, "N_vert_change"//trim(variables(i)), vertid))
           call check(nf90_put_var(ncid, vertid, Nvert_sum(j,i), start = (/timestep,j/)))
         end do !pool_types
@@ -161,11 +157,9 @@ module writeMod
      integer:: ncid
      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, ncid))
 
-     call check(nf90_def_var(ncid, "tsoi", NF90_FLOAT, tsoiID))
+
      call check(nf90_def_var(ncid, "f_clay", NF90_FLOAT, clayID))
      call check(nf90_def_var(ncid, "desorb", NF90_FLOAT, desorbID))
-     call check(nf90_def_var(ncid, "Km",NF90_FLOAT,mmk_dimid, kmID))
-     call check(nf90_def_var(ncid, "Vmax", NF90_FLOAT,mmk_dimid,vmID))
      call check(nf90_def_var(ncid, "tau", NF90_FLOAT,fracid,tauID))
      call check(nf90_def_var(ncid, "f_phys", NF90_FLOAT,fracid,fphysID))
      call check(nf90_def_var(ncid, "f_avail", NF90_FLOAT,fracid,favailID))
@@ -175,7 +169,6 @@ module writeMod
 
      call check(nf90_enddef(ncid))
 
-     call check(nf90_put_var(ncid, tsoiID, T_soil_const))
      call check(nf90_put_var(ncid, clayID, fCLAY))
      call check(nf90_put_var(ncid, desorbID, desorb))
      call check(nf90_put_var(ncid, fphysID, fPHYS))
@@ -183,8 +176,6 @@ module writeMod
      call check(nf90_put_var(ncid, favailID, fAVAIL))
      call check(nf90_put_var(ncid, depthID, soil_depth))
      call check(nf90_put_var(ncid, fmetID, fMET))
-     call check(nf90_put_var(ncid, vmID, Vmax))
-     call check(nf90_put_var(ncid, kmID, Km))
      call check(nf90_put_var(ncid, tauID, tau))
 
      call check(nf90_close(ncid))
