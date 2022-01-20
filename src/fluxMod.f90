@@ -203,11 +203,11 @@ contains
     N_SOMcEcM = C_EcMdecompSOMc*N_SOMc/C_SOMc
     
     !Inorganic N taken up directly by plant roots
-    N_InPlant =  5E-4*N_IN
+    N_InPlant =  5E-7*N_IN
     
-    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))   !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
+    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining*froot_prof(depth)))  !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
-    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))
+    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining*froot_prof(depth)))
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
