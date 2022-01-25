@@ -255,7 +255,7 @@ module readMod
         
         !CLM dates
         call check(nf90_inq_varid(ncid, 'mcdate', varid))
-        call check(nf90_get_var(ncid, varid, mcdate, start=(/1,time_entry/)))
+        call check(nf90_get_var(ncid, varid, mcdate, start=(/time_entry/)))
       end subroutine read_clm_model_input
 
 end module readMod
