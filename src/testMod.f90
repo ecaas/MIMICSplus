@@ -93,9 +93,7 @@ contains
     real(r8) :: sum_new
     real(r8) :: diff
     real(r8) :: goal
-
     real(r8), dimension(nlevdecomp, no_of_pools) :: mass_old, mass_new
-    
 
     call cons_to_mass(old, mass_old,nlevdecomp,no_of_pools)
     call cons_to_mass(new, mass_new,nlevdecomp,no_of_pools)
@@ -107,10 +105,11 @@ contains
     diff = sum_new-goal
     
     if (abs(diff) > 1e-4) then
-      if ( no_of_pools .eq. 11 ) then
-        print*, "Mass conservation NITROGEN"
+      if ( no_of_pools .eq. 12 ) then
+        print*, "Mass NOT conserved for NITROGEN"
+        call disp(mass_new)
       else
-        print*, "MASS conservation CARBON"
+        print*, "Mass NOT conserved for CARBON"
       end if
       print*, '-----------------------------------------------------------'
       print*, '(mass at t+dt) - (mass at t + Input - out): ', diff
@@ -152,10 +151,10 @@ contains
     diff = sum_new-goal
 
     if (abs(diff) > 1e-4) then
-      print*, 'Mass conservation is NOT fulfilled: '
+      print*, 'Mass conservation of C is NOT fulfilled: '
 
     else
-      print*, 'Mass conservation is fulfilled (yay!): '
+      print*, 'Mass conservation of C is fulfilled (yay!): '
     end if
     print*, 'diff                : ', diff
     print*, 'sum of respired mass: ', sum_respiration

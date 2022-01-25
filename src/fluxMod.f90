@@ -7,7 +7,7 @@ contains
   function nitrification(nh4,t_scalar,w_scalar,soil_temp) result(f_nit)
     real(r8) :: f_nit
     !IN:
-    real(r8),intent(in):: nh4
+    real(r8),intent(in):: nh4 !gN/m3
     real(r8),intent(in) :: t_scalar
     real(r8),intent(in) :: w_scalar
     real(r8),intent(in) :: soil_temp
@@ -39,7 +39,7 @@ contains
     f_nit = max(nh4 * k_nitr, 0._r8) !g/m3 h
     anaerobic_frac=0._r8
     ! limit to oxic fraction of soils
-    f_nit  = f_nit* (1._r8 - anaerobic_frac)
+    f_nit  = f_nit*(1._r8 - anaerobic_frac)
 
     !limit to non-frozen soil layers
     if ( soil_temp <= SHR_CONST_TKFRZ ) then
@@ -63,12 +63,12 @@ contains
     end if
   end function set_N_dep
   
-  function calc_Leaching(drain,h2o_tot, N_inorganic) result(Leach)
+  function calc_Leaching(drain,h2o_tot, N_NO3) result(Leach)
     real(r8)           :: Leach       !gN/m3 h
     real(r8)           :: drain       !mmH20/h = kgH20/m2 h
     real(r8)           :: h2o_tot     !kgH20/m2
-    real(r8)           :: N_inorganic !gN/m3
-    Leach = N_inorganic*drain/h2o_tot
+    real(r8)           :: N_NO3 !gN/m3
+    Leach = N_NO3*drain/h2o_tot
   end function calc_Leaching
 
 
@@ -109,15 +109,16 @@ contains
   end function Vmax_function
 
   subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
-    integer         :: depth !depth level
-    integer         :: nlevdecomp
-    real(r8)        :: dt ! timestep
+    integer,intent(in)         :: depth !depth level
+    integer,intent(in)         :: nlevdecomp
+    real(r8),intent(in)       :: dt ! timestep
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
     real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
+    
     !LOCAL:
     real(r8)  :: N_for_sap
     real(r8)  :: N_IN
-    
+    real(r8)  :: f_b
 
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
@@ -149,13 +150,13 @@ contains
 
     !------------------CARBON FLUXES----------------------------:
     !Decomposition of LIT by SAP:
-    !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
+    !On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
     C_LITmSAPb=MMK_flux(C_SAPb,C_LITm,1)
     C_LITsSAPb=MMK_flux(C_SAPb,C_LITs,2)
     C_LITmSAPf=MMK_flux(C_SAPf,C_LITm,4)
     C_LITsSAPf=MMK_flux(C_SAPf,C_LITs,5)
     !Decomposition of SOMa by SAP. Based on the equations from SOMa to microbial pools in mimics.
-    !On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
+    !On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
     C_SOMaSAPb=MMK_flux(C_SAPb,C_SOMa,3)
     C_SOMaSAPf=MMK_flux(C_SAPf,C_SOMa,6)
 
@@ -196,18 +197,21 @@ contains
     C_EcMdecompSOMc = K_MO*soil_depth*C_EcM*C_SOMc*(C_PlantEcM/(max_mining*froot_prof(depth)))   ![gC/m3h]
 
     !-----------------------------------NITROGEN FLUXES----------------------------:
-    N_IN = N_NH4+ N_NO3
+    N_IN = N_NH4+ N_NO3+(Deposition - Leaching)*dt !
+    if ( N_IN < 0._r8 ) then
+      print*, "Negative inorganic N pool at layer", depth, N_IN
+    end if
     !Nitrogen aquired bymycorrhiza via oxidation of protected SOM pools.  gN/m3h
     !TODO: Should we also include SOMa?
     N_SOMpEcM = C_EcMdecompSOMp*N_SOMp/C_SOMp
     N_SOMcEcM = C_EcMdecompSOMc*N_SOMc/C_SOMc
-    
+        
     !Inorganic N taken up directly by plant roots
-    N_InPlant =  5E-7*N_IN
+    N_InPlant = 5E-7*N_IN
     
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining*froot_prof(depth)))  !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
-    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining*froot_prof(depth)))
+    N_INAM = V_max_myc*2*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))!*(C_PlantAM/(max_mining*froot_prof(depth)))
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
@@ -251,45 +255,81 @@ contains
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    N_EcMPlant = N_INEcM + N_SOMpEcM + N_SOMcEcM - e_m*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)  !gN/m3h
-    if ( N_EcMPlant .LT. 0.) then
-      N_EcMPlant = 0.0
-    end if
-    
+    N_EcMPlant = N_INEcM + N_SOMpEcM + N_SOMcEcM + N_SOMaEcM - CUE_ecm*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)  !gN/m3h
+    if ( N_EcMPlant < 0._r8 ) then    
+      CUE_ecm = (N_INEcM + N_SOMpEcM + N_SOMcEcM)*dt*CN_ratio(5)/((1-enzyme_pct)*C_PlantEcM)
+      N_EcMPlant = 0._r8 !N_INEcM + N_SOMpEcM + N_SOMcEcM - CUE_ecm*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)  !gN/m3h
 
-    if ( C_PlantAM == 0.0 ) then
-      N_AMPlant = 0.0
-    else 
-      N_AMPlant = N_INAM  - e_m*C_PlantAM/CN_ratio(7)  !gN/m3h
-      if ( N_AMPlant .LT. 0.) then
-        N_AMPlant = 0.0
-      end if
-    end if    
+    end if
+
+    N_AMPlant = N_INAM  - CUE_AM*C_PlantAM/CN_ratio(7)  !gN/m3h
+
+    if ( N_AMPlant .LT. 0.) then
+    CUE_AM = (N_INAM)*dt*CN_ratio(7)/(C_PlantAM)
+    N_AMPlant = 0._r8!N_INAM - CUE_AM*C_PlantAM/CN_ratio(7)  !gN/m3h
+
+    end if  
 
     N_ErMPlant = 0.0
-
-
+!---------------------------------------------------------------------------------------------------------------------------------------
     !Calculate amount of inorganic N saprotrophs have access to: 
-    N_for_sap  = N_IN + (Deposition - Leaching - N_INPlant - N_INEcM - N_INAM)*dt
+    N_for_sap  = (N_IN - ( N_INPlant + N_INEcM + N_INAM)*dt)*0.9
 
     !total C uptake (growth + respiration) of saprotrophs
     U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
     U_sf = C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf
+    
+    UN_sb = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb  
+    UN_sf = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
+    
+  
+    !SAP demand for N:
+    N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
+    N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
+    
+    !First calculation:
+    N_INSAPb = N_demand_SAPb-UN_sb
+    N_INSAPf = N_demand_SAPf-UN_sf
+    
+    if ( N_INSAPb >= 0. .and. N_INSAPf >= 0. ) then !immobilization
+      if ( N_for_sap < abs((N_INSAPb + N_INSAPf)*dt) ) then !Not enough mineral N to meet demand
+        
+        f_b = U_sb/(U_sb + U_sf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
+        CUE_bacteria_vr(depth)=min(((f_b*N_for_sap+UN_sb*dt)*CN_ratio(3))/U_sb,CUE_0)
+        CUE_fungi_vr(depth) = min((((1-f_b)*N_for_sap+UN_sf*dt)*CN_ratio(4))/U_sf,CUE_0)
 
-    !Calculate SAP demand/excess of N (to ensure constant C:N ratio) 
-    N_SAPbIN = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) - CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
-    N_SAPfIN = (N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf) - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
-
-    !If there is not enough inorganic N to fill SAP demand, decrease CUE:
-    do while (N_for_sap + (N_SAPbIN+N_SAPfIN)*dt <0)
-      CUEmod_bacteria=0.9
-      CUEmod_fungi=0.9
-      CUE_bacteria_vr(depth)=CUE_bacteria_vr(depth)*CUEmod_bacteria
-      CUE_fungi_vr(depth)=CUE_fungi_vr(depth)*CUEmod_fungi
-
-      N_SAPbIN = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb) - CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
-      N_SAPfIN = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf - CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
-    end do 
+        !SAP demand for N:
+        N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
+        N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
+        
+        N_INSAPb = f_b*N_for_sap !max(N_demand_SAPb-UN_sb,0._r8)
+        N_INSAPf = (1-f_b)*N_for_sap !max(N_demand_SAPf-UN_sf,0._r8)
+        
+      else !Enough mineral N to meet demand
+        continue
+      end if    
+        
+    elseif ( N_INSAPb < 0. .and. N_INSAPf < 0. ) then !mineralization
+      continue
+      
+    elseif ( N_INSAPb >= 0. .and. N_INSAPf < 0. ) then ! bacteria can use N mineralized by fungi
+      N_for_sap = N_for_sap + N_INSAPf*dt 
+      
+      if ( N_for_sap < N_INSAPb*dt ) then
+        CUE_bacteria_vr(depth)=((N_for_sap+UN_sb*dt)*CN_ratio(3))/U_sb
+        N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
+        N_INSAPb = N_demand_SAPb-UN_sb        
+      end if
+    elseif ( N_INSAPb < 0. .and. N_INSAPf >= 0. ) then !fungi can use N mineralized by bacteria
+      N_for_sap = N_for_sap + N_INSAPb*dt 
+      if ( N_for_sap < N_INSAPf*dt ) then
+        CUE_fungi_vr(depth)=((N_for_sap+UN_sf*dt)*CN_ratio(4))/U_sf
+        N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
+        N_INSAPf = N_demand_SAPf-UN_sf
+      end if
+    end if
+    
+!---------------------------------------------------------------------------------------------------------------         
     
     nullify( C_LITm,C_LITs,C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
     nullify( N_LITm,N_LITs,N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb,N_SAPf,N_NH4,N_NO3)
@@ -365,11 +405,15 @@ contains
 
   end subroutine moisture_func
 
-  subroutine input_rates(layer_nr,f_EcM,&
-                        LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,FROOTN_TO_LIT, &
-                        C_MYCinput,N_CWD,C_CWD, &
-                        C_inLITm,C_inLITs,N_inLITm,N_inLITs, C_inEcM,C_inAM, &
-                        C_inSOMp,C_inSOMa,C_inSOMc)
+  subroutine input_rates(layer_nr,f_EcM, LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,&
+                        FROOTN_TO_LIT, C_MYCinput,&
+                        N_CWD,C_CWD, &
+                        C_inLITm,C_inLITs,&
+                        N_inLITm,N_inLITs, &
+                        C_inEcM,C_inAM, &
+                        C_inSOMp,C_inSOMa,C_inSOMc, &
+                        N_inSOMp,N_inSOMa,N_inSOMc)
+                        
 
     !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
     !in:
@@ -393,6 +437,9 @@ contains
     real(r8), intent(out) :: C_inSOMp
     real(r8), intent(out) :: C_inSOMa
     real(r8), intent(out) :: C_inSOMc
+    real(r8), intent(out) :: N_inSOMp
+    real(r8), intent(out) :: N_inSOMa
+    real(r8), intent(out) :: N_inSOMc
     
     !local:
     real(r8)           :: totC_LIT_input
@@ -406,12 +453,16 @@ contains
     C_inSOMa = fMET*totC_LIT_input*f_met_to_som*fAVAIL(1)
         
     totN_LIT_input = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
-    N_inLITm    = fMET*totN_LIT_input
+    N_inLITm    = fMET*totN_LIT_input*(1-f_met_to_som)
     N_inLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)
-            
+    N_inSOMp = fMET*totN_LIT_input*f_met_to_som*fPHYS(1)
+    N_inSOMc = fMET*totN_LIT_input*f_met_to_som*fCHEM(1)
+    N_inSOMa = fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)        
+    
+    
     C_inEcM = f_EcM*C_MYCinput*froot_prof(layer_nr)
     C_inAM = (1-f_EcM)*C_MYCinput*froot_prof(layer_nr)
-
+    !print*, C_inEcM, C_inAM,f_EcM, C_MYCinput, (C_inEcM+C_inAM)/froot_prof(layer_nr), layer_nr
   end subroutine input_rates
   
   function calc_EcMfrac(PFT_dist) result(EcM_frac)

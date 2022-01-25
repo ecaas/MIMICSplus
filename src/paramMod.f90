@@ -20,9 +20,9 @@ real(kind=r8),dimension(MM_eqs),parameter    :: Kint    = 3.19      !LITm, LITs,
 real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (10 mg/cm3 from german et al 2012)
 real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
-real(kind=r8)                                :: pscalar != 1.0/(2*exp(-2.0*dsqrt(fCLAY))) !Value range:  0.5-3.7
-real(kind=r8),dimension(MM_eqs)              :: Kmod    !LITm, LITs, SOMa entering SAPb, sapf
-real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 2.0, 10.0, 3.0,3.0, 2.0/)            !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8)                                :: pscalar 
+real(kind=r8),dimension(MM_eqs)              :: Kmod   
+real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 2.0, 10.0, 3.0,3.0, 2.0/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter, dimension(2)        :: KO      =  4                    ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
 real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*10e3=[gC/m3]
 real(kind=r8),dimension(MM_eqs)              :: Vmax                            ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
@@ -57,7 +57,7 @@ real(r8),parameter                   :: D_nitrogen = 1.14e-8![m2/h] Diffusivity.
 real(r8),dimension(:),allocatable    :: CUE_bacteria_vr
 real(r8),dimension(:),allocatable    :: CUE_fungi_vr
 
-real(r8),parameter                   :: CUE_0=0.50
+real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
 real(r8)                             :: CUEmod_bacteria
 real(r8)                             :: CUEmod_fungi
@@ -76,11 +76,14 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
 !From Baskaran et al 2016
 real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) 
 real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) 
-real(r8), parameter :: e_m = 0.25             !Growth efficiency of mycorrhiza 
+real(r8) :: CUE_ecm         !Growth efficiency of mycorrhiza 
+real(r8) :: CUE_am         !Growth efficiency of mycorrhiza 
+real(r8) :: CUE_erm        !Growth efficiency of mycorrhiza 
+
 
 
 !Decomposition rates:
-real(r8), parameter :: K_MO = 0.003/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
+real(r8), parameter :: K_MO = 0.03/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
 !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
 real(r8), parameter                          :: P = 44.247 !normalization of moisture function
@@ -97,12 +100,13 @@ real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_ErMSOMp, 
 C_LITmSAPf, C_LITsSAPf, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa, &
 C_SAPbSOMa, C_SAPbSOMp, C_SAPbSOMc,C_SAPfSOMa, C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp,C_PlantSOMa, &
 N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc, N_ErMSOMp, N_ErMSOMa, N_ErMSOMc, N_AMSOMp, N_AMSOMa,&
-N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, N_LITmSAPf, N_LITsSAPf, N_SOMaEcM, N_SOMaErM,N_SOMaAM,&
+N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, N_LITmSAPf, N_LITsSAPf, &
 N_PlantLITs, N_PlantLITm, N_INPlant, N_INEcM, N_INErM, N_INAM, N_EcMPlant, N_ErMPlant, N_AMPlant, &
 N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc, N_SAPfIN, N_SAPbIN,&
 N_SOMcEcM,N_SOMpEcM, &
 C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp,C_EcMdecompSOMc, &
- Leaching, Deposition,nitrif_rate,f, U_sb, U_sf
+ Leaching, Deposition,nitrif_rate,f, U_sb, U_sf,UN_sb,UN_sf,N_demand_SAPf,N_demand_SAPb,N_INSAPb,N_INSAPf,&
+ C_EcMdecompSOMa,N_SOMaEcM,N_PlantSOMp,N_PlantSOMa,N_PlantSOMc
 
 !For writing to file:
 character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/sites/'
@@ -126,7 +130,7 @@ character (len=*), dimension(*), parameter ::  N_name_fluxes = &
   ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
   "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMaEcM","SOMpSOMa","SOMcSOMa","PlantLITm" &
   ,"PlantLITs","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
-  "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM","nitrif_rate"]
+  "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
   
 character (len=*), dimension(38),parameter :: site_names = &
 [character(len=19) :: &
