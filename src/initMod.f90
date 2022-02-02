@@ -58,6 +58,8 @@ contains
      end do
     
     pools_N(:,11) = 1.
+    pools_N(:,12) = 1.
+    
 
   end subroutine initialize
 

@@ -40,7 +40,7 @@ module readMod
         call check(nf90_inq_varid(ncid, 'NPP_NNONMYC', varid))
         call check(nf90_get_var(ncid, varid, NPP_nonmyc(:),start = (/1,1/),count = (/1,time_steps/)))
         
-        NPP_myc = (NPP_tot-NPP_nonmyc)*60*60
+        NPP_myc = (NPP_tot-NPP_nonmyc)*sec_pr_hr
 
         max_Cpay = maxval(NPP_myc)*EcM_frac
         
@@ -133,7 +133,7 @@ module readMod
       subroutine read_clm_model_input(ncid, nlevdecomp,time_entry, &
                                       LEAFN_TO_LITTER,FROOTN_TO_LITTER, NPP_MYC,NDEP_TO_SMINN, &
                                       LEAFC_TO_LITTER,FROOTC_TO_LITTER,mcdate,TSOI,SOILLIQ,SOILICE, &
-                                      W_SCALAR,QDRAI,h2o_liq_tot,C_CWD,N_CWD)
+                                      W_SCALAR,T_SCALAR,QDRAI,h2o_liq_tot,C_CWD,N_CWD)
         !INPUT
         integer,intent(in)            :: ncid
         integer,intent(in)            :: nlevdecomp          
@@ -150,7 +150,8 @@ module readMod
         real(r8),intent(out),dimension(nlevdecomp)          :: TSOI    !Celcius
         real(r8),intent(out),dimension(nlevdecomp)          :: SOILLIQ !m3/m3 (converted from kg/m2)
         real(r8),intent(out),dimension(nlevdecomp)          :: SOILICE !m3/m3 (converted from kg/m2)
-        real(r8),intent(out),dimension(nlevdecomp)          :: W_SCALAR     
+        real(r8),intent(out),dimension(nlevdecomp)          :: W_SCALAR    
+        real(r8),intent(out),dimension(nlevdecomp)          :: T_SCALAR      
         real(r8),intent(out)                                :: QDRAI   !kgH2O/(m2 h) converted from kgH2O/(m2 s)
         real(r8),intent(out)                                :: h2o_liq_tot
         real(r8),intent(out)                                :: C_CWD(:) !gC/(m3 h)
@@ -235,6 +236,9 @@ module readMod
 
         call check(nf90_inq_varid(ncid, 'W_SCALAR', varid))
         call check(nf90_get_var(ncid, varid, W_SCALAR, start=(/1,1,time_entry/), count=(/1,nlevdecomp,1/)))
+        
+        call check(nf90_inq_varid(ncid, 'T_SCALAR', varid))
+        call check(nf90_get_var(ncid, varid, T_SCALAR, start=(/1,1,time_entry/), count=(/1,nlevdecomp,1/)))
 
         call check(nf90_inq_varid(ncid, 'QDRAI', varid)) !mmH2O/s = kg H2O/(m2 s)
         call check(nf90_get_var(ncid, varid, QDRAI,start=(/1, time_entry/)))    
@@ -251,7 +255,7 @@ module readMod
         
         !CLM dates
         call check(nf90_inq_varid(ncid, 'mcdate', varid))
-        call check(nf90_get_var(ncid, varid, mcdate, start=(/1,time_entry/)))
+        call check(nf90_get_var(ncid, varid, mcdate, start=(/time_entry/)))
       end subroutine read_clm_model_input
 
 end module readMod
