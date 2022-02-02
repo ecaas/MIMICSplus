@@ -117,10 +117,8 @@ module mycmim
       integer                       :: input_steps
 
       real(r8)                       :: change_sum(nlevdecomp, pool_types)
-!      real(r8)                       :: vertN_change_sum(nlevdecomp, pool_types)
       real(r8)                       :: vertC_change_sum(nlevdecomp, pool_types)
       real(r8),dimension(15)         :: PFT_distribution
-      real(r8)                       :: f_EcM
       real(r8)                       :: nh4_frac
       real(r8)                       :: NH4_temporary
       real(r8)                       :: NO3_temporary
@@ -158,12 +156,18 @@ module mycmim
       
       allocate(CUE_bacteria_vr(nlevdecomp))
       allocate(CUE_fungi_vr(nlevdecomp))
+      allocate(CUE_ecm_vr(nlevdecomp))
+      allocate(CUE_erm_vr(nlevdecomp))
+      
+      allocate(CUE_am_vr(nlevdecomp))
       CUE_fungi_vr=CUE_0
       CUE_bacteria_vr=CUE_0
-      
+      CUE_ecm_vr=CUE_myc_0
+      CUE_am_vr=CUE_myc_0      
+      CUE_erm_vr=0.0
       ! Fracions of SAP that goes to different SOM pools
-      fPHYS = (/ 0.3_r8 * exp(fCLAY), 0.3_r8 * exp(fCLAY) /)
-      fCHEM = (/0.1_r8 * exp(-3.0*fMET), 0.1_r8 * exp(-3.0*fMET) /)
+      fPHYS = (/ 0.3 * exp(1.3*fCLAY), 0.2 * exp(0.8*fCLAY) /)
+      fCHEM = (/0.1 * exp(-3.0*fMET), 0.3 * exp(-3.0*fMET) /)
       fAVAIL = 1-(fPHYS+fCHEM)
 
       !Set initial concentration values:
@@ -223,7 +227,7 @@ module mycmim
       call create_netcdf(run_name, nlevdecomp)
       call fill_netcdf(run_name,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
                        date, HR_mass_accumulated,HR, change_matrixC,change_matrixN,write_hour,current_month, &
-                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,levsoi=nlevdecomp)
+                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp)
             
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
       pscalar = 1.0/(2*exp(-2.0*sqrt(fCLAY)))
@@ -301,8 +305,8 @@ module mycmim
           tau = (/ 5.2e-4*exp(0.3_r8*fMET)*r_moist(j), 2.4e-4*exp(0.1_r8*fMET)*r_moist(j)/)
           CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
-          CUE_ecm = 0.25
-          CUE_am = 0.25
+          CUE_ecm_vr(j) = CUE_myc_0
+          CUE_am_vr(j) = CUE_myc_0
           
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
@@ -316,7 +320,8 @@ module mycmim
                                       N_PlantSOMp,N_PlantSOMa,N_PlantSOMc)
           !Determine deposition NOTE: Must specify name of parameters when using the set_N_dep function 
           !,const_dep = 3d0
-          Deposition = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j))
+          Deposition = set_N_dep(const_dep = 3d0)
+
           Leaching = calc_Leaching(drain,h2o_liq_tot,pool_matrixN(j,12))
           nitrif_rate=nitrification((pool_matrixN(j,11)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j))
 
@@ -379,23 +384,23 @@ module mycmim
               end if
 
             elseif (i==5) then !EcM
-              C_Gain = CUE_ecm*C_PlantEcM
-              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm*C_PlantEcM*enzyme_pct
+              C_Gain = CUE_ecm_vr(j)*C_PlantEcM
+              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct
               N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM + N_SOMaEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
-              !print*,  "EcM",C_Gain,N_Gain,N_EcMPlant
+              
             elseif (i==6) then !ErM
-              C_Gain = CUE_erm*C_PlantErM
+              C_Gain = CUE_erm_vr(j)*C_PlantErM
               C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc 
               N_Gain = N_INErM
               N_Loss = N_ErMPlant + N_ErMSOMa + N_ErMSOMp + N_ErMSOMc
 
             elseif (i==7) then !AM
-              C_Gain = CUE_am*C_PlantAM
+              C_Gain = CUE_am_vr(j)*C_PlantAM
               C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc
               N_Gain = N_INAM 
               N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
-              !print*,"AM", C_Gain, N_INAM, N_AMPlant
+
             elseif (i==8) then !SOMp
               C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp+ C_PlantSOMp
               C_Loss = C_SOMpSOMa+C_EcMdecompSOMp
@@ -404,10 +409,10 @@ module mycmim
 
             elseif (i==9) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc &
-               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm*C_PlantEcM*enzyme_pct
+               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct
                C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
-               N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa+ +N_PlantSOMa
+               N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa +N_PlantSOMa
                N_Loss = N_SOMaSAPb + N_SOMaSAPf + N_SOMaEcM
 
             elseif (i==10) then !SOMc
@@ -494,7 +499,7 @@ module mycmim
             print*, 'Negative HR: ', HR(j), t
           end if
           
-          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+CUE_ecm*C_PlantEcM+CUE_am*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
+          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+CUE_ecm_vr(j)*C_PlantEcM+CUE_am_vr(j)*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
           
           sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+N_PlantSOMc+N_PlantSOMp+N_PlantSOMa+Deposition)*dt*delta_z(j) !g/m2
           sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_AMPlant+N_INPlant+Leaching)*dt*delta_z(j)
@@ -550,14 +555,8 @@ module mycmim
           counter = 0        
           call fill_netcdf(run_name, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
            date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
-           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,nlevdecomp)
-
+           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp)
            change_sum = 0.0
-          ! call disp("pool_matrixC gC/m3 ",pool_matrixC)
-          ! call disp("pool_matrixN gN/m3 ",pool_matrixN)          
-          ! call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))     
-          ! print*,  "write_hour*step_frac"    , year 
-          !vertC_change_sum = 0.0
         end if!writing
 
         !Write end values to terminal
@@ -585,7 +584,7 @@ module mycmim
       call total_mass_conservation(sum_input_total,HR_mass_accumulated,pool_C_start,pool_C_final,nlevdecomp,pool_types)
       call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total,pool_N_start,pool_N_final,nlevdecomp,pool_types_N)
       deallocate(ndep_prof,leaf_prof,froot_prof)
-      deallocate(CUE_bacteria_vr,CUE_fungi_vr)
+      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr)
       call system_clock(count=clock_stop)      ! Stop Timer
       print*, "Total time for decomp subroutine in seconds: ", real(clock_stop-clock_start)/real(clock_rate)
       print*, "Total time for decomp subroutine in minutes: ", (real(clock_stop-clock_start)/real(clock_rate))/60

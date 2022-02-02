@@ -6,7 +6,7 @@ program main
   integer :: levels,name
 
   !character (len=*),parameter :: site = "32087_Dovre" !"31767_Kongsvinger" "32374_Saltdal" "32087_Dovre"
-  character (len=*),parameter :: description = "test_nitrification3"
+  character (len=*),parameter :: description = "Nitrif_test_modN_Vmax"
   real(r8), dimension (:,:), allocatable   :: C_matrix_init    ! For storing C pool sizes [gC/m3]
   real(r8), dimension (:,:), allocatable   :: N_matrix_init   ! For storing N pool sizes [gN/m3]
 
@@ -25,7 +25,7 @@ program main
   character (len=200)  :: clm_data_file 
   character (len=200)  :: clm_surface_file
 
-  do name = 11, 21, 1    
+  do name = 1, 1, 1    
     clm_data_file='/home/ecaas/nird/'//trim(site_names(name))//'_historical/lnd/hist/'//trim(site_names(name))
     print*, trim(adjustr(clm_data_file)//'.clm2.all.1901.nc')
     print*, trim(adjustr(clm_data_file))

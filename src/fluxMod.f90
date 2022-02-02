@@ -119,6 +119,11 @@ contains
     real(r8)  :: N_for_sap
     real(r8)  :: N_IN
     real(r8)  :: f_b
+    real(r8)  :: EcM_N_uptake
+    real(r8)  :: EcM_N_demand
+    real(r8)  :: AM_N_uptake
+    real(r8)  :: AM_N_demand
+    
 
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
@@ -149,15 +154,13 @@ contains
     
 
     !------------------CARBON FLUXES----------------------------:
-    !Decomposition of LIT by SAP:
+    !Decomposition of LIT and SOMa by SAP:
     !On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
     C_LITmSAPb=MMK_flux(C_SAPb,C_LITm,1)
     C_LITsSAPb=MMK_flux(C_SAPb,C_LITs,2)
+    C_SOMaSAPb=MMK_flux(C_SAPb,C_SOMa,3)
     C_LITmSAPf=MMK_flux(C_SAPf,C_LITm,4)
     C_LITsSAPf=MMK_flux(C_SAPf,C_LITs,5)
-    !Decomposition of SOMa by SAP. Based on the equations from SOMa to microbial pools in mimics.
-    !On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
-    C_SOMaSAPb=MMK_flux(C_SAPb,C_SOMa,3)
     C_SOMaSAPf=MMK_flux(C_SAPf,C_SOMa,6)
 
 
@@ -211,8 +214,11 @@ contains
     
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining*froot_prof(depth)))  !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
-    N_INAM = V_max_myc*2*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))!*(C_PlantAM/(max_mining*froot_prof(depth)))
-
+    if ( f_EcM < 1._r8 ) then
+      N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))!*(C_PlantAM/(max_mining*froot_prof(depth)))
+    else
+      N_INAM=0._r8
+    end if
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
     N_LITsSAPb = C_LITsSAPb*N_LITs/C_LITs
@@ -253,22 +259,28 @@ contains
 
     !Transport from SOMc to SOMa:
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
-
+!----------------------------------------------------------------------------------------------------------------------------------
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    N_EcMPlant = N_INEcM + N_SOMpEcM + N_SOMcEcM + N_SOMaEcM - CUE_ecm*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)  !gN/m3h
-    if ( N_EcMPlant < 0._r8 ) then    
-      CUE_ecm = (N_INEcM + N_SOMpEcM + N_SOMcEcM)*dt*CN_ratio(5)/((1-enzyme_pct)*C_PlantEcM)
-      N_EcMPlant = 0._r8 !N_INEcM + N_SOMpEcM + N_SOMcEcM - CUE_ecm*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)  !gN/m3h
+    EcM_N_demand = CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)
+    EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM + N_SOMaEcM
 
+    if ( EcM_N_uptake >= EcM_N_demand ) then   
+      N_EcMPlant = EcM_N_uptake - EcM_N_demand
+    else
+      N_EcMPlant = (1-f_growth)*EcM_N_uptake
+      CUE_ecm_vr(depth) = f_growth*EcM_N_uptake*CN_ratio(5)/((1-enzyme_pct)*C_PlantEcM)
     end if
 
-    N_AMPlant = N_INAM  - CUE_AM*C_PlantAM/CN_ratio(7)  !gN/m3h
-
-    if ( N_AMPlant .LT. 0.) then
-    CUE_AM = (N_INAM)*dt*CN_ratio(7)/(C_PlantAM)
-    N_AMPlant = 0._r8!N_INAM - CUE_AM*C_PlantAM/CN_ratio(7)  !gN/m3h
-
-    end if  
+    !All N the Mycorrhiza dont need for its own, it gives to the plant:
+    AM_N_demand = CUE_AM_vr(depth)*(1-enzyme_pct)*C_PlantAM/CN_ratio(7)
+    AM_N_uptake = N_INAM 
+    
+    if ( AM_N_uptake >= AM_N_demand ) then   
+      N_AMPlant = AM_N_uptake - AM_N_demand
+    else
+      N_AMPlant = (1-f_growth)*AM_N_uptake
+      CUE_AM_vr(depth) = f_growth*AM_N_uptake*CN_ratio(7)/(C_PlantAM)
+    end if
 
     N_ErMPlant = 0.0
 !---------------------------------------------------------------------------------------------------------------------------------------

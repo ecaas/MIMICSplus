@@ -40,7 +40,7 @@ module readMod
         call check(nf90_inq_varid(ncid, 'NPP_NNONMYC', varid))
         call check(nf90_get_var(ncid, varid, NPP_nonmyc(:),start = (/1,1/),count = (/1,time_steps/)))
         
-        NPP_myc = (NPP_tot-NPP_nonmyc)*60*60
+        NPP_myc = (NPP_tot-NPP_nonmyc)*sec_pr_hr
 
         max_Cpay = maxval(NPP_myc)*EcM_frac
         

@@ -40,6 +40,7 @@ integer, parameter                           :: pool_types_N = pool_types + 2 !p
 real(r8),parameter                      :: fMET =0.6                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
 real(r8), dimension(no_of_sap_pools)    :: tau  ![1/h]
+real(r8)                                :: f_EcM! fraction of metabolic litter flux that goes directly to SOM pools
 
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.3,0.4,0.3/)
@@ -56,15 +57,19 @@ real(r8),parameter                   :: D_nitrogen = 1.14e-8![m2/h] Diffusivity.
 
 real(r8),dimension(:),allocatable    :: CUE_bacteria_vr
 real(r8),dimension(:),allocatable    :: CUE_fungi_vr
+real(r8),dimension(:),allocatable    :: CUE_ecm_vr         !Growth efficiency of mycorrhiza 
+real(r8),dimension(:),allocatable    :: CUE_am_vr         !Growth efficiency of mycorrhiza 
+real(r8),dimension(:),allocatable    :: CUE_erm_vr        !Growth efficiency of mycorrhiza 
+real(r8),parameter                   :: CUE_myc_0=0.25 !Baskaran
 
 real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
-real(r8)                             :: CUEmod_bacteria
-real(r8)                             :: CUEmod_fungi
 
 real(r8), parameter                  :: f_met_to_som=0.05 ! fraction of metabolic litter flux that goes directly to SOM pools
 real(r8)                             :: max_mining 
 real(r8), parameter                  :: enzyme_pct = 0.1
+real(r8), parameter                  :: f_growth = 0.5 !Fraction of mycorrhizal N uptake that must go to plant if there is too little N to support both giving 
+                                                       !to plant and maximum growth. New CUE are calculated based on this. NB: VERY ASSUMED!!
 
 real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
                                                                                           !NOTE: Wallander/Rousk may have data more suited for Boreal/Arctic conditions
@@ -76,9 +81,6 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
 !From Baskaran et al 2016
 real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) 
 real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) 
-real(r8) :: CUE_ecm         !Growth efficiency of mycorrhiza 
-real(r8) :: CUE_am         !Growth efficiency of mycorrhiza 
-real(r8) :: CUE_erm        !Growth efficiency of mycorrhiza 
 
 
 
@@ -129,7 +131,7 @@ character (len=*), dimension(*), parameter ::  N_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc" &
   ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
   "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMaEcM","SOMpSOMa","SOMcSOMa","PlantLITm" &
-  ,"PlantLITs","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
+  ,"PlantLITs","PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
   "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
   
 character (len=*), dimension(38),parameter :: site_names = &
