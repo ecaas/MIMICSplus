@@ -3,14 +3,14 @@ use shr_kind_mod   , only : r8 => shr_kind_r8
 
 implicit none
 
-!Define variables
+!For conversion
+integer, parameter :: sec_pr_hr = 60*60        
+integer, parameter :: hr_pr_yr  = 365*24     
+integer, parameter :: hr_pr_day = 24
+integer, parameter :: days_in_year = 365
 
-real(r8), parameter :: sec_pr_hr = 60*60        !For conversion
-real(r8), parameter :: hr_pr_yr = 365*24        !For conversion
-real(kind=r8)                                :: T_soil_const =5.18              ![degC]
-real(kind=r8)                                :: GEP                             ![gC/(m2 h)] Gross ecosystem productivity
-real(kind=r8)                                :: fCLAY                          ![-] fraction of clay in soil
-real(kind=r8),dimension(3)                   :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
+integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
+
 
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
 integer, parameter                           :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters
@@ -23,7 +23,7 @@ real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
 real(kind=r8)                                :: pscalar 
 real(kind=r8),dimension(MM_eqs)              :: Kmod   
 real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 2.0, 10.0, 3.0,3.0, 2.0/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),parameter, dimension(2)        :: KO      =  4                    ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
+real(kind=r8),parameter, dimension(2)        :: KO      =  4                 ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
 real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*10e3=[gC/m3]
 real(kind=r8),dimension(MM_eqs)              :: Vmax                            ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
 
@@ -42,17 +42,32 @@ real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
 real(r8), dimension(no_of_sap_pools)    :: tau  ![1/h]
 real(r8)                                :: f_EcM! fraction of metabolic litter flux that goes directly to SOM pools
 
+real(r8),parameter                     :: pctN_for_sap=0.9 !NB: VERY ASSUMED Only this percentage of remaining inorganic N is avalable to SAPS
+
+real(kind=r8)                          :: fCLAY                          ![-] fraction of clay in soil
+real(kind=r8),dimension(3)             :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
+
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.3,0.4,0.3/)
 real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
 real(r8)                                :: desorb ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Depth & vertical transport
-real(r8)                             :: soil_depth           ![m] used if isVertical is False (sum(delta_z))
+real(r8)                             :: soil_depth           ![m] 
 real(r8),dimension(10),parameter     :: node_z =  (/0.01,0.04,0.09,0.16,0.26,0.40,0.587,0.80,1.06,1.36/)!(/0.076,0.228, 0.380,0.532, 0.684,0.836,0.988,1.140,1.292,1.444/)!![m] Depth of center in each soil layer. Same as the first layers of default CLM5 with vertical resolution.
 real(r8),dimension(10),parameter     :: delta_z = (/0.02, 0.04, 0.06, 0.08,0.12,0.16,0.20,0.24,0.28,0.32/)!0.152![m] Thickness of each soil of the top layers in default clm5.
 real(r8),parameter                   :: D_carbon = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
 real(r8),parameter                   :: D_nitrogen = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
+
+!counts: 
+integer                             :: c1a
+integer                             :: c1b
+integer                             :: c2
+integer                             :: c3a
+integer                             :: c3b
+integer                             :: c4a
+integer                             :: c4b
+
 
 
 real(r8),dimension(:),allocatable    :: CUE_bacteria_vr
@@ -85,18 +100,18 @@ real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal u
 
 
 !Decomposition rates:
-real(r8), parameter :: K_MO = 0.03/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
+real(r8), parameter :: K_MO = 0.0003/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
 !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
 real(r8), parameter                          :: P = 44.247 !normalization of moisture function
 real(r8)                                     :: gas_diffusion
-integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
 
 real(r8),dimension(:),allocatable  :: ndep_prof
 real(r8),dimension(:),allocatable  :: leaf_prof
 real(r8),dimension(:),allocatable  :: froot_prof
 
 integer(r8)     :: clock_rate,clock_start,clock_stop
+integer(r8)     :: full_clock_rate,full_clock_start,full_clock_stop
 !Fluxes etc:
 real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_ErMSOMp, C_ErMSOMa, C_ErMSOMc, C_AMSOMp, &
 C_LITmSAPf, C_LITsSAPf, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa, &

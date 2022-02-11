@@ -32,10 +32,8 @@ module writeMod
       call check(nf90_def_dim(ncid,"SAPpools",size(fPHYS),fracid))
       do v = 1, size(variables)
         call check(nf90_def_var(ncid, trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
-        !call check(nf90_def_var(ncid, "change"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
         call check(nf90_def_var(ncid, "vert_change"//trim(variables(v)), NF90_FLOAT, (/t_dimid, lev_dimid/), varid))
         call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
-        !call check(nf90_def_var(ncid, "N_change"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
         call check(nf90_def_var(ncid, "N_vert_change"//trim(variables(v)), NF90_FLOAT, (/t_dimid, lev_dimid/), varid))
 
       end do
@@ -71,10 +69,10 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_netcdf
 
-    subroutine fill_netcdf(run_name, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, &
+    subroutine fill_netcdf(ncid, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, &
       mcdate,HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,levsoi)
       !INPUT:
-      character (len = *),intent(in)   :: run_name
+      integer,intent(in)               :: ncid 
       real(r8), intent(in)             :: pool_matrix(levsoi,pool_types), Npool_matrix(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
       real(r8), intent(in)             :: change_matrix(levsoi,pool_types), Nchange_matrix(levsoi,pool_types_N) ! For storing dC/dt for each time step [gC/(m3*day)]
       real(r8), intent(in)             :: vert_sum(levsoi,pool_types)
@@ -93,12 +91,11 @@ module writeMod
       
       !LOCAL:
       integer                          :: i , j !for looping
-      integer                          :: varidchange,varid,ncid, timestep,vertid 
+      integer                          :: varidchange,varid, timestep,vertid 
       real(r8)                         :: N_SMIN
 
 
       call get_timestep(time, write_hour, timestep)
-      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, ncid))
 
       call check(nf90_inq_varid(ncid, "time", varid))
       call check(nf90_put_var(ncid, varid, time, start = (/ timestep /)))
@@ -156,15 +153,11 @@ module writeMod
           call check(nf90_put_var(ncid, vertid, Nvert_sum(j,i), start = (/timestep,j/)))
         end do !pool_types
       end do ! levels
-      call check(nf90_close(ncid))
     end subroutine fill_netcdf
 
-   subroutine store_parameters(run_name)
-     character (len = *):: run_name
+   subroutine store_parameters(ncid)
      integer :: clayID, desorbID, fmetID, tauID, depthID, fphysID, fchemID, favailID,fecmID
-     integer:: ncid
-     call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, ncid))
-
+     integer,intent(in):: ncid
 
      call check(nf90_def_var(ncid, "f_clay", NF90_FLOAT, clayID))
      call check(nf90_def_var(ncid, "desorb", NF90_FLOAT, desorbID))
@@ -190,7 +183,6 @@ module writeMod
      call check(nf90_put_var(ncid, fecmID, f_ecm))
      
 
-     call check(nf90_close(ncid))
    end subroutine store_parameters
 
     subroutine get_timestep(time, write_hour, timestep)
@@ -212,21 +204,18 @@ module writeMod
       end if
     end subroutine get_timestep
 
-    subroutine fluxes_netcdf(time, write_hour, depth_level, run_name)
+    subroutine fluxes_netcdf(ncid,time, write_hour, depth_level)
+      integer,intent(in)  :: ncid
       integer, intent(in) :: time
       integer, intent(in) :: write_hour
       integer, intent(in) :: depth_level
-      character (len = *), intent(in):: run_name
 
       !Local:
       integer :: timestep
-      integer :: ncid
      !---------------------------------------------
       call get_timestep(time, write_hour, timestep)
-      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, ncid))
       call write_Nfluxes(ncid, timestep, depth_level)
       call write_Cfluxes(ncid, timestep, depth_level)
-      call check(nf90_close(ncid))
     end subroutine fluxes_netcdf
 
     subroutine write_Cfluxes(ncid,timestep,depth_level)
