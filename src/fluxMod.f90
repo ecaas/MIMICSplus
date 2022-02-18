@@ -55,7 +55,7 @@ contains
     if (present(CLMdep) .and. .not. present(const_dep)) then
       Dep = CLMdep
     elseif (present(const_dep) .and. .not. present(CLMdep)) then
-      Dep = const_dep/(hr_pr_yr*soil_depth)
+      Dep = const_dep
     elseif (.not. present(CLMdep) .and. .not. present(const_dep)) then
       print*, "N dep not set correctly, stopping"
       Dep = -999
@@ -71,10 +71,9 @@ contains
     Leach = N_NO3*drain/h2o_tot
   end function calc_Leaching
 
-
   function MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
     !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
-    !NOTE: On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
+    !NOTE: On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
     real(r8):: flux ![gC/(m3 hr)]
     real(r8), intent(in) :: C_SAP
     real(r8), intent(in) :: C_SUBSTRATE
@@ -83,16 +82,16 @@ contains
     flux = C_SAP*Vmax(MMK_nr)*C_SUBSTRATE/(Km(MMK_nr)+C_SUBSTRATE)
   end function MMK_flux
   
-    function reverse_MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
-      !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
-      !NOTE: On the way, a fraction 1-MGE is lost as respiration. This is handeled in the "decomp" subroutine.
-      real(r8):: flux ![gC/(m3 hr)]
-      real(r8), intent(in) :: C_SAP
-      real(r8), intent(in) :: C_SUBSTRATE
-      integer, intent (in) :: MMK_nr
-      !TODO: this works, but should not depend on Vmax & Km from mycmim mod
-      flux = C_SUBSTRATE*Vmax(MMK_nr)*C_SAP/(Km(MMK_nr)+C_SAP)
-    end function reverse_MMK_flux
+  function reverse_MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
+     !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
+     !NOTE: On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
+     real(r8):: flux ![gC/(m3 hr)]
+     real(r8), intent(in) :: C_SAP
+     real(r8), intent(in) :: C_SUBSTRATE
+     integer, intent (in) :: MMK_nr
+     !TODO: this works, but should not depend on Vmax & Km from mycmim mod
+     flux = C_SUBSTRATE*Vmax(MMK_nr)*C_SAP/(Km(MMK_nr)+C_SAP)
+  end function reverse_MMK_flux
 
   function Km_function(temperature) result(K_m)
     real(r8),dimension(MM_eqs)             :: K_m
@@ -123,8 +122,9 @@ contains
     real(r8)  :: EcM_N_demand
     real(r8)  :: AM_N_uptake
     real(r8)  :: AM_N_demand
+    real(r8)  :: minedSOMp
+    real(r8)  :: minedSOMc
     
-
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
     C_SAPb, C_SAPf, N_LITm, N_LITs, N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb, N_SAPf, N_NH4,N_NO3
@@ -163,7 +163,6 @@ contains
     C_LITsSAPf=MMK_flux(C_SAPf,C_LITs,5)
     C_SOMaSAPf=MMK_flux(C_SAPf,C_SOMa,6)
 
-
     !Dead mycorrhizal biomass enters the SOM pools:  gC/m3h
     C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp
     C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(2)!soma
@@ -196,9 +195,16 @@ contains
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
     !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
-    C_EcMdecompSOMp = K_MO*soil_depth*C_EcM*C_SOMp*(C_PlantEcM/(max_mining*froot_prof(depth)))   ![gC/m3h]
-    C_EcMdecompSOMc = K_MO*soil_depth*C_EcM*C_SOMc*(C_PlantEcM/(max_mining*froot_prof(depth)))   ![gC/m3h]
-
+    minedSOMp = K_MO*soil_depth*C_EcM*C_SOMp*(C_PlantEcM/(max_mining*froot_prof(depth)))
+    C_SOMpEcM = minedSOMp*f_use
+    C_EcMdecompSOMp = (1_r8-f_use)*minedSOMp   ![gC/m3h]
+    !print*, minedSOMp,C_EcMdecompSOMp,C_SOMpEcM,(1_r8-f_use),f_use,minedSOMp-C_EcMdecompSOMp-C_SOMpEcM
+    
+    minedSOMc = K_MO*soil_depth*C_EcM*C_SOMc*(C_PlantEcM/(max_mining*froot_prof(depth)))
+    C_EcMdecompSOMc = (1_r8-f_use)*minedSOMc   ![gC/m3h]
+    C_SOMcEcM = minedSOMc*f_use
+    !print*, minedSOMc,C_EcMdecompSOMc,C_SOMcEcM,minedSOMc-C_EcMdecompSOMc-C_SOMcEcM
+    
     !-----------------------------------NITROGEN FLUXES----------------------------:
     N_IN = N_NH4+ N_NO3+(Deposition - Leaching)*dt !
     if ( N_IN < 0._r8 ) then
@@ -213,7 +219,11 @@ contains
     N_InPlant = 5E-7*N_IN
     
     N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining*froot_prof(depth)))  !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
+    if ( N_INEcM .NE. 0.0 ) then
+        N_INEcM=max(N_INEcM,1.175494351E-38)
+    end if
     N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
+    
     if ( f_EcM < 1._r8 ) then
       N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))!*(C_PlantAM/(max_mining*froot_prof(depth)))
     else
@@ -261,17 +271,6 @@ contains
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
 !----------------------------------------------------------------------------------------------------------------------------------
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    EcM_N_demand = CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)
-    EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM + N_SOMaEcM
-
-    if ( EcM_N_uptake >= EcM_N_demand ) then   
-      N_EcMPlant = EcM_N_uptake - EcM_N_demand
-    else
-      N_EcMPlant = (1-f_growth)*EcM_N_uptake
-      CUE_ecm_vr(depth) = f_growth*EcM_N_uptake*CN_ratio(5)/((1-enzyme_pct)*C_PlantEcM)
-    end if
-
-    !All N the Mycorrhiza dont need for its own, it gives to the plant:
     AM_N_demand = CUE_AM_vr(depth)*(1-enzyme_pct)*C_PlantAM/CN_ratio(7)
     AM_N_uptake = N_INAM 
     
@@ -282,63 +281,90 @@ contains
       CUE_AM_vr(depth) = f_growth*AM_N_uptake*CN_ratio(7)/(C_PlantAM)
     end if
 
+
+
+    !All N the Mycorrhiza dont need for its own, it gives to the plant:
+    EcM_N_demand = CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)
+    EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM + N_SOMaEcM
+
+    if ( EcM_N_uptake >= EcM_N_demand ) then   
+      N_EcMPlant = EcM_N_uptake - EcM_N_demand
+    else
+      N_EcMPlant = (1-f_growth)*EcM_N_uptake
+      CUE_ecm_vr(depth) = f_growth*EcM_N_uptake*CN_ratio(5)/((1-enzyme_pct)*C_PlantEcM)
+    end if
+
+
+
     N_ErMPlant = 0.0
 !---------------------------------------------------------------------------------------------------------------------------------------
     !Calculate amount of inorganic N saprotrophs have access to: 
-    N_for_sap  = (N_IN - ( N_INPlant + N_INEcM + N_INAM)*dt)*0.9
+    N_for_sap  = (N_IN - ( N_INPlant + N_INEcM + N_INAM)*dt)*pctN_for_sap
 
     !total C uptake (growth + respiration) of saprotrophs
     U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
     U_sf = C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf
     
+    !total N uptake by saprotrophs
     UN_sb = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb  
     UN_sf = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
     
-  
     !SAP demand for N:
     N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
     N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
     
-    !First calculation:
+    !How much N saprotrophs need from the inorganic pool
     N_INSAPb = N_demand_SAPb-UN_sb
     N_INSAPf = N_demand_SAPf-UN_sf
     
+    !Determine exchange of N between inorganic pool and saprotrophs:
     if ( N_INSAPb >= 0. .and. N_INSAPf >= 0. ) then !immobilization
       if ( N_for_sap < abs((N_INSAPb + N_INSAPf)*dt) ) then !Not enough mineral N to meet demand
-        
-        f_b = U_sb/(U_sb + U_sf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
-        CUE_bacteria_vr(depth)=min(((f_b*N_for_sap+UN_sb*dt)*CN_ratio(3))/U_sb,CUE_0)
-        CUE_fungi_vr(depth) = min((((1-f_b)*N_for_sap+UN_sf*dt)*CN_ratio(4))/U_sf,CUE_0)
+
+        f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
+        CUE_bacteria_vr(depth)=((f_b*N_for_sap+UN_sb*dt)*CN_ratio(3))/(U_sb*dt)
+        CUE_fungi_vr(depth) = (((1-f_b)*N_for_sap+UN_sf*dt)*CN_ratio(4))/(U_sf*dt)
 
         !SAP demand for N:
         N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
         N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
         
-        N_INSAPb = f_b*N_for_sap !max(N_demand_SAPb-UN_sb,0._r8)
-        N_INSAPf = (1-f_b)*N_for_sap !max(N_demand_SAPf-UN_sf,0._r8)
-        
+        N_INSAPb = f_b*N_for_sap 
+        N_INSAPf = (1-f_b)*N_for_sap 
+        c1a=c1a+1
       else !Enough mineral N to meet demand
+        c1b=c1b+1
         continue
       end if    
         
     elseif ( N_INSAPb < 0. .and. N_INSAPf < 0. ) then !mineralization
-      continue
+        c2=c2+1
+        continue
       
     elseif ( N_INSAPb >= 0. .and. N_INSAPf < 0. ) then ! bacteria can use N mineralized by fungi
       N_for_sap = N_for_sap + N_INSAPf*dt 
-      
       if ( N_for_sap < N_INSAPb*dt ) then
         CUE_bacteria_vr(depth)=((N_for_sap+UN_sb*dt)*CN_ratio(3))/U_sb
         N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
-        N_INSAPb = N_demand_SAPb-UN_sb        
+        N_INSAPb = N_demand_SAPb-UN_sb    
+         c3a=c3a+1 
+            
+      else
+         c3b=c3b+1 
       end if
     elseif ( N_INSAPb < 0. .and. N_INSAPf >= 0. ) then !fungi can use N mineralized by bacteria
-      N_for_sap = N_for_sap + N_INSAPb*dt 
+      N_for_sap = N_for_sap + N_INSAPb*dt       
       if ( N_for_sap < N_INSAPf*dt ) then
         CUE_fungi_vr(depth)=((N_for_sap+UN_sf*dt)*CN_ratio(4))/U_sf
+        
         N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
         N_INSAPf = N_demand_SAPf-UN_sf
+         c4a=c4a+1 
+        
+      else
+         c4b=c4b+1 
       end if
+      
     end if
     
 !---------------------------------------------------------------------------------------------------------------         
