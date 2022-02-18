@@ -104,7 +104,7 @@ contains
     goal = sum_old + mass_input - mass_out
     diff = sum_new-goal
     
-    if (abs(diff) > 1e-4) then
+    if (abs(diff) > 1e-10) then
       if ( no_of_pools .eq. 12 ) then
         print*, "Mass NOT conserved for NITROGEN"
         call disp(mass_new)
@@ -150,7 +150,7 @@ contains
     goal = sum_old + sum_input - sum_respiration
     diff = sum_new-goal
 
-    if (abs(diff) > 1e-4) then
+    if (abs(diff) > 1e-5) then
       print*, 'Mass conservation of C is NOT fulfilled: '
 
     else

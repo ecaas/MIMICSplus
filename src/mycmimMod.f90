@@ -406,7 +406,7 @@ module mycmim
               end if
 
             elseif (i==5) then !EcM
-              C_Gain = CUE_ecm_vr(j)*C_PlantEcM
+              C_Gain = CUE_ecm_vr(j)*C_PlantEcM + C_SOMcEcM + C_SOMpEcM !
               C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct
               N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM + N_SOMaEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
@@ -425,12 +425,10 @@ module mycmim
 
             elseif (i==8) then !SOMp
               C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp+ C_PlantSOMp
-              C_Loss = C_SOMpSOMa+C_EcMdecompSOMp
+              C_Loss = C_SOMpSOMa+C_EcMdecompSOMp + C_SOMpEcM
               N_Gain =  N_SAPbSOMp + N_SAPfSOMp + N_EcMSOMp + N_ErMSOMp + N_AMSOMp+N_PlantSOMp
               N_Loss = N_SOMpSOMa + N_SOMpEcM
-              ! print*, C_SOMpSOMa+C_EcMdecompSOMp, "loss"
-              ! print*,  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp+ C_PlantSOMp, "gain"
-              ! print*, pool_matrixC(j,i), j
+
             elseif (i==9) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc &
                + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct
@@ -441,7 +439,7 @@ module mycmim
 
             elseif (i==10) then !SOMc
               C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc+C_PlantSOMc
-              C_Loss = C_SOMcSOMa+C_EcMdecompSOMc
+              C_Loss = C_SOMcSOMa+C_EcMdecompSOMc + C_SOMcEcM
               N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_ErMSOMc + N_AMSOMc+N_PlantSOMc
               N_Loss = N_SOMcSOMa + N_SOMcEcM
               
@@ -515,7 +513,7 @@ module mycmim
             print*, 'Negative HR: ', HR(j), t
           end if
           
-          !Summarize in and out durint timestep to check mass balance
+          !Summarize in and out print timestep to check mass balance
           sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+CUE_ecm_vr(j)*C_PlantEcM+CUE_am_vr(j)*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
           sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+N_PlantSOMc+N_PlantSOMp+N_PlantSOMa+Deposition)*dt*delta_z(j) !g/m2
           sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_AMPlant+N_INPlant+Leaching)*dt*delta_z(j)
