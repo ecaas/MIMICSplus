@@ -286,8 +286,7 @@ contains
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
     EcM_N_demand = (CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM+C_SOMcEcM+C_SOMpEcM)/CN_ratio(5)
     EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM 
-    ROI=ROI_function(EcM_N_uptake,C_EcM, k_mycsom(1))
-    print*, ROI
+
     if ( EcM_N_uptake >= EcM_N_demand ) then   
         N_EcMPlant=EcM_N_uptake-EcM_N_demand      
     else
