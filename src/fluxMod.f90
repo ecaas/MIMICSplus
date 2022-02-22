@@ -271,7 +271,7 @@ contains
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
 !----------------------------------------------------------------------------------------------------------------------------------
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    AM_N_demand = CUE_AM_vr(depth)*(1-enzyme_pct)*C_PlantAM/CN_ratio(7)
+    AM_N_demand = CUE_AM_vr(depth)*C_PlantAM/CN_ratio(7)
     AM_N_uptake = N_INAM 
     
     if ( AM_N_uptake >= AM_N_demand ) then   
@@ -284,14 +284,17 @@ contains
 
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    EcM_N_demand = CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)
-    EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM + N_SOMaEcM
+    EcM_N_demand = (CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM+C_SOMcEcM+C_SOMpEcM)/CN_ratio(5)
+    EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM 
 
     if ( EcM_N_uptake >= EcM_N_demand ) then   
-      N_EcMPlant = EcM_N_uptake - EcM_N_demand
+        N_EcMPlant=EcM_N_uptake-EcM_N_demand      
     else
-      N_EcMPlant = (1-f_growth)*EcM_N_uptake
-      CUE_ecm_vr(depth) = f_growth*EcM_N_uptake*CN_ratio(5)/((1-enzyme_pct)*C_PlantEcM)
+        N_EcMPlant = (1-f_growth)*EcM_N_uptake
+        CUE_ecm_vr(depth) = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct)*C_PlantEcM)
+        !enzyme_pct = 1- EcM_N_uptake*CN_ratio(5)/(CUE_ecm_vr(depth)*C_PlantEcM)
+        !N_EcMPlant=N_INEcM + N_SOMpEcM + N_SOMcEcM-CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)
+
     end if
 
 
