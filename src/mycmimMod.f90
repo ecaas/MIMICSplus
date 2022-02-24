@@ -321,7 +321,7 @@ module mycmim
 
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
 
-          k_mycsom  = (/1.14_r8,1.14_r8,1.14_r8/)*1e-6  ![1/h] Decay constants, mycorrhiza to SOM pools TODO: Assumed, needs revision TODO: 1/yr instead? Sulman et al. 
+          k_mycsom  = (/1.14_r8,1.14_r8,1.14_r8/)*1e-4  ![1/h]  1/yr  
 
           !Michaelis Menten parameters:
           Km      = Km_function(TSOIL(j))
