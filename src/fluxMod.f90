@@ -309,6 +309,9 @@ contains
         N_EcMPlant = (1-f_growth)*EcM_N_uptake
 
         enzyme_pct = 1- (f_growth*EcM_N_uptake*CN_ratio(5)-C_SOMpEcM-C_SOMcEcM)/(CUE_ecm_vr(depth)*C_PlantEcM)
+        !CUE_ecm_vr(depth) = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct)*C_PlantEcM)
+
+        N_EcMPlant=N_INEcM + N_SOMpEcM + N_SOMcEcM-CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)
 
     end if
 
