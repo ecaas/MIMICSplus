@@ -81,8 +81,8 @@ real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
 
 real(r8), parameter                  :: f_met_to_som=0.05_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-real(r8)                             :: max_mining 
-real(r8), parameter                  :: enzyme_pct = 0.1_r8
+real(r8),dimension(2)                            :: max_mining 
+real(r8)                 :: enzyme_pct 
 real(r8), parameter                  :: f_use = 0.1_r8 !Fraction of C released during mining that is taken up by EcM
 
 real(r8), parameter                  :: f_growth = 0.5_r8 !Fraction of mycorrhizal N uptake that must go to plant if there is too little N to support both giving 
@@ -102,7 +102,7 @@ real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal u
 
 
 !Decomposition rates:
-real(r8), parameter :: K_MO = 0.0003_r8/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
+real(r8), parameter :: K_MO = 0.003_r8/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
 !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
 real(r8), parameter                          :: P = 44.247 !normalization of moisture function

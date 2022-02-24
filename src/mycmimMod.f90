@@ -75,7 +75,7 @@ module mycmim
       real(r8)                       :: pool_matrixN(nlevdecomp,pool_types_N)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types_N) ! For storing dC/dt for each time step [gN/(m3*hour)]
       
-
+      real(r8),dimension(nlevdecomp) :: ROI
       real(r8)                       :: sum_consN(nlevdecomp, pool_types_N) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
       real(r8)                       :: N_DEPinput
@@ -165,6 +165,7 @@ module mycmim
       CUE_ecm_vr=CUE_myc_0
       CUE_am_vr=CUE_myc_0      
       CUE_erm_vr=0.0
+      enzyme_pct=0.1_r8
       c1a=0
       c1b=0
       c2=0
@@ -188,6 +189,8 @@ module mycmim
       change_matrixC = 0.0
       change_matrixN = 0.0
       HR             = 0.0
+      ROI             = 0.0
+      
       vertC_change_sum=0.0
       counter  = 0
       ycounter = 0
@@ -249,7 +252,7 @@ module mycmim
       
       call fill_netcdf(writencid,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
                        date, HR_mass_accumulated,HR, change_matrixC,change_matrixN,write_hour,current_month, &
-                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp)
+                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp,ROI=ROI)
             
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
       pscalar = 1.0/(2*exp(-2.0*sqrt(fCLAY)))
@@ -332,6 +335,7 @@ module mycmim
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
           CUE_ecm_vr(j) = CUE_myc_0
           CUE_am_vr(j) = CUE_myc_0
+          enzyme_pct=0.1_r8
           
           !Determine input rates (from CLM data) in timestep
           call input_rates(j,f_EcM,C_leaf_litter,C_root_litter,N_leaf_litter,&
@@ -350,7 +354,7 @@ module mycmim
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN,dt)
-          
+          ROI(j) = ROI_function(N_INEcM+N_SOMpEcM+N_SOMcEcM,pool_matrixC(j,5),k_mycsom(1))
 !---------Calc fraction of inorg N that is NH4----------------------------------------          
           NH4_temporary = pool_matrixN(j,11) + (Deposition - nitrif_rate)*dt
           NO3_temporary = pool_matrixN(j,12) + (nitrif_rate - Leaching)*dt          
@@ -360,12 +364,11 @@ module mycmim
             nh4_frac = NH4_temporary/(NH4_temporary+NO3_temporary)
           end if
 !---------------------------------------------------------------------------------------          
-
+        
           if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file
            call fluxes_netcdf(writencid,int(time), write_hour, j)
           end if !write fluxes
-
-          do i = 1,pool_types_N !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
+          do i = 1,pool_types_N !loop over all the pool types, i, in depth level j 
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
 
@@ -408,9 +411,8 @@ module mycmim
             elseif (i==5) then !EcM
               C_Gain = CUE_ecm_vr(j)*C_PlantEcM + C_SOMcEcM + C_SOMpEcM !
               C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct
-              N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM + N_SOMaEcM
+              N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
-              
             elseif (i==6) then !ErM
               C_Gain = CUE_erm_vr(j)*C_PlantErM
               C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc 
@@ -469,7 +471,7 @@ module mycmim
             end if
 
             pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt
-            
+
             !NOTE: This is introduced to avoid very small errors that may make inorganic N pools negative (~ E-020). Overall mass balance is still within error limits
             if ( abs(pool_temporaryN(j,i)) < 1e-18 ) then
               pool_temporaryN(j,i)=0._r8
@@ -561,7 +563,7 @@ module mycmim
           counter = 0        
           call fill_netcdf(writencid, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
            date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
-           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp)
+           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp,ROI=ROI)
            change_sum = 0.0
         end if!writing
 

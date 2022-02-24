@@ -106,7 +106,22 @@ contains
     real(r8), intent(in)                   :: moisture
     V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
   end function Vmax_function
-
+  
+  function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) ! Based on Sulman et al 2019
+      real(r8) :: ROI
+      !INPUT
+      real(r8) :: N_aquired
+      real(r8) :: C_myc 
+      real(r8) :: loss_rate ![1/h]
+      !LOCAL
+      real(r8), parameter :: eps = 0.5 !From Sulman et al supplementary: epsilon_mine, epsilon_scav
+      real(r8) :: turnover ! [hour]
+      
+      turnover = 1/loss_rate 
+      ROI=(N_aquired/C_myc)*turnover*eps
+      
+  end function ROI_function 
+      
   subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer,intent(in)         :: depth !depth level
     integer,intent(in)         :: nlevdecomp
@@ -195,14 +210,14 @@ contains
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
     !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
-    minedSOMp = K_MO*soil_depth*C_EcM*C_SOMp*(C_PlantEcM/(max_mining*froot_prof(depth)))
+    minedSOMp = K_MO*soil_depth*C_EcM*C_SOMp*(C_PlantEcM/(max_mining(1)*froot_prof(depth)))
     C_SOMpEcM = minedSOMp*f_use
     C_EcMdecompSOMp = (1_r8-f_use)*minedSOMp   ![gC/m3h]
     !print*, minedSOMp,C_EcMdecompSOMp,C_SOMpEcM,(1_r8-f_use),f_use,minedSOMp-C_EcMdecompSOMp-C_SOMpEcM
     
-    minedSOMc = K_MO*soil_depth*C_EcM*C_SOMc*(C_PlantEcM/(max_mining*froot_prof(depth)))
-    C_EcMdecompSOMc = (1_r8-f_use)*minedSOMc   ![gC/m3h]
+    minedSOMc = K_MO*soil_depth*C_EcM*C_SOMc*(C_PlantEcM/(max_mining(1)*froot_prof(depth)))
     C_SOMcEcM = minedSOMc*f_use
+    C_EcMdecompSOMc = (1_r8-f_use)*minedSOMc   ![gC/m3h]
     !print*, minedSOMc,C_EcMdecompSOMc,C_SOMcEcM,minedSOMc-C_EcMdecompSOMc-C_SOMcEcM
     
     !-----------------------------------NITROGEN FLUXES----------------------------:
@@ -218,17 +233,18 @@ contains
     !Inorganic N taken up directly by plant roots
     N_InPlant = 5E-7*N_IN
     
-    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining*froot_prof(depth)))  !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
+    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining(1)*froot_prof(depth)))  !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     if ( N_INEcM .NE. 0.0 ) then
         N_INEcM=max(N_INEcM,1.175494351E-38)
     end if
-    N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
+    N_INErM = 0.0
     
     if ( f_EcM < 1._r8 ) then
-      N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))!*(C_PlantAM/(max_mining*froot_prof(depth)))
+      N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))*(C_PlantAM/(max_mining(2)*froot_prof(depth)))
     else
       N_INAM=0._r8
     end if
+    !0print*, N_INAM
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
     N_LITsSAPb = C_LITsSAPb*N_LITs/C_LITs
@@ -291,9 +307,11 @@ contains
         N_EcMPlant=EcM_N_uptake-EcM_N_demand      
     else
         N_EcMPlant = (1-f_growth)*EcM_N_uptake
-        CUE_ecm_vr(depth) = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct)*C_PlantEcM)
-        !enzyme_pct = 1- EcM_N_uptake*CN_ratio(5)/(CUE_ecm_vr(depth)*C_PlantEcM)
-        !N_EcMPlant=N_INEcM + N_SOMpEcM + N_SOMcEcM-CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)
+
+        enzyme_pct = 1- (f_growth*EcM_N_uptake*CN_ratio(5)-C_SOMpEcM-C_SOMcEcM)/(CUE_ecm_vr(depth)*C_PlantEcM)
+        !CUE_ecm_vr(depth) = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct)*C_PlantEcM)
+
+        N_EcMPlant=N_INEcM + N_SOMpEcM + N_SOMcEcM-CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)
 
     end if
 
@@ -503,7 +521,7 @@ contains
     
     C_inEcM = f_EcM*C_MYCinput*froot_prof(layer_nr)
     C_inAM = (1-f_EcM)*C_MYCinput*froot_prof(layer_nr)
-    !print*, C_inEcM, C_inAM,f_EcM, C_MYCinput, (C_inEcM+C_inAM)/froot_prof(layer_nr), layer_nr
+
   end subroutine input_rates
   
   function calc_EcMfrac(PFT_dist) result(EcM_frac)

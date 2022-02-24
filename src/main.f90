@@ -24,7 +24,7 @@ program main
 
   character (len=200)  :: clm_data_file 
   character (len=200)  :: clm_surface_file
-  do name = 1, 2, 1    
+  do name = 1, 5, 1    
     call system_clock(count_rate=full_clock_rate) !Find the time rate
     call system_clock(count=full_clock_start)     !Start Timer 
     clm_data_file='/home/ecaas/nird/'//trim(site_names(name))//'_historical/lnd/hist/'//trim(site_names(name))
@@ -43,7 +43,7 @@ program main
     !1: INITIALIZE
     call initialize(C_matrix_init,N_matrix_init,levels)
     !2: SPINUP
-    call decomp(nsteps=1500*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"Spunup"),nlevdecomp=levels, step_frac=1, write_hour=190 + 24*365,&
+    call decomp(nsteps=1000*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"Spunup"),nlevdecomp=levels, step_frac=1, write_hour=190 + 24*365,&
     pool_C_start=C_matrix_init,pool_N_start=N_matrix_init, pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,&
     start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
     !|
