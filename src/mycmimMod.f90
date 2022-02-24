@@ -362,12 +362,11 @@ module mycmim
             nh4_frac = NH4_temporary/(NH4_temporary+NO3_temporary)
           end if
 !---------------------------------------------------------------------------------------          
-
+        
           if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file
            call fluxes_netcdf(writencid,int(time), write_hour, j)
           end if !write fluxes
-
-          do i = 1,pool_types_N !loop over all the pool types, i, in depth level j (+1 bc. of the added inorganic N pool)
+          do i = 1,pool_types_N !loop over all the pool types, i, in depth level j 
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
 
@@ -410,9 +409,8 @@ module mycmim
             elseif (i==5) then !EcM
               C_Gain = CUE_ecm_vr(j)*C_PlantEcM + C_SOMcEcM + C_SOMpEcM !
               C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct
-              N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM + N_SOMaEcM
+              N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
-              
             elseif (i==6) then !ErM
               C_Gain = CUE_erm_vr(j)*C_PlantErM
               C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc 
