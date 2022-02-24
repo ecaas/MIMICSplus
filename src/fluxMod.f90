@@ -106,7 +106,22 @@ contains
     real(r8), intent(in)                   :: moisture
     V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
   end function Vmax_function
-
+  
+  function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) ! Based on Sulman et al 2019
+      real(r8) :: ROI
+      !INPUT
+      real(r8) :: N_aquired
+      real(r8) :: C_myc 
+      real(r8) :: loss_rate ![1/h]
+      !LOCAL
+      real(r8), parameter :: eps = 0.5 !From Sulman et al supplementary: epsilon_mine, epsilon_scav
+      real(r8) :: turnover ! [hour]
+      
+      turnover = 1/loss_rate 
+      ROI=(N_aquired/C_myc)*turnover*eps
+      
+  end function ROI_function 
+      
   subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer,intent(in)         :: depth !depth level
     integer,intent(in)         :: nlevdecomp

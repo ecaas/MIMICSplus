@@ -75,7 +75,7 @@ module mycmim
       real(r8)                       :: pool_matrixN(nlevdecomp,pool_types_N)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types_N) ! For storing dC/dt for each time step [gN/(m3*hour)]
       
-
+      real(r8),dimension(nlevdecomp) :: ROI
       real(r8)                       :: sum_consN(nlevdecomp, pool_types_N) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
       real(r8)                       :: N_DEPinput
@@ -188,6 +188,8 @@ module mycmim
       change_matrixC = 0.0
       change_matrixN = 0.0
       HR             = 0.0
+      ROI             = 0.0
+      
       vertC_change_sum=0.0
       counter  = 0
       ycounter = 0
@@ -249,7 +251,7 @@ module mycmim
       
       call fill_netcdf(writencid,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
                        date, HR_mass_accumulated,HR, change_matrixC,change_matrixN,write_hour,current_month, &
-                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp)
+                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp,ROI=ROI)
             
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
       pscalar = 1.0/(2*exp(-2.0*sqrt(fCLAY)))
@@ -350,7 +352,7 @@ module mycmim
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN,dt)
-          
+          ROI(j) = ROI_function(N_INEcM+N_SOMpEcM+N_SOMcEcM,pool_matrixC(j,5),k_mycsom(1))
 !---------Calc fraction of inorg N that is NH4----------------------------------------          
           NH4_temporary = pool_matrixN(j,11) + (Deposition - nitrif_rate)*dt
           NO3_temporary = pool_matrixN(j,12) + (nitrif_rate - Leaching)*dt          
@@ -561,7 +563,7 @@ module mycmim
           counter = 0        
           call fill_netcdf(writencid, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
            date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
-           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp)
+           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp,ROI=ROI)
            change_sum = 0.0
         end if!writing
 

@@ -46,6 +46,7 @@ module writeMod
       call check(nf90_def_var(ncid,"CUEf", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"CUE_ecm", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"CUE_am", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid,"ROI", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid, "Temp", NF90_FLOAT, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "Moisture", NF90_FLOAT, (/t_dimid, lev_dimid/),varid))
       !call check(nf90_def_var(ncid, "N_changeinorganic", NF90_FLOAT,(/t_dimid, lev_dimid/), varid))
@@ -70,7 +71,7 @@ module writeMod
     end subroutine create_netcdf
 
     subroutine fill_netcdf(ncid, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, &
-      mcdate,HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,levsoi)
+      mcdate,HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,levsoi,ROI)
       !INPUT:
       integer,intent(in)               :: ncid 
       real(r8), intent(in)             :: pool_matrix(levsoi,pool_types), Npool_matrix(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
@@ -84,6 +85,7 @@ module writeMod
       integer, intent(in)              :: time
       real(r8),intent(in)              :: HR_sum
       real(r8),dimension(levsoi), intent(in)       :: HR_flux
+      real(r8),dimension(levsoi), intent(in)       :: ROI      
       real(r8),dimension(levsoi), intent(in)       :: TSOIL, MOIST  
       real(r8),dimension(levsoi), intent(in)       :: CUE_bacteria,CUE_fungi, CUE_ecm,CUE_am
           
@@ -115,6 +117,9 @@ module writeMod
 
         call check(nf90_inq_varid(ncid, "HR_flux", varid))
         call check(nf90_put_var(ncid, varid, HR_flux(j), start = (/timestep, j/)))
+        
+        call check(nf90_inq_varid(ncid, "ROI", varid))
+        call check(nf90_put_var(ncid, varid, ROI, start = (/timestep, j/)))
         
         call check(nf90_inq_varid(ncid, "CUEb", varid))
         call check(nf90_put_var(ncid, varid, CUE_bacteria(j), start = (/timestep, j/)))
