@@ -165,6 +165,7 @@ module mycmim
       CUE_ecm_vr=CUE_myc_0
       CUE_am_vr=CUE_myc_0      
       CUE_erm_vr=0.0
+      enzyme_pct=0.1_r8
       c1a=0
       c1b=0
       c2=0
@@ -334,6 +335,7 @@ module mycmim
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
           CUE_ecm_vr(j) = CUE_myc_0
           CUE_am_vr(j) = CUE_myc_0
+          enzyme_pct=0.1_r8
           
           !Determine input rates (from CLM data) in timestep
           call input_rates(j,f_EcM,C_leaf_litter,C_root_litter,N_leaf_litter,&
@@ -469,7 +471,7 @@ module mycmim
             end if
 
             pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt
-            
+
             !NOTE: This is introduced to avoid very small errors that may make inorganic N pools negative (~ E-020). Overall mass balance is still within error limits
             if ( abs(pool_temporaryN(j,i)) < 1e-18 ) then
               pool_temporaryN(j,i)=0._r8
