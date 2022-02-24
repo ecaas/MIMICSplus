@@ -20,11 +20,10 @@ module readMod
 
         call check(nf90_inquire(ncid, unlimiteddimid = timeid))
         call check(nf90_inquire_dimension(ncid, timeid, len = steps))
-
       end subroutine read_time
       
       function read_maxC(ncid,EcM_frac,time_steps) result(max_Cpay)
-        real(r8)   :: max_Cpay
+        real(r8),dimension(2)   :: max_Cpay
         integer, intent(in)   :: ncid
         integer, intent(in)   :: time_steps
         real(r8), intent(in)  :: EcM_frac
@@ -34,6 +33,8 @@ module readMod
         real(r8), dimension(time_steps) :: NPP_tot
         real(r8), dimension(time_steps) :: NPP_nonmyc
         real(r8), dimension(time_steps) :: NPP_myc
+        real(r8)   :: max_Cpay_EcM
+        real(r8)   :: max_Cpay_AM
         
         call check(nf90_inq_varid(ncid, 'NPP_NACTIVE', varid))
         call check(nf90_get_var(ncid, varid, NPP_tot(:),start = (/1,1/),count = (/1,time_steps/)))
@@ -42,8 +43,10 @@ module readMod
         
         NPP_myc = (NPP_tot-NPP_nonmyc)*sec_pr_hr
 
-        max_Cpay = maxval(NPP_myc)*EcM_frac
+        max_Cpay_EcM = maxval(NPP_myc)*EcM_frac
+        max_Cpay_AM = maxval(NPP_myc)*(1-EcM_frac)
         
+        max_Cpay = (/max_Cpay_EcM,max_Cpay_AM/)
       end function read_maxC
 
       subroutine read_WATSAT_and_profiles(clm_history_file,WATSAT,NDEP_PROF,FROOT_PROF,LEAF_PROF, nlevdecomp) !Needed bc. WATSAT is only given in the first outputfile of the simulation.
@@ -110,7 +113,6 @@ module readMod
         call check(nf90_inq_varid(ncid, 'PCT_NAT_PFT', pftid))
         call check(nf90_get_var(ncid, pftid, PFT_dist, count=(/1,1,15/)))
         call check(nf90_close(ncid))
-
       end subroutine read_PFTs
       
       subroutine read_nlayers(clm_history_file, nlevels) 

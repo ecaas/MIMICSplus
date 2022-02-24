@@ -210,14 +210,14 @@ contains
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
     !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
-    minedSOMp = K_MO*soil_depth*C_EcM*C_SOMp*(C_PlantEcM/(max_mining*froot_prof(depth)))
+    minedSOMp = K_MO*soil_depth*C_EcM*C_SOMp*(C_PlantEcM/(max_mining(1)*froot_prof(depth)))
     C_SOMpEcM = minedSOMp*f_use
     C_EcMdecompSOMp = (1_r8-f_use)*minedSOMp   ![gC/m3h]
     !print*, minedSOMp,C_EcMdecompSOMp,C_SOMpEcM,(1_r8-f_use),f_use,minedSOMp-C_EcMdecompSOMp-C_SOMpEcM
     
-    minedSOMc = K_MO*soil_depth*C_EcM*C_SOMc*(C_PlantEcM/(max_mining*froot_prof(depth)))
-    C_EcMdecompSOMc = (1_r8-f_use)*minedSOMc   ![gC/m3h]
+    minedSOMc = K_MO*soil_depth*C_EcM*C_SOMc*(C_PlantEcM/(max_mining(1)*froot_prof(depth)))
     C_SOMcEcM = minedSOMc*f_use
+    C_EcMdecompSOMc = (1_r8-f_use)*minedSOMc   ![gC/m3h]
     !print*, minedSOMc,C_EcMdecompSOMc,C_SOMcEcM,minedSOMc-C_EcMdecompSOMc-C_SOMcEcM
     
     !-----------------------------------NITROGEN FLUXES----------------------------:
@@ -233,17 +233,18 @@ contains
     !Inorganic N taken up directly by plant roots
     N_InPlant = 5E-7*N_IN
     
-    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining*froot_prof(depth)))  !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
+    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining(1)*froot_prof(depth)))  !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     if ( N_INEcM .NE. 0.0 ) then
         N_INEcM=max(N_INEcM,1.175494351E-38)
     end if
-    N_INErM = 0.0!V_max_myc*N_IN*(C_ErM/(C_ErM + Km_myc/delta_z(depth)))   !Unsure about units
+    N_INErM = 0.0
     
     if ( f_EcM < 1._r8 ) then
-      N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))!*(C_PlantAM/(max_mining*froot_prof(depth)))
+      N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))*(C_PlantAM/(max_mining(2)*froot_prof(depth)))
     else
       N_INAM=0._r8
     end if
+    !0print*, N_INAM
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
     N_LITsSAPb = C_LITsSAPb*N_LITs/C_LITs
