@@ -159,7 +159,10 @@ module mycmim
       allocate(CUE_ecm_vr(nlevdecomp))
       allocate(CUE_erm_vr(nlevdecomp))
       allocate(CUE_am_vr(nlevdecomp))
+      allocate(enzyme_pct(nlevdecomp))
       allocate(r_moist(nlevdecomp))
+      
+      
       CUE_fungi_vr=CUE_0
       CUE_bacteria_vr=CUE_0
       CUE_ecm_vr=CUE_myc_0
@@ -409,8 +412,9 @@ module mycmim
               end if
 
             elseif (i==5) then !EcM
+!              print*, CUE_ecm_vr(j),enzyme_pct(j), CUE_ecm_vr(j)*enzyme_pct(j),CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct(j),j
               C_Gain = CUE_ecm_vr(j)*C_PlantEcM + C_SOMcEcM + C_SOMpEcM !
-              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct
+              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct(j)
               N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
             elseif (i==6) then !ErM
@@ -433,12 +437,11 @@ module mycmim
 
             elseif (i==9) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc &
-               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct
+               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct(j)
                C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
                N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa +N_PlantSOMa
                N_Loss = N_SOMaSAPb + N_SOMaSAPf + N_SOMaEcM
-
             elseif (i==10) then !SOMc
               C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc+C_PlantSOMc
               C_Loss = C_SOMcSOMa+C_EcMdecompSOMc + C_SOMcEcM
@@ -600,8 +603,8 @@ module mycmim
       
       print*, c1a,c1b,c2,c3a,c3b,c4a,c4b
       !deallocation
-      deallocate(ndep_prof,leaf_prof,froot_prof)
-      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr)
+      deallocate(ndep_prof,leaf_prof,froot_prof,r_moist)
+      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr,enzyme_pct)
       
       !For timing
       call system_clock(count=clock_stop)      ! Stop Timer

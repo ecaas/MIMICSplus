@@ -319,25 +319,18 @@ contains
       CUE_AM_vr(depth) = f_growth*AM_N_uptake*CN_ratio(7)/(C_PlantAM)
     end if
 
-
-
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    EcM_N_demand = (CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM+C_SOMcEcM+C_SOMpEcM)/CN_ratio(5)
+    EcM_N_demand = (CUE_ecm_vr(depth)*(1-enzyme_pct(depth))*C_PlantEcM+C_SOMcEcM+C_SOMpEcM)/CN_ratio(5)
     EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM 
 
     if ( EcM_N_uptake >= EcM_N_demand ) then   
         N_EcMPlant=EcM_N_uptake-EcM_N_demand      
     else
         N_EcMPlant = (1-f_growth)*EcM_N_uptake
-
-        enzyme_pct = 1- (f_growth*EcM_N_uptake*CN_ratio(5)-C_SOMpEcM-C_SOMcEcM)/(CUE_ecm_vr(depth)*C_PlantEcM)
-        !CUE_ecm_vr(depth) = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct)*C_PlantEcM)
-
-        N_EcMPlant=N_INEcM + N_SOMpEcM + N_SOMcEcM-CUE_ecm_vr(depth)*(1-enzyme_pct)*C_PlantEcM/CN_ratio(5)
+        !enzyme_pct(depth) = 1- (f_growth*EcM_N_uptake*CN_ratio(5)-C_SOMpEcM-C_SOMcEcM)/(CUE_ecm_vr(depth)*C_PlantEcM)
+        CUE_ecm_vr(depth) = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct(depth))*C_PlantEcM)
 
     end if
-
-
 
     N_ErMPlant = 0.0
 !---------------------------------------------------------------------------------------------------------------------------------------
@@ -351,7 +344,7 @@ contains
     !total N uptake by saprotrophs
     UN_sb = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb  
     UN_sf = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
-    
+    !print*, (C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf)*CUE_bacteria_vr(depth)/(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf),depth
     !SAP demand for N:
     N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
     N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)

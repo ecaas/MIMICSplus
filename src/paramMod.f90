@@ -82,8 +82,8 @@ real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
 
 real(r8), parameter                  :: f_met_to_som=0.05_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-real(r8),dimension(2)                            :: max_mining 
-real(r8)                 :: enzyme_pct 
+real(r8),dimension(2)                :: max_mining 
+real(r8),dimension(:),allocatable    :: enzyme_pct 
 real(r8), parameter                  :: f_use = 0.1_r8 !Fraction of C released during mining that is taken up by EcM
 
 real(r8), parameter                  :: f_growth = 0.5_r8 !Fraction of mycorrhizal N uptake that must go to plant if there is too little N to support both giving 
