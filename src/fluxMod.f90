@@ -121,7 +121,29 @@ contains
       ROI=(N_aquired/C_myc)*turnover*eps
       
   end function ROI_function 
-      
+  
+  subroutine mining_rates(C_EcM,C_substrate,N_substrate,moisture_function, D_Cmine,D_Nmine) !Sulman et al 2019 eq 34-35
+    !INPUT
+    real(r8),intent(in) :: moisture_function
+    real(r8),intent(in) :: C_substrate
+    real(r8),intent(in) :: N_substrate
+    real(r8),intent(in) :: C_EcM
+    !real(r8) :: Temp
+    
+    !OUTPUT
+    real(r8),intent(out) :: D_Cmine
+    real(r8),intent(out):: D_Nmine
+    
+    !LOCAL
+    !NOTE: V_max(T) in article, but not sure how this temperature dependence is?
+    real(r8),parameter :: V_max = 0.3/hr_pr_yr !Sulman 2019 supplement page 7, Assumed SOMp,SOMc ~ slow SOM
+    real(r8),parameter :: K_m = 0.015 
+    
+    D_Cmine = V_max*moisture_function*C_substrate*((C_EcM/C_substrate)/(C_EcM/C_substrate+K_m))
+    D_Nmine = V_max*moisture_function*N_substrate*((C_EcM/C_substrate)/(C_EcM/C_substrate+K_m))
+    
+  end subroutine mining_rates
+  
   subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer,intent(in)         :: depth !depth level
     integer,intent(in)         :: nlevdecomp

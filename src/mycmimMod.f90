@@ -131,7 +131,6 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: WATSAT
       real(r8), dimension(nlevdecomp)          :: W_SCALAR
       real(r8), dimension(nlevdecomp)          :: T_SCALAR
-      real(r8), dimension(nlevdecomp)          :: r_moist
       real(r8)                                 :: drain
       real(r8)                                 :: h2o_liq_tot
           
@@ -160,6 +159,7 @@ module mycmim
       allocate(CUE_ecm_vr(nlevdecomp))
       allocate(CUE_erm_vr(nlevdecomp))
       allocate(CUE_am_vr(nlevdecomp))
+      allocate(r_moist(nlevdecomp))
       CUE_fungi_vr=CUE_0
       CUE_bacteria_vr=CUE_0
       CUE_ecm_vr=CUE_myc_0

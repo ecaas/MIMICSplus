@@ -69,6 +69,7 @@ integer                             :: c4a
 integer                             :: c4b
 
 
+real(r8),dimension(:),allocatable    :: r_moist
 
 real(r8),dimension(:),allocatable    :: CUE_bacteria_vr
 real(r8),dimension(:),allocatable    :: CUE_fungi_vr
