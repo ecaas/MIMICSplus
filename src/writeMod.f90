@@ -47,6 +47,7 @@ module writeMod
       call check(nf90_def_var(ncid,"CUE_ecm", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"CUE_am", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"ROI", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid,"enz_frac", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid, "Temp", NF90_FLOAT, (/t_dimid, lev_dimid/),varid))
       call check(nf90_def_var(ncid, "Moisture", NF90_FLOAT, (/t_dimid, lev_dimid/),varid))
       !call check(nf90_def_var(ncid, "N_changeinorganic", NF90_FLOAT,(/t_dimid, lev_dimid/), varid))
@@ -71,7 +72,7 @@ module writeMod
     end subroutine create_netcdf
 
     subroutine fill_netcdf(ncid, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, &
-      mcdate,HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,levsoi,ROI)
+      mcdate,HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,levsoi,ROI,enz_frac)
       !INPUT:
       integer,intent(in)               :: ncid 
       real(r8), intent(in)             :: pool_matrix(levsoi,pool_types), Npool_matrix(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
@@ -85,7 +86,8 @@ module writeMod
       integer, intent(in)              :: time
       real(r8),intent(in)              :: HR_sum
       real(r8),dimension(levsoi), intent(in)       :: HR_flux
-      real(r8),dimension(levsoi), intent(in)       :: ROI      
+      real(r8),dimension(levsoi), intent(in)       :: ROI  
+      real(r8),dimension(levsoi), intent(in)       :: enz_frac          
       real(r8),dimension(levsoi), intent(in)       :: TSOIL, MOIST  
       real(r8),dimension(levsoi), intent(in)       :: CUE_bacteria,CUE_fungi, CUE_ecm,CUE_am
           
@@ -119,8 +121,11 @@ module writeMod
         call check(nf90_put_var(ncid, varid, HR_flux(j), start = (/timestep, j/)))
         
         call check(nf90_inq_varid(ncid, "ROI", varid))
-        call check(nf90_put_var(ncid, varid, ROI, start = (/timestep, j/)))
+        call check(nf90_put_var(ncid, varid, ROI(j), start = (/timestep, j/)))
         
+        call check(nf90_inq_varid(ncid, "enz_frac", varid))
+        call check(nf90_put_var(ncid, varid, enz_frac(j), start = (/timestep, j/)))    
+    
         call check(nf90_inq_varid(ncid, "CUEb", varid))
         call check(nf90_put_var(ncid, varid, CUE_bacteria(j), start = (/timestep, j/)))
         
@@ -195,8 +200,6 @@ module writeMod
       integer, intent(in) :: write_hour !hours between every output-writing.
       
       integer, intent(out):: timestep
-      
-      integer,parameter:: step_frac=10
 
       if (write_hour == 1) then
         timestep = time/write_hour
@@ -297,6 +300,12 @@ module writeMod
       call check(nf90_put_var(ncid, varid, C_EcMdecompSOMp, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "C_EcMdecoSOMc", varid))
       call check(nf90_put_var(ncid, varid, C_EcMdecompSOMc, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "C_SOMcEcM", varid))
+      call check(nf90_put_var(ncid, varid, C_SOMcEcM, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "C_SOMpEcM", varid))
+      call check(nf90_put_var(ncid, varid, C_SOMpEcM, start = (/ timestep, depth_level /)))
+      call check(nf90_inq_varid(ncid, "C_EcMenz_prod", varid))
+      call check(nf90_put_var(ncid, varid, C_EcMenz_prod, start = (/ timestep, depth_level /)))
 
     end subroutine write_Cfluxes
     subroutine write_Nfluxes(ncid,timestep,depth_level)
