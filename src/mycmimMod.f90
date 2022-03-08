@@ -22,8 +22,7 @@ module mycmim
   use readMod
   implicit none
 
-
-  contains
+contains
     subroutine decomp(nsteps, run_name,nlevdecomp,step_frac,write_hour,pool_C_start, &
       pool_N_start,pool_C_final,pool_N_final,start_year,stop_year,clm_input_path,clm_surf_path) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
       !INPUT
@@ -75,7 +74,9 @@ module mycmim
       real(r8)                       :: pool_matrixN(nlevdecomp,pool_types_N)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: change_matrixN(nlevdecomp,pool_types_N) ! For storing dC/dt for each time step [gN/(m3*hour)]
       
-      real(r8),dimension(nlevdecomp) :: ROI
+      real(r8),dimension(nlevdecomp) :: ROI_EcM
+      real(r8),dimension(nlevdecomp) :: ROI_AM
+      real(r8),dimension(2)          :: f_alloc
       real(r8)                       :: sum_consN(nlevdecomp, pool_types_N) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
       real(r8)                       :: N_DEPinput
@@ -122,6 +123,8 @@ module mycmim
       real(r8)                       :: nh4_frac
       real(r8)                       :: NH4_temporary
       real(r8)                       :: NO3_temporary
+      real(r8)                       :: C_EcMenz_prod
+      
       
       
       !For reading soil temperature and moisture from CLM output file
@@ -131,7 +134,6 @@ module mycmim
       real(r8), dimension(nlevdecomp)          :: WATSAT
       real(r8), dimension(nlevdecomp)          :: W_SCALAR
       real(r8), dimension(nlevdecomp)          :: T_SCALAR
-      real(r8), dimension(nlevdecomp)          :: r_moist
       real(r8)                                 :: drain
       real(r8)                                 :: h2o_liq_tot
           
@@ -160,6 +162,10 @@ module mycmim
       allocate(CUE_ecm_vr(nlevdecomp))
       allocate(CUE_erm_vr(nlevdecomp))
       allocate(CUE_am_vr(nlevdecomp))
+      allocate(enzyme_pct(nlevdecomp))
+      allocate(r_moist(nlevdecomp))
+      
+      
       CUE_fungi_vr=CUE_0
       CUE_bacteria_vr=CUE_0
       CUE_ecm_vr=CUE_myc_0
@@ -173,7 +179,7 @@ module mycmim
       c3b=0
       c4a=0
       c4b=0
-      
+      input_mod=1.0
       ! Fracions of SAP that goes to different SOM pools
       fPHYS = (/ 0.3 * exp(1.3*fCLAY), 0.2 * exp(0.8*fCLAY) /)
       fCHEM = (/0.1 * exp(-3.0*fMET), 0.3 * exp(-3.0*fMET) /)
@@ -189,7 +195,9 @@ module mycmim
       change_matrixC = 0.0
       change_matrixN = 0.0
       HR             = 0.0
-      ROI             = 0.0
+      ROI_EcM            = 0.0
+      ROI_AM            = 0.0
+      
       
       vertC_change_sum=0.0
       counter  = 0
@@ -240,19 +248,18 @@ module mycmim
       call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
       f_EcM = calc_EcMfrac(PFT_distribution)
       if ( Spinup_run ) then
-        max_mining = read_maxC(spinupncid,f_EcM,input_steps)
+        max_mining = read_maxC(spinupncid,input_steps)
       else
-        max_mining = read_maxC(ncid,f_EcM,input_steps)        
+        max_mining = read_maxC(ncid,input_steps)        
       end if
-      
       !open and prepare files to store results. Store initial values
       !call create_yearly_mean_netcdf(run_name,nlevdecomp)
       call create_netcdf(run_name, nlevdecomp)
       call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))
       
-      call fill_netcdf(writencid,t_init, pool_matrixC, change_matrixC, pool_matrixN,change_matrixN, &
+      call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN, &
                        date, HR_mass_accumulated,HR, change_matrixC,change_matrixN,write_hour,current_month, &
-                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp,ROI=ROI)
+                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp,ROI=ROI_EcM,enz_frac=enzyme_pct)
             
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
       pscalar = 1.0/(2*exp(-2.0*sqrt(fCLAY)))
@@ -282,7 +289,7 @@ module mycmim
                                 C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
                                 W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)   
-              max_mining = read_maxC(ncid,f_EcM,input_steps)
+              max_mining = read_maxC(ncid,input_steps)
             end if     
             
             if (input_steps==240) then
@@ -293,7 +300,7 @@ module mycmim
                                 C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
                                 W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)   
-              max_mining = read_maxC(spinupncid,f_EcM,input_steps)
+              max_mining = read_maxC(spinupncid,input_steps)
             end if                             
         end if 
         
@@ -310,16 +317,21 @@ module mycmim
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
             W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)        
-            max_mining = read_maxC(ncid,f_EcM,input_steps)                
+            max_mining = read_maxC(ncid,input_steps)                
           end if        
-        end if 
-
+        end if         
         !print initial values to terminal
         if (t == 1) then
           call disp("InitC", pool_matrixC)
           call disp("InitN", pool_matrixN)
         end if
-
+        
+        input_mod = input_modifier(C_MYCinput,max_mining)
+        if ( abs(input_mod) > 1.0 ) then
+          print*, input_mod, time
+        end if
+        
+        
         do j = 1, nlevdecomp !For each depth level (for the no vertical transport case, nlevdecomp = 1, so loop is only done once):
 
           k_mycsom  = (/1.14_r8,1.14_r8,1.14_r8/)*1e-4  ![1/h]  1/yr  
@@ -338,24 +350,36 @@ module mycmim
           enzyme_pct=0.1_r8
           
           !Determine input rates (from CLM data) in timestep
-          call input_rates(j,f_EcM,C_leaf_litter,C_root_litter,N_leaf_litter,&
-                                      N_root_litter,C_MYCinput, &
+          call input_rates(j,C_leaf_litter,C_root_litter,N_leaf_litter,&
+                                      N_root_litter, &
                                       N_CWD_litter,C_CWD_litter,&
                                       C_PlantLITm,C_PlantLITs, &
                                       N_PlantLITm,N_PlantLITs, &
-                                      C_PlantEcM,C_PlantAM, &
                                       C_PlantSOMp,C_PlantSOMa,C_PlantSOMc, &
                                       N_PlantSOMp,N_PlantSOMa,N_PlantSOMc)
-
+                                      
+          
           !Determine deposition, Leaching and nitrification in timestep
           Deposition = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j)
           Leaching = calc_Leaching(drain,h2o_liq_tot,pool_matrixN(j,12))
           nitrif_rate=nitrification((pool_matrixN(j,11)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j))
-
+          
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
-          call calculate_fluxes(j,nlevdecomp, pool_matrixC, pool_matrixN,dt)
-          ROI(j) = ROI_function(N_INEcM+N_SOMpEcM+N_SOMcEcM,pool_matrixC(j,5),k_mycsom(1))
-!---------Calc fraction of inorg N that is NH4----------------------------------------          
+          call calculate_fluxes(j,nlevdecomp,TSOIL(j), pool_matrixC, pool_matrixN,dt)
+          ROI_EcM(j) = ROI_function(N_INEcM+N_SOMpEcM+N_SOMcEcM,pool_matrixC(j,5),k_mycsom(1))
+          ROI_AM(j) = ROI_function(N_INAM, pool_matrixC(j,7),k_mycsom(3))
+          
+          if ( C_MYCinput .NE. 0.0 ) then !To avoid NaN when both ROI is zero
+            f_alloc(1) = ROI_EcM(j)/(ROI_EcM(j)+ROI_AM(j))
+            f_alloc(2) = ROI_AM(j)/(ROI_EcM(j)+ROI_AM(j))
+          else
+            f_alloc=0.5 !Value does not really matter bc. C_MYCinput is zero
+          end if
+          C_PlantEcM = f_alloc(1)*C_MYCinput*froot_prof(j)
+          C_PlantAM = f_alloc(2)*C_MYCinput*froot_prof(j)
+          
+          call myc_to_plant(j,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM_vr(j),CUE_AM_vr(j))
+       !---------Calc fraction of inorg N that is NH4----------------------------------------          
           NH4_temporary = pool_matrixN(j,11) + (Deposition - nitrif_rate)*dt
           NO3_temporary = pool_matrixN(j,12) + (nitrif_rate - Leaching)*dt          
           if (NH4_temporary+NO3_temporary == 0._r8) Then
@@ -363,11 +387,12 @@ module mycmim
           else
             nh4_frac = NH4_temporary/(NH4_temporary+NO3_temporary)
           end if
-!---------------------------------------------------------------------------------------          
-        
+      !---------------------------------------------------------------------------------------          
           if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file
+            
            call fluxes_netcdf(writencid,int(time), write_hour, j)
           end if !write fluxes
+          
           do i = 1,pool_types_N !loop over all the pool types, i, in depth level j 
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
@@ -409,8 +434,9 @@ module mycmim
               end if
 
             elseif (i==5) then !EcM
+              C_EcMenz_prod=CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct(j)
               C_Gain = CUE_ecm_vr(j)*C_PlantEcM + C_SOMcEcM + C_SOMpEcM !
-              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct
+              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct(j)
               N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
             elseif (i==6) then !ErM
@@ -433,12 +459,11 @@ module mycmim
 
             elseif (i==9) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc &
-               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct
+               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct(j)
                C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
                N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa +N_PlantSOMa
                N_Loss = N_SOMaSAPb + N_SOMaSAPf + N_SOMaEcM
-
             elseif (i==10) then !SOMc
               C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc+C_PlantSOMc
               C_Loss = C_SOMcSOMa+C_EcMdecompSOMc + C_SOMcEcM
@@ -454,6 +479,7 @@ module mycmim
             elseif (i == 12) then !NO3 inorganic N
               N_Gain = nitrif_rate
               N_exchange= (1-nh4_frac)*(N_INSAPb + N_INSAPf) !N_exchange can act both as a sink and a source, depending on the SAP demand for N
+              !print*, N_INSAPb,N_INSAPf,(1-nh4_frac)
               N_Loss = Leaching + (1-nh4_frac)*(N_INEcM + N_InPlant  + N_INAM )!+ N_INErM
               change_matrixN(j,i) = N_Gain - N_exchange - N_loss
 
@@ -561,9 +587,9 @@ module mycmim
 
         if (counter == write_hour*step_frac) then
           counter = 0        
-          call fill_netcdf(writencid, int(time), pool_matrixC, change_matrixC, pool_matrixN,change_matrixN,&
+          call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,&
            date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
-           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp,ROI=ROI)
+           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp,ROI=ROI_EcM,enz_frac=enzyme_pct)
            change_sum = 0.0
         end if!writing
 
@@ -600,32 +626,13 @@ module mycmim
       
       print*, c1a,c1b,c2,c3a,c3b,c4a,c4b
       !deallocation
-      deallocate(ndep_prof,leaf_prof,froot_prof)
-      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr)
+      deallocate(ndep_prof,leaf_prof,froot_prof,r_moist)
+      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr,enzyme_pct)
       
       !For timing
       call system_clock(count=clock_stop)      ! Stop Timer
       print*, "Total time for decomp subroutine in seconds: ", real(clock_stop-clock_start)/real(clock_rate)
       print*, "Total time for decomp subroutine in minutes: ", (real(clock_stop-clock_start)/real(clock_rate))/60
-      
     end subroutine decomp
-
-  subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
-    REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: yearly_sumC
-    REAL(r8), DIMENSION(nlevels,pool_types_N), intent(in):: yearly_sumN
-    integer, intent(in) :: year
-    integer , intent(in):: nlevels
-    CHARACTER (len = *), intent(in):: run_name
-    !Local
-    REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
-    REAL(r8), DIMENSION(nlevels,pool_types_N) :: yearly_meanN
-    integer, parameter                         :: hr_in_year = 24*365
-
-    yearly_meanC=yearly_sumC/hr_in_year
-    yearly_meanN=yearly_sumN/hr_in_year
-
-    !call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,nlevels)
-
-  end subroutine annual_mean
   
 end module mycmim

@@ -8,6 +8,7 @@ integer, parameter :: sec_pr_hr = 60*60
 integer, parameter :: hr_pr_yr  = 365*24     
 integer, parameter :: hr_pr_day = 24
 integer, parameter :: days_in_year = 365
+real(r8), parameter:: abs_zero=273.15 !Kelvin
 
 integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
 
@@ -40,8 +41,7 @@ integer, parameter                           :: pool_types_N = pool_types + 2 !p
 real(r8),parameter                      :: fMET =0.6                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
 real(r8), dimension(no_of_sap_pools)    :: tau  ![1/h]
-real(r8)                                :: f_EcM! fraction of metabolic litter flux that goes directly to SOM pools
-
+real(r8)                                :: f_EcM! !fraction of present vegetation associated with EcM
 real(r8),parameter                     :: pctN_for_sap=0.9 !NB: VERY ASSUMED Only this percentage of remaining inorganic N is avalable to SAPS
 
 real(kind=r8)                          :: fCLAY                          ![-] fraction of clay in soil
@@ -69,6 +69,7 @@ integer                             :: c4a
 integer                             :: c4b
 
 
+real(r8),dimension(:),allocatable    :: r_moist
 
 real(r8),dimension(:),allocatable    :: CUE_bacteria_vr
 real(r8),dimension(:),allocatable    :: CUE_fungi_vr
@@ -81,8 +82,10 @@ real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
 
 real(r8), parameter                  :: f_met_to_som=0.05_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-real(r8),dimension(2)                            :: max_mining 
-real(r8)                 :: enzyme_pct 
+real(r8)                             :: max_mining 
+real(r8)                             :: input_mod 
+
+real(r8),dimension(:),allocatable    :: enzyme_pct 
 real(r8), parameter                  :: f_use = 0.1_r8 !Fraction of C released during mining that is taken up by EcM
 
 real(r8), parameter                  :: f_growth = 0.5_r8 !Fraction of mycorrhizal N uptake that must go to plant if there is too little N to support both giving 
@@ -115,18 +118,18 @@ real(r8),dimension(:),allocatable  :: froot_prof
 integer(r8)     :: clock_rate,clock_start,clock_stop
 integer(r8)     :: full_clock_rate,full_clock_start,full_clock_stop
 !Fluxes etc:
-real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_ErMSOMp, C_ErMSOMa, C_ErMSOMc, C_AMSOMp, &
+real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_AMSOMp, &
 C_LITmSAPf, C_LITsSAPf, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa, &
 C_SAPbSOMa, C_SAPbSOMp, C_SAPbSOMc,C_SAPfSOMa, C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp,C_PlantSOMa, &
-N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc, N_ErMSOMp, N_ErMSOMa, N_ErMSOMc, N_AMSOMp, N_AMSOMa,&
+N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc,  N_AMSOMp, N_AMSOMa,&
 N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, N_LITmSAPf, N_LITsSAPf, &
-N_PlantLITs, N_PlantLITm, N_INPlant, N_INEcM, N_INErM, N_INAM, N_EcMPlant, N_ErMPlant, N_AMPlant, &
-N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc, N_SAPfIN, N_SAPbIN,&
+N_PlantLITs, N_PlantLITm, N_INPlant, N_INEcM,  N_INAM, N_EcMPlant, N_AMPlant, &
+N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc,&
 N_SOMcEcM,N_SOMpEcM, &
-C_PlantEcM, C_PlantErM, C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp,C_EcMdecompSOMc, &
+C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp,C_EcMdecompSOMc, &
  Leaching, Deposition,nitrif_rate,f, U_sb, U_sf,UN_sb,UN_sf,N_demand_SAPf,N_demand_SAPb,N_INSAPb,N_INSAPf,&
- C_EcMdecompSOMa,N_SOMaEcM,N_PlantSOMp,N_PlantSOMa,N_PlantSOMc,C_SOMcEcM,C_SOMpEcM
-
+ C_EcMdecompSOMa,N_SOMaEcM,N_PlantSOMp,N_PlantSOMa,N_PlantSOMc,C_SOMcEcM,C_SOMpEcM,C_EcMenz_prod,&
+ C_ErMSOMp, C_ErMSOMa, C_ErMSOMc,C_PlantErM,N_INErM,N_ErMSOMc,N_ErMPlant, N_ErMSOMp, N_ErMSOMa
 !For writing to file:
 character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/sites/'
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
@@ -137,23 +140,24 @@ character (len=*), dimension(pool_types_N), parameter:: N_variables = &
 character (len=10), dimension(pool_types):: change_variables = &
 (/  "changeLITm", "changeLITs", "changeSAPb","changeSAPf", "changeEcM ", "changeErM ",&
     "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
+    !
 character (len=*), dimension(*), parameter ::  C_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
-  "EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
-  "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
-  ,"PlantLITs","PlantEcM","PlantErM","PlantAM","PlantSOMc  ","PlantSOMp  ","PlantSOMa  ", &
-  "EcMdecoSOMp","EcMdecoSOMc"]
-
+  "EcMSOMp ", "EcMSOMa ","EcMSOMc ",&
+"AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
+  ,"PlantLITs","PlantEcM","PlantAM","PlantSOMc  ","PlantSOMp  ","PlantSOMa  ", &
+  "EcMdecoSOMp","EcMdecoSOMc","EcMenz_prod","SOMcEcM","SOMpEcM"]
+!  "ErMSOMa ","ErMSOMc ", "ErMSOMp ","PlantErM",,"ErMPlant"  "ErMSOMa ","ErMSOMc ", "ErMSOMp ",, "INErM"
 character (len=*), dimension(*), parameter ::  N_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc" &
-  ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ", "ErMSOMp ",&
-  "ErMSOMa ","ErMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMaEcM","SOMpSOMa","SOMcSOMa","PlantLITm" &
-  ,"PlantLITs","PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","ErMPlant","AMPlant", "Deposition", "Leaching", "INEcM", "INErM","INAM", &
-  "SAPbIN", "SAPfIN","SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
+  ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ",&
+"AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMaEcM","SOMpSOMa","SOMcSOMa","PlantLITm" &
+  ,"PlantLITs","PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","AMPlant", "Deposition", "Leaching", "INEcM","INAM", &
+  "SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
   
 character (len=*), dimension(38),parameter :: site_names = &
 [character(len=19) :: &
- 'NR31585_Flekkefjord','NR31581_Lyngdal    ','NR32361_Lyngdal    ','NR31682_Tysvar     ','32288_Sortland     ',&
+ 'NR31585_Flekkefjord','32288_Sortland     ','NR31581_Lyngdal    ','NR32361_Lyngdal    ','NR31682_Tysvar     ',&
  'NR32249_Vik        ','NR32182_Stryn      ','NR31881_Sande      ','NR31578_Kvinesdal  ',&
  '31463_Hurdal       ','31464_Hurdal       ','32087_Dovre        ','32379_Hemne        ','32441_Sel          ','32258_Maaselv      ',&
  '32032_VestreToten  ','31984_Namdalseid   ','31976_Namdalseid   ','31461_Nittedal     ','31513_Nes          ',&
