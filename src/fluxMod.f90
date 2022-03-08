@@ -96,8 +96,7 @@ contains
   function Km_function(temperature) result(K_m)
     real(r8),dimension(MM_eqs)             :: K_m
     real(r8), intent(in)                   :: temperature
-    K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*1e4=[gC/m3]
-    
+    K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*1e4=[gC/m3]    
   end function Km_function
 
   function Vmax_function(temperature, moisture) result(V_max)
@@ -108,27 +107,40 @@ contains
   end function Vmax_function
   
   function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) ! Based on Sulman et al 2019
-      real(r8) :: ROI
       !INPUT
-      real(r8) :: N_aquired
-      real(r8) :: C_myc 
-      real(r8) :: loss_rate ![1/h]
+      real(r8),intent(in) :: N_aquired
+      real(r8),intent(in) :: C_myc 
+      real(r8),intent(in) :: loss_rate ![1/h]
+      
+      !OUTPUT
+      real(r8) :: ROI
+      
       !LOCAL
       real(r8), parameter :: eps = 0.5 !From Sulman et al supplementary: epsilon_mine, epsilon_scav
       real(r8) :: turnover ! [hour]
       
       turnover = 1/loss_rate 
-      ROI=(N_aquired/C_myc)*turnover*eps
-      
+      ROI=(N_aquired/C_myc)*turnover*eps      
   end function ROI_function 
   
-  subroutine mining_rates(C_EcM,C_substrate,N_substrate,moisture_function, D_Cmine,D_Nmine) !Sulman et al 2019 eq 34-35
+  function input_modifier(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
+    !input
+    real(r8) :: C_input
+    real(r8) :: max_input
+    !output
+    real(r8) :: mod
+
+    mod = C_input/(max_input)
+  end function input_modifier 
+  
+  subroutine mining_rates_Sulman(C_EcM,C_substrate,N_substrate,moisture_function,T,mining_mod, D_Cmine,D_Nmine) !Sulman et al 2019 eq 34-35 + max_mining modifier
     !INPUT
-    real(r8),intent(in) :: moisture_function
+    real(r8),intent(in) :: C_EcM
     real(r8),intent(in) :: C_substrate
     real(r8),intent(in) :: N_substrate
-    real(r8),intent(in) :: C_EcM
-    !real(r8) :: Temp
+    real(r8),intent(in) :: moisture_function
+    real(r8),intent(in) :: mining_mod
+    real(r8), intent(in) :: T !Kelvin
     
     !OUTPUT
     real(r8),intent(out) :: D_Cmine
@@ -138,15 +150,77 @@ contains
     !NOTE: V_max(T) in article, but not sure how this temperature dependence is?
     real(r8),parameter :: V_max = 0.3/hr_pr_yr !Sulman 2019 supplement page 7, Assumed SOMp,SOMc ~ slow SOM
     real(r8),parameter :: K_m = 0.015 
+    real(r8),parameter :: E_a = 54000 !J/mol
+    real(r8),parameter :: R   = 8.31 !J/(K mol)
     
-    D_Cmine = V_max*moisture_function*C_substrate*((C_EcM/C_substrate)/(C_EcM/C_substrate+K_m))
-    D_Nmine = V_max*moisture_function*N_substrate*((C_EcM/C_substrate)/(C_EcM/C_substrate+K_m))
-    
-  end subroutine mining_rates
+    D_Cmine = V_max*exp(-E_a/(R*T))*moisture_function*C_substrate*((C_EcM/C_substrate)/(C_EcM/C_substrate+K_m))*mining_mod
+    D_Nmine = V_max*exp(-E_a/(R*T))*moisture_function*N_substrate*((C_EcM/C_substrate)/(C_EcM/C_substrate+K_m))*mining_mod    
+  end subroutine mining_rates_Sulman
   
-  subroutine calculate_fluxes(depth,nlevdecomp,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
+  subroutine mining_rates_Baskaran(C_EcM,C_substrate,N_substrate,mining_mod,D_Cmine,D_Nmine) !Baskaran + max_mining modifier
+    !INPUT
+    real(r8),intent(in) :: C_EcM
+    real(r8),intent(in) :: C_substrate
+    real(r8),intent(in) :: N_substrate
+    real(r8),intent(in) :: mining_mod
+    
+    !OUTPUT
+    real(r8),intent(out) :: D_Cmine
+    real(r8),intent(out):: D_Nmine
+
+    D_Cmine = K_MO*soil_depth*C_EcM*C_substrate*mining_mod
+    D_Nmine = D_Cmine*N_substrate/C_substrate
+  end subroutine mining_rates_Baskaran
+  
+  subroutine myc_to_plant(layer_nr,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM,CUE_AM)
+    !INPUT
+    real(r8),intent(in) :: C_PlantEcM
+    real(r8),intent(in) :: C_PlantAM
+    integer,intent(in)  :: layer_nr 
+    
+    
+    !INOUT: 
+    real(r8), intent(inout) :: CUE_EcM
+    real(r8), intent(inout) :: CUE_AM
+    
+    !OUTPUT
+    real(r8),intent(out)  ::  N_AMPlant
+    real(r8), intent(out) ::  N_EcMPlant
+    real(r8), intent(out) ::  N_ErMPlant
+    
+    !LOCAL
+    real(r8) ::     AM_N_demand
+    real(r8) ::     AM_N_uptake
+    real(r8) ::     EcM_N_demand
+    real(r8) ::     EcM_N_uptake
+    !----------------------------------------------------------------------------------------------------------------------------------
+    !All N the Mycorrhiza dont need for its own, it gives to the plant:
+    AM_N_demand = CUE_AM*C_PlantAM/CN_ratio(7)
+    AM_N_uptake = N_INAM 
+    
+    if ( AM_N_uptake >= AM_N_demand ) then   
+      N_AMPlant = AM_N_uptake - AM_N_demand
+    else
+      N_AMPlant = (1-f_growth)*AM_N_uptake
+      CUE_AM = f_growth*AM_N_uptake*CN_ratio(7)/(C_PlantAM)
+    end if
+    !All N the Mycorrhiza dont need for its own, it gives to the plant:
+    EcM_N_demand = (CUE_EcM*(1-enzyme_pct(layer_nr))*C_PlantEcM+C_SOMcEcM+C_SOMpEcM)/CN_ratio(5)
+    EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM 
+    if ( EcM_N_uptake >= EcM_N_demand ) then   
+        N_EcMPlant=EcM_N_uptake-EcM_N_demand      
+    else
+        N_EcMPlant = (1-f_growth)*EcM_N_uptake
+        !enzyme_pct(depth) = 1- (f_growth*EcM_N_uptake*CN_ratio(5)-C_SOMpEcM-C_SOMcEcM)/(CUE_ecm_vr(depth)*C_PlantEcM)
+        CUE_EcM = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct(layer_nr))*C_PlantEcM)
+    end if
+    N_ErMPlant = 0.0
+  end subroutine myc_to_plant 
+  
+  subroutine calculate_fluxes(depth,nlevdecomp,Temp_Celsius,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer,intent(in)         :: depth !depth level
     integer,intent(in)         :: nlevdecomp
+    real(r8), intent(in)       :: Temp_Celsius
     real(r8),intent(in)       :: dt ! timestep
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
     real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
@@ -155,12 +229,10 @@ contains
     real(r8)  :: N_for_sap
     real(r8)  :: N_IN
     real(r8)  :: f_b
-    real(r8)  :: EcM_N_uptake
-    real(r8)  :: EcM_N_demand
-    real(r8)  :: AM_N_uptake
-    real(r8)  :: AM_N_demand
     real(r8)  :: minedSOMp
     real(r8)  :: minedSOMc
+    real(r8)  :: Temp_Kelvin
+    
     
     !Creating these pointers improve readability of the flux equations.
     real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
@@ -189,7 +261,8 @@ contains
     N_NH4 => N_pool_matrix(depth, 11)
     N_NO3 => N_pool_matrix(depth, 12)
     
-
+    Temp_Kelvin = Temp_Celsius+abs_zero
+    
     !------------------CARBON FLUXES----------------------------:
     !Decomposition of LIT and SOMa by SAP:
     !On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
@@ -231,16 +304,18 @@ contains
     C_SOMcSOMa    = ( C_SAPb * Vmax(2) * C_SOMc / (KO(1)*Km(2) + C_SOMc)) + &
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
-    !Baskaran et al: Rates of decomposition of available SOM mediated by mycorrhizal enzymes:
-    minedSOMp = K_MO*soil_depth*C_EcM*C_SOMp*(C_PlantEcM/(max_mining(1)*froot_prof(depth)))
+    !Ectomycorrhizal mining options:
+    !call mining_rates_Sulman(C_EcM,C_SOMc,N_SOMc,r_moist(depth),Temp_Kelvin,input_mod, minedSOMc,N_SOMcEcM)
+    !call mining_rates_Sulman(C_EcM,C_SOMp,N_SOMp,r_moist(depth),Temp_Kelvin, input_mod, minedSOMp,N_SOMpEcM)
+    call mining_rates_Baskaran(C_EcM,C_SOMp,N_SOMp,input_mod,minedSOMp,N_SOMpEcM) 
+    call mining_rates_Baskaran(C_EcM,C_SOMc,N_SOMc,input_mod,minedSOMc,N_SOMcEcM)               
+                  
     C_SOMpEcM = minedSOMp*f_use
     C_EcMdecompSOMp = (1_r8-f_use)*minedSOMp   ![gC/m3h]
-    !print*, minedSOMp,C_EcMdecompSOMp,C_SOMpEcM,(1_r8-f_use),f_use,minedSOMp-C_EcMdecompSOMp-C_SOMpEcM
-    
-    minedSOMc = K_MO*soil_depth*C_EcM*C_SOMc*(C_PlantEcM/(max_mining(1)*froot_prof(depth)))
+
     C_SOMcEcM = minedSOMc*f_use
     C_EcMdecompSOMc = (1_r8-f_use)*minedSOMc   ![gC/m3h]
-    !print*, minedSOMc,C_EcMdecompSOMc,C_SOMcEcM,minedSOMc-C_EcMdecompSOMc-C_SOMcEcM
+
     
     !-----------------------------------NITROGEN FLUXES----------------------------:
     N_IN = N_NH4+ N_NO3+(Deposition - Leaching)*dt !
@@ -248,25 +323,17 @@ contains
       print*, "Negative inorganic N pool at layer", depth, N_IN
     end if
     !Nitrogen aquired bymycorrhiza via oxidation of protected SOM pools.  gN/m3h
-    !TODO: Should we also include SOMa?
-    N_SOMpEcM = C_EcMdecompSOMp*N_SOMp/C_SOMp
-    N_SOMcEcM = C_EcMdecompSOMc*N_SOMc/C_SOMc
         
     !Inorganic N taken up directly by plant roots
     N_InPlant = 5E-7*N_IN
     
-    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))*(C_PlantEcM/(max_mining(1)*froot_prof(depth)))  !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
+    N_INEcM = V_max_myc*N_IN*(C_EcM/(C_EcM + Km_myc/soil_depth))*input_mod !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
     if ( N_INEcM .NE. 0.0 ) then
         N_INEcM=max(N_INEcM,1.175494351E-38)
     end if
     N_INErM = 0.0
-    
-    if ( f_EcM < 1._r8 ) then
-      N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))*(C_PlantAM/(max_mining(2)*froot_prof(depth)))
-    else
-      N_INAM=0._r8
-    end if
-    !0print*, N_INAM
+    N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))*input_mod
+
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
     N_LITsSAPb = C_LITsSAPb*N_LITs/C_LITs
@@ -292,7 +359,7 @@ contains
       N_AMSOMp = max(C_AMSOMp*(N_AM/C_AM),1.175494351E-38) !Hack to ensure that the numbers can be written as floats to netcdf files
       N_AMSOMa = max(C_AMSOMa*(N_AM/C_AM),1.175494351E-38)
       N_AMSOMc = max(C_AMSOMc*(N_AM/C_AM),1.175494351E-38)
-  end if
+    end if
     
     !Dead saphrotroph biomass enters SOM pools
     N_SAPbSOMp = C_SAPbSOMp*N_SAPb/C_SAPb
@@ -307,33 +374,8 @@ contains
 
     !Transport from SOMc to SOMa:
     N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
-!----------------------------------------------------------------------------------------------------------------------------------
-    !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    AM_N_demand = CUE_AM_vr(depth)*C_PlantAM/CN_ratio(7)
-    AM_N_uptake = N_INAM 
-    
-    if ( AM_N_uptake >= AM_N_demand ) then   
-      N_AMPlant = AM_N_uptake - AM_N_demand
-    else
-      N_AMPlant = (1-f_growth)*AM_N_uptake
-      CUE_AM_vr(depth) = f_growth*AM_N_uptake*CN_ratio(7)/(C_PlantAM)
-    end if
 
-    !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    EcM_N_demand = (CUE_ecm_vr(depth)*(1-enzyme_pct(depth))*C_PlantEcM+C_SOMcEcM+C_SOMpEcM)/CN_ratio(5)
-    EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM 
-
-    if ( EcM_N_uptake >= EcM_N_demand ) then   
-        N_EcMPlant=EcM_N_uptake-EcM_N_demand      
-    else
-        N_EcMPlant = (1-f_growth)*EcM_N_uptake
-        !enzyme_pct(depth) = 1- (f_growth*EcM_N_uptake*CN_ratio(5)-C_SOMpEcM-C_SOMcEcM)/(CUE_ecm_vr(depth)*C_PlantEcM)
-        CUE_ecm_vr(depth) = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct(depth))*C_PlantEcM)
-
-    end if
-
-    N_ErMPlant = 0.0
-!---------------------------------------------------------------------------------------------------------------------------------------
+    !---------------------------------------------------------------------------------------------------------------------------------------
     !Calculate amount of inorganic N saprotrophs have access to: 
     N_for_sap  = (N_IN - ( N_INPlant + N_INEcM + N_INAM)*dt)*pctN_for_sap
 
@@ -403,54 +445,48 @@ contains
       
     end if
     
-!---------------------------------------------------------------------------------------------------------------         
+    !---------------------------------------------------------------------------------------------------------------         
     
     nullify( C_LITm,C_LITs,C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
     nullify( N_LITm,N_LITs,N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb,N_SAPf,N_NH4,N_NO3)
-
   end subroutine calculate_fluxes
-
 
   subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,D) !This subroutine calculates the vertical transport of carbon through the soil layers.
 
-      real(r8), intent(in)   :: pool_matrix(:,:)
-      real(r8), intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
-      real(r8), intent(out)  :: tot_diffusion_dummy ![gC/h]
-      real(r8), allocatable, intent(out)  :: vert(:,:)
-      real(r8), intent(in)   :: D
+    real(r8), intent(in)   :: pool_matrix(:,:)
+    real(r8), intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
+    real(r8), intent(out)  :: tot_diffusion_dummy ![gC/h]
+    real(r8), allocatable, intent(out)  :: vert(:,:)
+    real(r8), intent(in)   :: D
 
-      !Local
-      integer                :: depth, pool !For iteration
-      integer,dimension(1)   :: max_pool, max_depth !For iteration
+    !Local
+    integer                :: depth, pool !For iteration
+    integer,dimension(1)   :: max_pool, max_depth !For iteration
 
-      allocate (vert, mold = pool_matrix)
+    allocate (vert, mold = pool_matrix)
 
       !Get how many depth levels and pools we will loop over.
       max_depth=shape(pool_matrix(:,1)) !TODO: Easier way to do this?
       max_pool=shape(pool_matrix(1,:))
       !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
       !pool_matrix is used here to calculate the diffusion.
-
-      do depth = 1,max_depth(1)
-        do pool =1, max_pool(1)
-          !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
-          if (depth == 1) then
-            upper_diffusion_flux= 0.0
-            lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
-          elseif (depth==max_depth(1)) then
-            upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
-            lower_diffusion_flux= 0.0
-          else
-            upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
-            lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
-          end if
-
-          tot_diffusion_dummy=(upper_diffusion_flux-lower_diffusion_flux)/delta_z(depth)
-          vert(depth,pool) = tot_diffusion_dummy
-        end do !pool
-      end do !depth
-
-
+    do depth = 1,max_depth(1)
+      do pool =1, max_pool(1)
+        !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
+        if (depth == 1) then
+          upper_diffusion_flux= 0.0
+          lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
+        elseif (depth==max_depth(1)) then
+          upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
+          lower_diffusion_flux= 0.0
+        else
+          upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
+          lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
+        end if
+        tot_diffusion_dummy=(upper_diffusion_flux-lower_diffusion_flux)/delta_z(depth)
+        vert(depth,pool) = tot_diffusion_dummy
+      end do !pool
+    end do !depth
   end subroutine vertical_diffusion
 
   subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist,nlevdecomp) !NOTE: Should maybe be placed somewhere else?
@@ -458,33 +494,29 @@ contains
     real(r8), intent(out), dimension(nlevdecomp) :: r_moist
     real(r8), intent(in), dimension(nlevdecomp)  :: theta_l, theta_sat, theta_f
     real(r8), dimension(nlevdecomp)  :: theta_frzn, theta_liq, air_filled_porosity
-      !FROM mimics_cycle.f90 in testbed:
-      ! ! Read in soil moisture data as in CORPSE
-      !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
-      !  theta_frzn = min(1.0, casamet%frznmoistavg(npt)/soil%ssat(npt)) ! fraction of frozen water-filled pore space (0.0 - 1.0)
-      !  air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
-      !
-      !  if (mimicsbiome%fWFunction .eq. CORPSE) then
-      !    ! CORPSE water scalar, adjusted to give maximum values of 1
-      !    fW = (theta_liq**3 * air_filled_porosity**2.5)/0.022600567942709
-      !    fW = max(0.05, fW)
-
-
+    !FROM mimics_cycle.f90 in testbed:
+    ! ! Read in soil moisture data as in CORPSE
+    !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
+    !  theta_frzn = min(1.0, casamet%frznmoistavg(npt)/soil%ssat(npt)) ! fraction of frozen water-filled pore space (0.0 - 1.0)
+    !  air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
+    !
+    !  if (mimicsbiome%fWFunction .eq. CORPSE) then
+    !    ! CORPSE water scalar, adjusted to give maximum values of 1
+    !    fW = (theta_liq**3 * air_filled_porosity**2.5)/0.022600567942709
+    !    fW = max(0.05, fW)
     theta_liq  = min(1.0, theta_l/theta_sat)     ! fraction of liquid water-filled pore space (0.0 - 1.0)
     theta_frzn = min(1.0, theta_f/theta_sat)     ! fraction of frozen water-filled pore space (0.0 - 1.0)
     air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
 
     r_moist = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
     r_moist = max(0.05, r_moist)
-
   end subroutine moisture_func
 
-  subroutine input_rates(layer_nr,f_EcM, LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,&
-                        FROOTN_TO_LIT, C_MYCinput,&
+  subroutine input_rates(layer_nr, LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,&
+                        FROOTN_TO_LIT,&
                         N_CWD,C_CWD, &
                         C_inLITm,C_inLITs,&
                         N_inLITm,N_inLITs, &
-                        C_inEcM,C_inAM, &
                         C_inSOMp,C_inSOMa,C_inSOMc, &
                         N_inSOMp,N_inSOMa,N_inSOMc)
                         
@@ -492,12 +524,10 @@ contains
     !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
     !in:
     integer,  intent(in) :: layer_nr
-    real(r8), intent(in) :: f_EcM
     real(r8), intent(in) :: LEAFC_TO_LIT
     real(r8), intent(in) :: FROOTC_TO_LIT
     real(r8), intent(in) :: LEAFN_TO_LIT
     real(r8), intent(in) :: FROOTN_TO_LIT    
-    real(r8), intent(in) :: C_MYCinput
     real(r8), intent(in) :: N_CWD(:)
     real(r8), intent(in) :: C_CWD(:)
     
@@ -506,8 +536,6 @@ contains
     real(r8), intent(out) :: C_inLITs
     real(r8), intent(out) :: N_inLITm
     real(r8), intent(out) :: N_inLITs
-    real(r8), intent(out) :: C_inEcM
-    real(r8), intent(out) :: C_inAM
     real(r8), intent(out) :: C_inSOMp
     real(r8), intent(out) :: C_inSOMa
     real(r8), intent(out) :: C_inSOMc
@@ -533,9 +561,6 @@ contains
     N_inSOMc = fMET*totN_LIT_input*f_met_to_som*fCHEM(1)
     N_inSOMa = fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)        
     
-    
-    C_inEcM = f_EcM*C_MYCinput*froot_prof(layer_nr)
-    C_inAM = (1-f_EcM)*C_MYCinput*froot_prof(layer_nr)
 
   end subroutine input_rates
   

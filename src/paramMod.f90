@@ -8,6 +8,7 @@ integer, parameter :: sec_pr_hr = 60*60
 integer, parameter :: hr_pr_yr  = 365*24     
 integer, parameter :: hr_pr_day = 24
 integer, parameter :: days_in_year = 365
+real(r8), parameter:: abs_zero=273.15 !Kelvin
 
 integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
 
@@ -81,7 +82,9 @@ real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
 
 real(r8), parameter                  :: f_met_to_som=0.05_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-real(r8),dimension(2)                :: max_mining 
+real(r8)                             :: max_mining 
+real(r8)                             :: input_mod 
+
 real(r8),dimension(:),allocatable    :: enzyme_pct 
 real(r8), parameter                  :: f_use = 0.1_r8 !Fraction of C released during mining that is taken up by EcM
 

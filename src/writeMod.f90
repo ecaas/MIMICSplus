@@ -71,12 +71,11 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_netcdf
 
-    subroutine fill_netcdf(ncid, time, pool_matrix, change_matrix, Npool_matrix, Nchange_matrix, &
+    subroutine fill_netcdf(ncid, time, pool_matrix, Npool_matrix, &
       mcdate,HR_sum, HR_flux, vert_sum,Nvert_sum, write_hour,month, TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,levsoi,ROI,enz_frac)
       !INPUT:
       integer,intent(in)               :: ncid 
       real(r8), intent(in)             :: pool_matrix(levsoi,pool_types), Npool_matrix(levsoi,pool_types_N)   ! For storing C pool sizes [gC/m3]
-      real(r8), intent(in)             :: change_matrix(levsoi,pool_types), Nchange_matrix(levsoi,pool_types_N) ! For storing dC/dt for each time step [gC/(m3*day)]
       real(r8), intent(in)             :: vert_sum(levsoi,pool_types)
       real(r8), intent(in)             :: Nvert_sum(levsoi,pool_types)
       integer, intent(in)              :: mcdate
@@ -95,7 +94,7 @@ module writeMod
       
       !LOCAL:
       integer                          :: i , j !for looping
-      integer                          :: varidchange,varid, timestep,vertid 
+      integer                          :: varid, timestep,vertid 
       real(r8)                         :: N_SMIN
 
 
