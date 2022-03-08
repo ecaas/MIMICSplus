@@ -157,7 +157,7 @@ character (len=*), dimension(*), parameter ::  N_name_fluxes = &
   
 character (len=*), dimension(38),parameter :: site_names = &
 [character(len=19) :: &
- 'NR31585_Flekkefjord','32288_Sortland     ','NR31581_Lyngdal    ','NR32361_Lyngdal    ','NR31682_Tysvar     ',&
+ 'NR31585_Flekkefjord','32288_Sortland     ','NR32361_Lyngdal    ','NR31581_Lyngdal    ','NR31682_Tysvar     ',&
  'NR32249_Vik        ','NR32182_Stryn      ','NR31881_Sande      ','NR31578_Kvinesdal  ',&
  '31463_Hurdal       ','31464_Hurdal       ','32087_Dovre        ','32379_Hemne        ','32441_Sel          ','32258_Maaselv      ',&
  '32032_VestreToten  ','31984_Namdalseid   ','31976_Namdalseid   ','31461_Nittedal     ','31513_Nes          ',&

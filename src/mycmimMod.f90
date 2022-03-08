@@ -24,7 +24,7 @@ module mycmim
 
 contains
     subroutine decomp(nsteps, run_name,nlevdecomp,step_frac,write_hour,pool_C_start, &
-      pool_N_start,pool_C_final,pool_N_final,start_year,stop_year,clm_input_path,clm_surf_path) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
+      pool_N_start,pool_C_final,pool_N_final,start_year,stop_year,clm_input_path,clm_surf_path,use_ROI,use_Sulman,use_ENZ) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
       !INPUT
       integer,intent(in)                        :: nsteps               ! number of time steps to iterate over
       character (len=*) ,intent(in)             :: run_name             ! used for naming outputfiles
@@ -37,6 +37,11 @@ contains
       integer, intent(in)                       :: stop_year !Forcing end year, i.e. forcing loops over interval start_year-stop_year
       character (len=*) ,intent(in)             :: clm_input_path             ! file path for input
       character (len=*) ,intent(in)             :: clm_surf_path            ! file path for surface data
+      logical, intent(in)                       :: use_ROI                  ! True for dynamic fractionation between AM and EcM
+      logical, intent(in)                       :: use_Sulman               ! True if the equations from Sulman are used for mining
+      logical, intent(in)                       :: use_ENZ                  ! True if EcM adapts to N limitation by enzyme production
+      
+      
       
       !OUTPUT
       real(r8),intent(out)                      :: pool_C_final(nlevdecomp,pool_types)     ! For store and output final C pool sizes 
@@ -76,7 +81,7 @@ contains
       
       real(r8),dimension(nlevdecomp) :: ROI_EcM
       real(r8),dimension(nlevdecomp) :: ROI_AM
-      real(r8),dimension(2)          :: f_alloc
+      real(r8),dimension(nlevdecomp,2)          :: f_alloc
       real(r8)                       :: sum_consN(nlevdecomp, pool_types_N) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevdecomp, pool_types) !g/m3 for calculating annual mean
       real(r8)                       :: N_DEPinput
@@ -197,7 +202,7 @@ contains
       HR             = 0.0
       ROI_EcM            = 0.0
       ROI_AM            = 0.0
-      
+      f_alloc=0.0
       
       vertC_change_sum=0.0
       counter  = 0
@@ -245,8 +250,16 @@ contains
       call read_WATSAT_and_profiles(adjustr(clm_input_path)//'_historical.clm2.all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof, nlevdecomp)        
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist,nlevdecomp)                   
       call read_clay(adjustr(clm_surf_path),fCLAY,nlevdecomp)
-      call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
-      f_EcM = calc_EcMfrac(PFT_distribution)
+      
+      if ( .not. use_ROI ) then !use static PFT determined fractionation between EcM and AM C input
+        call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
+        f_EcM = calc_EcMfrac(PFT_distribution)
+        f_alloc(:,1) = f_EcM
+        f_alloc(:,2) = 1-f_EcM
+      else
+        f_EcM = 999_r8
+      end if
+      call disp(f_alloc)
       if ( Spinup_run ) then
         max_mining = read_maxC(spinupncid,input_steps)
       else
@@ -259,7 +272,7 @@ contains
       
       call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN, &
                        date, HR_mass_accumulated,HR, change_matrixC,change_matrixN,write_hour,current_month, &
-                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp,ROI=ROI_EcM,enz_frac=enzyme_pct)
+                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=enzyme_pct,f_alloc=f_alloc)
             
       desorb = 1.5e-5*exp(-1.5*(fclay)) !NOTE: desorb and pscalar moved from paramMod bc fCLAY is read in decomp subroutine (13.09.2021)
       pscalar = 1.0/(2*exp(-2.0*sqrt(fCLAY)))
@@ -326,7 +339,7 @@ contains
           call disp("InitN", pool_matrixN)
         end if
         
-        input_mod = input_modifier(C_MYCinput,max_mining)
+        input_mod = r_input(C_MYCinput,max_mining)
         if ( abs(input_mod) > 1.0 ) then
           print*, input_mod, time
         end if
@@ -365,20 +378,23 @@ contains
           nitrif_rate=nitrification((pool_matrixN(j,11)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j))
           
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
-          call calculate_fluxes(j,nlevdecomp,TSOIL(j), pool_matrixC, pool_matrixN,dt)
-          ROI_EcM(j) = ROI_function(N_INEcM+N_SOMpEcM+N_SOMcEcM,pool_matrixC(j,5),k_mycsom(1))
-          ROI_AM(j) = ROI_function(N_INAM, pool_matrixC(j,7),k_mycsom(3))
+          call calculate_fluxes(j,nlevdecomp,use_Sulman,TSOIL(j), pool_matrixC, pool_matrixN,dt)
           
-          if ( C_MYCinput .NE. 0.0 ) then !To avoid NaN when both ROI is zero
-            f_alloc(1) = ROI_EcM(j)/(ROI_EcM(j)+ROI_AM(j))
-            f_alloc(2) = ROI_AM(j)/(ROI_EcM(j)+ROI_AM(j))
-          else
-            f_alloc=0.5 !Value does not really matter bc. C_MYCinput is zero
+          if ( use_ROI ) then
+            ROI_EcM(j) = ROI_function(N_INEcM+N_SOMpEcM+N_SOMcEcM,pool_matrixC(j,5),k_mycsom(1))
+            ROI_AM(j) = ROI_function(N_INAM, pool_matrixC(j,7),k_mycsom(3))
+            if ( C_MYCinput .NE. 0.0 ) then !To avoid NaN when both ROI is zero
+              f_alloc(j,1) = ROI_EcM(j)/(ROI_EcM(j)+ROI_AM(j))
+              f_alloc(j,2) = ROI_AM(j)/(ROI_EcM(j)+ROI_AM(j))
+            else
+              f_alloc(j,:)=0.5 !Value does not really matter bc. C_MYCinput is zero
+            end if
           end if
-          C_PlantEcM = f_alloc(1)*C_MYCinput*froot_prof(j)
-          C_PlantAM = f_alloc(2)*C_MYCinput*froot_prof(j)
           
-          call myc_to_plant(j,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM_vr(j),CUE_AM_vr(j))
+          C_PlantEcM = f_alloc(j,1)*C_MYCinput*froot_prof(j)
+          C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j)
+          
+          call myc_to_plant(j,use_ENZ,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM_vr(j),CUE_AM_vr(j),enzyme_pct(j))
        !---------Calc fraction of inorg N that is NH4----------------------------------------          
           NH4_temporary = pool_matrixN(j,11) + (Deposition - nitrif_rate)*dt
           NO3_temporary = pool_matrixN(j,12) + (nitrif_rate - Leaching)*dt          
@@ -589,7 +605,7 @@ contains
           counter = 0        
           call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,&
            date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
-           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp,ROI=ROI_EcM,enz_frac=enzyme_pct)
+           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=enzyme_pct,f_alloc=f_alloc)
            change_sum = 0.0
         end if!writing
 

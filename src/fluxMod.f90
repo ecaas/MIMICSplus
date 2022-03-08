@@ -123,7 +123,7 @@ contains
       ROI=(N_aquired/C_myc)*turnover*eps      
   end function ROI_function 
   
-  function input_modifier(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
+  function r_input(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
     !input
     real(r8) :: C_input
     real(r8) :: max_input
@@ -131,7 +131,7 @@ contains
     real(r8) :: mod
 
     mod = C_input/(max_input)
-  end function input_modifier 
+  end function r_input 
   
   subroutine mining_rates_Sulman(C_EcM,C_substrate,N_substrate,moisture_function,T,mining_mod, D_Cmine,D_Nmine) !Sulman et al 2019 eq 34-35 + max_mining modifier
     !INPUT
@@ -172,16 +172,18 @@ contains
     D_Nmine = D_Cmine*N_substrate/C_substrate
   end subroutine mining_rates_Baskaran
   
-  subroutine myc_to_plant(layer_nr,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM,CUE_AM)
+  subroutine myc_to_plant(layer_nr,use_enz,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM,CUE_AM,enzyme_prod)
     !INPUT
+    integer,intent(in)  :: layer_nr 
+    logical,intent(in)  :: use_enz
     real(r8),intent(in) :: C_PlantEcM
     real(r8),intent(in) :: C_PlantAM
-    integer,intent(in)  :: layer_nr 
     
     
     !INOUT: 
     real(r8), intent(inout) :: CUE_EcM
     real(r8), intent(inout) :: CUE_AM
+    real(r8), intent(inout) :: enzyme_prod
     
     !OUTPUT
     real(r8),intent(out)  ::  N_AMPlant
@@ -205,21 +207,25 @@ contains
       CUE_AM = f_growth*AM_N_uptake*CN_ratio(7)/(C_PlantAM)
     end if
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    EcM_N_demand = (CUE_EcM*(1-enzyme_pct(layer_nr))*C_PlantEcM+C_SOMcEcM+C_SOMpEcM)/CN_ratio(5)
+    EcM_N_demand = (CUE_EcM*(1-enzyme_prod)*C_PlantEcM+C_SOMcEcM+C_SOMpEcM)/CN_ratio(5)
     EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM 
     if ( EcM_N_uptake >= EcM_N_demand ) then   
         N_EcMPlant=EcM_N_uptake-EcM_N_demand      
     else
         N_EcMPlant = (1-f_growth)*EcM_N_uptake
-        !enzyme_pct(depth) = 1- (f_growth*EcM_N_uptake*CN_ratio(5)-C_SOMpEcM-C_SOMcEcM)/(CUE_ecm_vr(depth)*C_PlantEcM)
-        CUE_EcM = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct(layer_nr))*C_PlantEcM)
-    end if
+        if ( use_ENZ ) then
+          enzyme_prod = 1 - (f_growth*EcM_N_uptake*CN_ratio(5)-C_SOMpEcM-C_SOMcEcM)/(CUE_EcM*C_PlantEcM)
+        else
+          CUE_EcM = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct(layer_nr))*C_PlantEcM)
+        end if
+      end if
     N_ErMPlant = 0.0
   end subroutine myc_to_plant 
   
-  subroutine calculate_fluxes(depth,nlevdecomp,Temp_Celsius,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
+  subroutine calculate_fluxes(depth,nlevdecomp,sulman_mining,Temp_Celsius,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer,intent(in)         :: depth !depth level
     integer,intent(in)         :: nlevdecomp
+    logical,intent(in)         :: sulman_mining
     real(r8), intent(in)       :: Temp_Celsius
     real(r8),intent(in)       :: dt ! timestep
     real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
@@ -305,10 +311,13 @@ contains
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
     !Ectomycorrhizal mining options:
-    !call mining_rates_Sulman(C_EcM,C_SOMc,N_SOMc,r_moist(depth),Temp_Kelvin,input_mod, minedSOMc,N_SOMcEcM)
-    !call mining_rates_Sulman(C_EcM,C_SOMp,N_SOMp,r_moist(depth),Temp_Kelvin, input_mod, minedSOMp,N_SOMpEcM)
-    call mining_rates_Baskaran(C_EcM,C_SOMp,N_SOMp,input_mod,minedSOMp,N_SOMpEcM) 
-    call mining_rates_Baskaran(C_EcM,C_SOMc,N_SOMc,input_mod,minedSOMc,N_SOMcEcM)               
+    if ( sulman_mining ) then
+      call mining_rates_Sulman(C_EcM,C_SOMc,N_SOMc,r_moist(depth),Temp_Kelvin,input_mod, minedSOMc,N_SOMcEcM)
+      call mining_rates_Sulman(C_EcM,C_SOMp,N_SOMp,r_moist(depth),Temp_Kelvin, input_mod, minedSOMp,N_SOMpEcM)
+    else
+      call mining_rates_Baskaran(C_EcM,C_SOMp,N_SOMp,input_mod,minedSOMp,N_SOMpEcM) 
+      call mining_rates_Baskaran(C_EcM,C_SOMc,N_SOMc,input_mod,minedSOMc,N_SOMcEcM)               
+    end if
                   
     C_SOMpEcM = minedSOMp*f_use
     C_EcMdecompSOMp = (1_r8-f_use)*minedSOMp   ![gC/m3h]
