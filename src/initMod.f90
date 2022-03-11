@@ -18,7 +18,7 @@ contains
     integer                :: j
 
     do j=1,nlevdecomp
-       pools_C(j,:) = (/1000.,1000.,10.,50.,100.,1.,1.,1500.,1500.,1500./)
+       pools_C(j,:) = (/1000.,1000.,10.,50.,100.,1.,1.,1500.,1500.,500./)
        pools_N(j,1:10) = pools_C(j,1:10)/CN_ratio
      end do
     

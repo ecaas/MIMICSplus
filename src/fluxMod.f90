@@ -134,6 +134,7 @@ contains
   end function r_input 
   
   subroutine mining_rates_Sulman(C_EcM,C_substrate,N_substrate,moisture_function,T,mining_mod, D_Cmine,D_Nmine) !Sulman et al 2019 eq 34-35 + max_mining modifier
+    !NOTE: T dependence (Arrhenius) seems a bit weird, makes flux very low...
     !INPUT
     real(r8),intent(in) :: C_EcM
     real(r8),intent(in) :: C_substrate

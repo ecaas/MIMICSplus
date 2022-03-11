@@ -23,6 +23,24 @@ module mycmim
   implicit none
 
 contains
+  
+   subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
+    !Input 
+    REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: yearly_sumC
+    REAL(r8), DIMENSION(nlevels,pool_types_N), intent(in):: yearly_sumN
+    integer,  intent(in) :: year
+    integer , intent(in) :: nlevels
+    CHARACTER (len = *), intent(in):: run_name
+    !Local
+    REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
+    REAL(r8), DIMENSION(nlevels,pool_types_N) :: yearly_meanN
+    integer, parameter                         :: hr_in_year = 24*365
+    yearly_meanC=yearly_sumC/hr_in_year
+    yearly_meanN=yearly_sumN/hr_in_year
+    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,nlevels)
+
+  end subroutine annual_mean
+  
     subroutine decomp(nsteps, run_name,nlevdecomp,step_frac,write_hour,pool_C_start, &
       pool_N_start,pool_C_final,pool_N_final,start_year,stop_year,clm_input_path,clm_surf_path,use_ROI,use_Sulman,use_ENZ) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
       !INPUT
@@ -197,6 +215,8 @@ contains
       pool_matrixN_previous = pool_N_start
       
       !Make sure things start from zero
+      sum_consN =0
+      sum_consC =0
       change_matrixC = 0.0
       change_matrixN = 0.0
       HR             = 0.0
@@ -266,7 +286,7 @@ contains
         max_mining = read_maxC(ncid,input_steps)        
       end if
       !open and prepare files to store results. Store initial values
-      !call create_yearly_mean_netcdf(run_name,nlevdecomp)
+      call create_yearly_mean_netcdf(run_name,nlevdecomp)  
       call create_netcdf(run_name, nlevdecomp)
       call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))
       
@@ -398,6 +418,7 @@ contains
        !---------Calc fraction of inorg N that is NH4----------------------------------------          
           NH4_temporary = pool_matrixN(j,11) + (Deposition - nitrif_rate)*dt
           NO3_temporary = pool_matrixN(j,12) + (nitrif_rate - Leaching)*dt          
+          
           if (NH4_temporary+NO3_temporary == 0._r8) Then
             nh4_frac = 0.5_8
           else
@@ -488,14 +509,34 @@ contains
               
             elseif (i == 11) then !NH4 inorganic N
               N_Gain = Deposition
-              N_exchange= nh4_frac*(N_INSAPb + N_INSAPf) !N_exchange can act both as a sink and a source, depending on the SAP demand for N
+              if ( N_INSAPb < 0. ) then !Nineralized n is split equally between NH4 and NO3
+                N_exchange = 0.5*N_INSAPb
+              else 
+                N_exchange = nh4_frac*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
+              end if
+              if ( N_INSAPf < 0. ) then !Nineralized n is split equally between NH4 and NO3
+                N_exchange = N_exchange + 0.5*N_INSAPf
+              else 
+                N_exchange=N_exchange+ nh4_frac*N_INSAPf!N is immobilized based on NH4 fraction
+              end if              
+
               N_Loss = nitrif_rate + nh4_frac*(N_INEcM + N_InPlant  + N_INAM )!+ N_INErM
               change_matrixN(j,i) = N_Gain - N_exchange - N_loss 
               
             elseif (i == 12) then !NO3 inorganic N
               N_Gain = nitrif_rate
-              N_exchange= (1-nh4_frac)*(N_INSAPb + N_INSAPf) !N_exchange can act both as a sink and a source, depending on the SAP demand for N
-              !print*, N_INSAPb,N_INSAPf,(1-nh4_frac)
+              
+              if ( N_INSAPb < 0. ) then !Nineralized n is split equally between NH4 and NO3
+                N_exchange = 0.5*N_INSAPb
+              else 
+                N_exchange = (1-nh4_frac)*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
+              end if
+              if ( N_INSAPf < 0. ) then !Nineralized n is split equally between NH4 and NO3
+                N_exchange=N_exchange+ 0.5*N_INSAPf
+              else 
+                N_exchange= N_exchange+(1-nh4_frac)*N_INSAPf!N is immobilized based on NH4 fraction
+              end if              
+            
               N_Loss = Leaching + (1-nh4_frac)*(N_INEcM + N_InPlant  + N_INAM )!+ N_INErM
               change_matrixN(j,i) = N_Gain - N_exchange - N_loss
 
@@ -578,10 +619,13 @@ contains
           pool_matrixN=pool_temporaryN
         end if!isVertical
 
+        sum_consN = sum_consN + pool_matrixN
+        sum_consC = sum_consC + pool_matrixC
+
         if (ycounter == 365*24*step_frac) then
           ycounter = 0
           write_y =write_y+1 !For writing to annual mean file
-          !call annual_mean(sum_consC,sum_consN, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
+          call annual_mean(sum_consC,sum_consN, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
           if (year == stop_year) then
             year = start_year         
             spinup_counter=0            

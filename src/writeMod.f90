@@ -435,12 +435,9 @@ module writeMod
         call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
       end do
 
-      call check(nf90_def_var(ncid, "N_inorganic", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
-      call check(nf90_def_var(ncid,"HR_sum", NF90_FLOAT, (/t_dimid /), varid ))
-      call check(nf90_def_var(ncid,"HR_flux", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
-      call check(nf90_def_var(ncid, "Temp", NF90_FLOAT, (/t_dimid, lev_dimid/),varid))
-      call check(nf90_def_var(ncid, "Moisture", NF90_FLOAT, (/t_dimid, lev_dimid/),varid))
-
+      call check(nf90_def_var(ncid, "N_NO3", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "N_NH4", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      
       call check(nf90_def_var(ncid, "year_since_start", NF90_FLOAT, (/t_dimid /), varid))
       call check(nf90_enddef(ncid))
 
@@ -453,36 +450,22 @@ module writeMod
       integer,intent(in)            :: year
       real(r8), intent(in)          :: Cpool_yearly(levsoi,pool_types)  ! For storing C pool sizes [gC/m3]
       real(r8),intent(in)           :: Npool_yearly(levsoi,pool_types_N)  
-      
-      !OUTPUT
+
       !LOCAL
       integer :: levsoi
       integer :: i,j,varid,ncid
-      
-    !  real(r8)                                   :: HR_sum
-    !  real(r8) ,dimension(levsoi)                :: HR_flux!(levsoi) !HR_mass_accumulated
-    !  real(r8),dimension(levsoi)         :: TSOIL, MOIST
 
       call check(nf90_open(output_path//trim(run_name)//"_yearly_mean.nc", nf90_write, ncid))
       call check(nf90_inq_varid(ncid, "year_since_start", varid))
       call check(nf90_put_var(ncid, varid, year , start = (/ year /)))
 
-      ! call check(nf90_inq_varid(ncid, "HR_sum", varid))
-      ! call check(nf90_put_var(ncid, varid, HR_sum, start = (/ year /)))
-
       do j=1,levsoi
-        ! call check(nf90_inq_varid(ncid, "Temp",varid))
-        ! call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/year,j/)))
-        ! 
-        ! call check(nf90_inq_varid(ncid, "Moisture",varid))
-        ! call check(nf90_put_var(ncid, varid, MOIST(j), start = (/year,j/)))
-
-        ! call check(nf90_inq_varid(ncid, "HR_flux", varid))
-        ! call check(nf90_put_var(ncid, varid, HR_flux(j), start = (/year, j/)))
-
-        call check(nf90_inq_varid(ncid, "N_inorganic", varid))
+        call check(nf90_inq_varid(ncid, "N_NO3", varid))
         call check(nf90_put_var(ncid, varid, Npool_yearly(j,11), start = (/year, j/)))
 
+        call check(nf90_inq_varid(ncid, "N_NH4", varid))
+        call check(nf90_put_var(ncid, varid, Npool_yearly(j,12), start = (/year, j/)))
+        
         do i = 1,pool_types
           !C:
           call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
@@ -495,4 +478,5 @@ module writeMod
       end do ! levels
       call check(nf90_close(ncid))
     end subroutine fill_yearly_netcdf
+    
 end module writeMod
