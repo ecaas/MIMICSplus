@@ -182,12 +182,12 @@ module writeMod
     end subroutine fill_netcdf
 
    subroutine store_parameters(ncid)
-     integer :: clayID, desorbID, fmetID, tauID, depthID, fphysID, fchemID, favailID,fecmID
+     integer :: clayID, desorpID, fmetID, k_sapsomID, depthID, fphysID, fchemID, favailID,fecmID
      integer,intent(in):: ncid
 
      call check(nf90_def_var(ncid, "f_clay", NF90_FLOAT, clayID))
-     call check(nf90_def_var(ncid, "desorb", NF90_FLOAT, desorbID))
-     call check(nf90_def_var(ncid, "tau", NF90_FLOAT,fracid,tauID))
+     call check(nf90_def_var(ncid, "desorp", NF90_FLOAT, desorpID))
+     call check(nf90_def_var(ncid, "k_sapsom", NF90_FLOAT,fracid,k_sapsomID))
      call check(nf90_def_var(ncid, "f_phys", NF90_FLOAT,fracid,fphysID))
      call check(nf90_def_var(ncid, "f_avail", NF90_FLOAT,fracid,favailID))
      call check(nf90_def_var(ncid, "f_chem", NF90_FLOAT,fracid,fchemID))
@@ -198,13 +198,13 @@ module writeMod
      call check(nf90_enddef(ncid))
 
      call check(nf90_put_var(ncid, clayID, fCLAY))
-     call check(nf90_put_var(ncid, desorbID, desorb))
+     call check(nf90_put_var(ncid, desorpID, desorp))
      call check(nf90_put_var(ncid, fphysID, fPHYS))
      call check(nf90_put_var(ncid, fchemID, fCHEM))
      call check(nf90_put_var(ncid, favailID, fAVAIL))
      call check(nf90_put_var(ncid, depthID, soil_depth))
      call check(nf90_put_var(ncid, fmetID, fMET))
-     call check(nf90_put_var(ncid, tauID, tau))
+     call check(nf90_put_var(ncid, k_sapsomID, k_sapsom))
      
 
    end subroutine store_parameters

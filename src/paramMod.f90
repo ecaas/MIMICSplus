@@ -40,7 +40,7 @@ integer, parameter                           :: pool_types_N = pool_types + 2 !p
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
 real(r8),parameter                      :: fMET =0.6                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
-real(r8), dimension(no_of_sap_pools)    :: tau  ![1/h]
+real(r8), dimension(no_of_sap_pools)    :: k_sapsom  ![1/h] (k_sapsom in MIMICS)
 real(r8)                                :: f_EcM! !fraction of present vegetation associated with EcM
 real(r8),parameter                     :: pctN_for_sap=0.9 !NB: VERY ASSUMED Only this percentage of remaining inorganic N is avalable to SAPS
 
@@ -50,7 +50,7 @@ real(kind=r8),dimension(3)             :: k_mycsom                        ![1/h]
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.3,0.4,0.3/)
 real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
-real(r8)                                :: desorb ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
+real(r8)                                :: desorp ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Depth & vertical transport
 real(r8)                             :: soil_depth           ![m] 
@@ -86,6 +86,7 @@ real(r8)                             :: max_mining
 real(r8)                             :: input_mod 
 
 real(r8),dimension(:),allocatable    :: enzyme_pct 
+real(r8),parameter                   :: enzyme_pct_0=0.1_r8
 real(r8), parameter                  :: f_use = 0.1_r8 !Fraction of C released during mining that is taken up by EcM
 
 real(r8), parameter                  :: f_growth = 0.5_r8 !Fraction of mycorrhizal N uptake that must go to plant if there is too little N to support both giving 

@@ -294,16 +294,16 @@ contains
     C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(3)
 
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
-    C_SAPbSOMp=C_SAPb*tau(1)*fPHYS(1)   !gC/m3h
-    C_SAPbSOMa=C_SAPb*tau(1)*fAVAIL(1)
-    C_SAPbSOMc=C_SAPb*tau(1)*fCHEM(1)
+    C_SAPbSOMp=C_SAPb*k_sapsom(1)*fPHYS(1)   !gC/m3h
+    C_SAPbSOMa=C_SAPb*k_sapsom(1)*fAVAIL(1)
+    C_SAPbSOMc=C_SAPb*k_sapsom(1)*fCHEM(1)
 
-    C_SAPfSOMp=C_SAPf*tau(2)*fPHYS(2)
-    C_SAPfSOMa=C_SAPf*tau(2)*fAVAIL(2)
-    C_SAPfSOMc=C_SAPf*tau(2)*fCHEM(2)
+    C_SAPfSOMp=C_SAPf*k_sapsom(2)*fPHYS(2)
+    C_SAPfSOMa=C_SAPf*k_sapsom(2)*fAVAIL(2)
+    C_SAPfSOMc=C_SAPf*k_sapsom(2)*fCHEM(2)
 
     !Desorbtion controls transport from physically protected to available SOM
-    C_SOMpSOMa=C_SOMp*desorb
+    C_SOMpSOMa=C_SOMp*desorp
 
     !Oxidation from SOMc to SOMa
     !From equations for decomposing structural litter in mimics,eq. A10
