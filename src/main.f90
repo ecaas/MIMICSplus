@@ -6,7 +6,6 @@ program main
   integer :: levels,name
 
   !character (len=*),parameter :: site = "32087_Dovre" !"31767_Kongsvinger" "32374_Saltdal" "32087_Dovre"
-  character (len=*),parameter :: description = "HighN_ROI_CUE_S"
   real(r8), dimension (:,:), allocatable   :: C_matrix_init    ! For storing C pool sizes [gC/m3]
   real(r8), dimension (:,:), allocatable   :: N_matrix_init   ! For storing N pool sizes [gN/m3]
 
@@ -22,6 +21,7 @@ program main
   real(r8), dimension (:,:), allocatable   :: C_matrix_final   
   real(r8), dimension (:,:), allocatable   :: N_matrix_final   
 
+  character (len=*),parameter :: description = "LowN_ROI_ENZ_S"
   character (len=200)  :: clm_data_file 
   character (len=200)  :: clm_surface_file
   do name = 2, 3, 1    
@@ -45,26 +45,26 @@ program main
     !2: SPINUP
     call decomp(nsteps=1500*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"Spunup"),nlevdecomp=levels, step_frac=1, write_hour=200+24*365*100,&
     pool_C_start=C_matrix_init,pool_N_start=N_matrix_init, pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,&
-    start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file,use_ROI=.True.,use_Sulman=.True., use_ENZ=.FALSE.)
+    start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file,use_ROI=.True.,use_Sulman=.True., use_ENZ=.True.)
   !  |
   !  | Use output of last timestep to initialize step 2
   !
     !!3: RUN WITH MONTHLY UPDATES of inputdata:
     call decomp(nsteps=71*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"to1970"),nlevdecomp=levels, step_frac=1, write_hour=1*24*365*10, &
     pool_C_start=C_matrix_Spunup,pool_N_start=N_matrix_Spunup, pool_C_final=C_matrix_1970,pool_N_final=N_matrix_1970,&
-    start_year=1900,stop_year=1970,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file,use_ROI=.True.,use_Sulman=.True., use_ENZ=.FALSE.)
+    start_year=1900,stop_year=1970,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file,use_ROI=.True.,use_Sulman=.True., use_ENZ=.True.)
     !|
     !| Use output of last timestep to initialize step 4
     !V
     !4: RUN WITH DAILY UPDATES of inputdata, output every year:
     call decomp(nsteps=17*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"to1987"),nlevdecomp=levels, step_frac=1, write_hour=1*24*365, &
     pool_C_start=C_matrix_1970,pool_N_start=N_matrix_1970, pool_C_final=C_matrix_1987,pool_N_final=N_matrix_1987,&
-    start_year=1971,stop_year=1987,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file,use_ROI=.True.,use_Sulman=.True., use_ENZ=.FALSE.)
+    start_year=1971,stop_year=1987,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file,use_ROI=.True.,use_Sulman=.True., use_ENZ=.True.)
     ! 
     !5: RUN WITH DAILY UPDATES of inputdata,output every day:
     call decomp(nsteps=5*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"to1992"),nlevdecomp=levels, step_frac=1, write_hour=1*24, &
     pool_C_start=C_matrix_1987,pool_N_start=N_matrix_1987, pool_C_final=C_matrix_final,pool_N_final=N_matrix_final,&
-    start_year=1988,stop_year=1992,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file,use_ROI=.True.,use_Sulman=.True., use_ENZ=.FALSE.)
+    start_year=1988,stop_year=1992,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file,use_ROI=.True.,use_Sulman=.True., use_ENZ=.True.)
   ! 
 
     deallocate (C_matrix_init,N_matrix_init,C_matrix_Spunup,N_matrix_Spunup)
