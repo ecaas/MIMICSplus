@@ -132,6 +132,7 @@ contains
       logical                        :: isVertical                           ! True if we use vertical soil layers.
       real(r8),dimension(nlevdecomp) :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
       real(r8)                       :: HR_mass_accumulated, HR_mass
+      real(r8),dimension(nlevdecomp) :: HRb,HRf !For storing respiration separately for bacteria and fungi
       real(r8)                       :: pool_matrixC(nlevdecomp,pool_types)     ! For storing C pool sizes [gC/m3]
       real(r8)                       :: change_matrixC(nlevdecomp,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: pool_temporaryC(nlevdecomp,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
@@ -235,8 +236,8 @@ contains
       allocate(CUE_am_vr(nlevdecomp))
       CUE_am_vr=CUE_myc_0      
       allocate(r_moist(nlevdecomp))
-      allocate(enzyme_pct(nlevdecomp))
-      enzyme_pct=enzyme_pct_0
+      allocate(f_enzprod(nlevdecomp))
+      f_enzprod=f_enzprod_0
       
       input_mod=1.0 !Initialize input modifier (r_input)
       !For counting mineralization/immobilization occurences:
@@ -260,6 +261,8 @@ contains
       change_matrixC = 0.0
       change_matrixN = 0.0
       HR             = 0.0
+      HRb            = 0.0
+      HRf            = 0.0
       ROI_EcM        = 0.0
       ROI_AM         = 0.0
       f_alloc        = 0.0
@@ -332,8 +335,8 @@ contains
       call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))
       
       call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN, &
-                       date, HR_mass_accumulated,HR, change_matrixC,change_matrixN,write_hour,current_month, &
-                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=enzyme_pct,f_alloc=f_alloc)
+                       date, HR_mass_accumulated,HR,HRb,HRf, change_matrixC,change_matrixN,write_hour,current_month, &
+                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,levsoi=nlevdecomp,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc)
             
       desorp= calc_desorp(fCLAY)
       Kmod  = calc_Kmod(fCLAY)
@@ -426,7 +429,7 @@ contains
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
           CUE_ecm_vr(j) = CUE_myc_0
           CUE_am_vr(j) = CUE_myc_0
-          enzyme_pct=0.1_r8
+          f_enzprod=0.1_r8
           
           !Determine input rates (from CLM data) in timestep
           call input_rates(j,C_leaf_litter,C_root_litter,N_leaf_litter,&
@@ -460,7 +463,7 @@ contains
           C_PlantEcM = f_alloc(j,1)*C_MYCinput*froot_prof(j)
           C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j)
           
-          call myc_to_plant(j,use_ENZ,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM_vr(j),CUE_AM_vr(j),enzyme_pct(j))
+          call myc_to_plant(j,use_ENZ,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM_vr(j),CUE_AM_vr(j),f_enzprod(j))
        !---------Calc fraction of inorg N that is NH4----------------------------------------          
           NH4_temporary = pool_matrixN(j,11) + (Deposition - nitrif_rate)*dt
           NO3_temporary = pool_matrixN(j,12) + (nitrif_rate - Leaching)*dt                    
@@ -516,9 +519,10 @@ contains
               end if
 
             elseif (i==5) then !EcM
-              C_EcMenz_prod=CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct(j)
+              C_EcMenz_prod=CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
+              
               C_Gain = CUE_ecm_vr(j)*C_PlantEcM + C_SOMcEcM + C_SOMpEcM !
-              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct(j)
+              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
               N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
             elseif (i==6) then !ErM
@@ -541,11 +545,11 @@ contains
 
             elseif (i==9) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc &
-               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*enzyme_pct(j)
+               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
                C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
                N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa +N_PlantSOMa
-               N_Loss = N_SOMaSAPb + N_SOMaSAPf + N_SOMaEcM
+               N_Loss = N_SOMaSAPb + N_SOMaSAPf
             elseif (i==10) then !SOMc
               C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc+C_PlantSOMc
               C_Loss = C_SOMcSOMa+C_EcMdecompSOMc + C_SOMcEcM
@@ -639,6 +643,9 @@ contains
           !Calculate the heterotrophic respiration loss from depth level j in timestep t:
           HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j)) + (C_LITmSAPf &
           + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j)))*dt
+          HRb(j) = ( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j))*dt
+          HRf(j)=(C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j))*dt
+
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t
           end if
@@ -692,9 +699,10 @@ contains
 
         if (counter == write_hour*step_frac) then
           counter = 0        
+
           call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,&
-           date, HR_mass_accumulated,HR,vertC,vertN, write_hour,current_month, &
-           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=enzyme_pct,f_alloc=f_alloc)
+           date, HR_mass_accumulated,HR,HRb,HRf,vertC,vertN, write_hour,current_month, &
+           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,nlevdecomp,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc)
            change_sum = 0.0
         end if!writing
 
@@ -729,10 +737,16 @@ contains
         call check(nf90_close(Spinupncid))
       end if
       
-      print*, c1a,c1b,c2,c3a,c3b,c4a,c4b
+      print*, "Immobilization, not enough N:",c1a
+      print*, "Immobilization enough N: ",c1b
+      print*, "Mineralization: ",c2
+      print*, "Bacteria needs, fungi mineralize, not enough N: ",c3a
+      print*, "Bacteria needs, fungi mineralize, enough N: ",c3b
+      print*, "Fungi needs, bacteria mineralize, not enough N: ",c4a
+      print*, "Fungi needs, bacteria mineralize, enough N: ",c4b
       !deallocation
       deallocate(ndep_prof,leaf_prof,froot_prof,r_moist)
-      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr,enzyme_pct)
+      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr,f_enzprod)
       
       !For timing
       call system_clock(count=clock_stop)      ! Stop Timer

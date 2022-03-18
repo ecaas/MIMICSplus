@@ -85,8 +85,8 @@ real(r8), parameter                  :: f_met_to_som=0.05_r8 ! fraction of metab
 real(r8)                             :: max_mining 
 real(r8)                             :: input_mod 
 
-real(r8),dimension(:),allocatable    :: enzyme_pct 
-real(r8),parameter                   :: enzyme_pct_0=0.1_r8
+real(r8),dimension(:),allocatable    :: f_enzprod 
+real(r8),parameter                   :: f_enzprod_0=0.1_r8
 real(r8), parameter                  :: f_use = 0.1_r8 !Fraction of C released during mining that is taken up by EcM
 
 real(r8), parameter                  :: f_growth = 0.5_r8 !Fraction of mycorrhizal N uptake that must go to plant if there is too little N to support both giving 
@@ -129,7 +129,7 @@ N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc,&
 N_SOMcEcM,N_SOMpEcM, &
 C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp,C_EcMdecompSOMc, &
  Leaching, Deposition,nitrif_rate,f, U_sb, U_sf,UN_sb,UN_sf,N_demand_SAPf,N_demand_SAPb,N_INSAPb,N_INSAPf,&
- C_EcMdecompSOMa,N_SOMaEcM,N_PlantSOMp,N_PlantSOMa,N_PlantSOMc,C_SOMcEcM,C_SOMpEcM,C_EcMenz_prod,&
+ C_EcMdecompSOMa,N_PlantSOMp,N_PlantSOMa,N_PlantSOMc,C_SOMcEcM,C_SOMpEcM,C_EcMenz_prod,&
  C_ErMSOMp, C_ErMSOMa, C_ErMSOMc,C_PlantErM,N_INErM,N_ErMSOMc,N_ErMPlant, N_ErMSOMp, N_ErMSOMa
 !For writing to file:
 character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/sites/'
@@ -152,7 +152,7 @@ character (len=*), dimension(*), parameter ::  C_name_fluxes = &
 character (len=*), dimension(*), parameter ::  N_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc" &
   ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ",&
-"AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMaEcM","SOMpSOMa","SOMcSOMa","PlantLITm" &
+"AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
   ,"PlantLITs","PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","AMPlant", "Deposition", "Leaching", "INEcM","INAM", &
   "SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
   

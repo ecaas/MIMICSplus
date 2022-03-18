@@ -217,7 +217,7 @@ contains
         if ( use_ENZ ) then
           enzyme_prod = 1 - (f_growth*EcM_N_uptake*CN_ratio(5)-C_SOMpEcM-C_SOMcEcM)/(CUE_EcM*C_PlantEcM)
         else
-          CUE_EcM = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_pct(layer_nr))*C_PlantEcM)
+          CUE_EcM = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-f_enzprod(layer_nr))*C_PlantEcM)
         end if
       end if
     N_ErMPlant = 0.0
