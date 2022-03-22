@@ -40,7 +40,7 @@ integer, parameter                           :: pool_types_N = pool_types + 2 !p
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
 real(r8),parameter                      :: fMET =0.6                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
-real(r8), dimension(no_of_sap_pools)    :: tau  ![1/h]
+real(r8), dimension(no_of_sap_pools)    :: k_sapsom  ![1/h] (k_sapsom in MIMICS)
 real(r8)                                :: f_EcM! !fraction of present vegetation associated with EcM
 real(r8),parameter                     :: pctN_for_sap=0.9 !NB: VERY ASSUMED Only this percentage of remaining inorganic N is avalable to SAPS
 
@@ -50,7 +50,7 @@ real(kind=r8),dimension(3)             :: k_mycsom                        ![1/h]
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.3,0.4,0.3/)
 real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
-real(r8)                                :: desorb ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
+real(r8)                                :: desorp ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Depth & vertical transport
 real(r8)                             :: soil_depth           ![m] 
@@ -85,7 +85,8 @@ real(r8), parameter                  :: f_met_to_som=0.05_r8 ! fraction of metab
 real(r8)                             :: max_mining 
 real(r8)                             :: input_mod 
 
-real(r8),dimension(:),allocatable    :: enzyme_pct 
+real(r8),dimension(:),allocatable    :: f_enzprod 
+real(r8),parameter                   :: f_enzprod_0=0.1_r8
 real(r8), parameter                  :: f_use = 0.1_r8 !Fraction of C released during mining that is taken up by EcM
 
 real(r8), parameter                  :: f_growth = 0.5_r8 !Fraction of mycorrhizal N uptake that must go to plant if there is too little N to support both giving 
@@ -128,7 +129,7 @@ N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc,N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc,&
 N_SOMcEcM,N_SOMpEcM, &
 C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp,C_EcMdecompSOMc, &
  Leaching, Deposition,nitrif_rate,f, U_sb, U_sf,UN_sb,UN_sf,N_demand_SAPf,N_demand_SAPb,N_INSAPb,N_INSAPf,&
- C_EcMdecompSOMa,N_SOMaEcM,N_PlantSOMp,N_PlantSOMa,N_PlantSOMc,C_SOMcEcM,C_SOMpEcM,C_EcMenz_prod,&
+ C_EcMdecompSOMa,N_PlantSOMp,N_PlantSOMa,N_PlantSOMc,C_SOMcEcM,C_SOMpEcM,C_EcMenz_prod,&
  C_ErMSOMp, C_ErMSOMa, C_ErMSOMc,C_PlantErM,N_INErM,N_ErMSOMc,N_ErMPlant, N_ErMSOMp, N_ErMSOMa
 !For writing to file:
 character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/sites/'
@@ -151,15 +152,15 @@ character (len=*), dimension(*), parameter ::  C_name_fluxes = &
 character (len=*), dimension(*), parameter ::  N_name_fluxes = &
 [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc" &
   ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ",&
-"AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMaEcM","SOMpSOMa","SOMcSOMa","PlantLITm" &
+"AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
   ,"PlantLITs","PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","AMPlant", "Deposition", "Leaching", "INEcM","INAM", &
   "SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
   
 character (len=*), dimension(38),parameter :: site_names = &
 [character(len=19) :: &
- 'NR31585_Flekkefjord','32288_Sortland     ','NR32361_Lyngdal    ','NR31581_Lyngdal    ','NR31682_Tysvar     ',&
+ '31463_Hurdal       ','31464_Hurdal       ','NR31585_Flekkefjord','32288_Sortland     ','NR32361_Lyngdal    ','NR31581_Lyngdal    ','NR31682_Tysvar     ',&
  'NR32249_Vik        ','NR32182_Stryn      ','NR31881_Sande      ','NR31578_Kvinesdal  ',&
- '31463_Hurdal       ','31464_Hurdal       ','32087_Dovre        ','32379_Hemne        ','32441_Sel          ','32258_Maaselv      ',&
+ '32087_Dovre        ','32379_Hemne        ','32441_Sel          ','32258_Maaselv      ',&
  '32032_VestreToten  ','31984_Namdalseid   ','31976_Namdalseid   ','31461_Nittedal     ','31513_Nes          ',&
  '31539_Modum        ','31652_Bygland      ','31767_Kongsvinger  ','31780_Vaaler       ','31941_Roeyrvik     ','31997_Verdal       ',&
  '32088_Lesja        ','32103_Halden       ','32139_Rennebu      ','32374_Saltdal      ','32404_Vinje        ','32409_Vang         ',&
