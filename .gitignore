@@ -191,6 +191,7 @@ src/run_script
 src/run_script_dev
 src/run_script_test
 src/.tags*
+src/*.txt
 .tags*
 fort.1
 fort.3

@@ -21,7 +21,7 @@ program main
   real(r8), dimension (:,:), allocatable   :: C_matrix_final   
   real(r8), dimension (:,:), allocatable   :: N_matrix_final   
 
-  character (len=*),parameter :: description = "test"
+  character (len=*),parameter :: description = "PFT_noLITN"
   character (len=200)  :: clm_data_file 
   character (len=200)  :: clm_surface_file
   do name = 1, 1, 1    
@@ -43,7 +43,7 @@ program main
     !1: INITIALIZE
     call initialize(C_matrix_init,N_matrix_init,levels)
     !2: SPINUP
-    call decomp(nsteps=150*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"Spunup"),nlevdecomp=levels, step_frac=1, write_hour=200+24*365*100,&
+    call decomp(nsteps=1500*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"Spunup"),nlevdecomp=levels, step_frac=1, write_hour=200+24*365*100,&
     pool_C_start=C_matrix_init,pool_N_start=N_matrix_init, pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,&
     start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file,use_ROI=.False.,use_Sulman=.False., use_ENZ=.False.)
    !|

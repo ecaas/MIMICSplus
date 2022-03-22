@@ -10,7 +10,7 @@ OBJ = main.o mycmimMod.o fluxMod.o initMod.o \
 	shr_kind_mod.o readMod.o
 #-------------------------------------------------------------------------------
 FC = gfortran
-FFLAGS = -g -fcheck=all -fbacktrace  -O0 -Wall -ffree-line-length-'none'\
+FFLAGS = -g -fcheck=all -fbacktrace -ffpe-trap=zero,invalid,overflow,underflow -O0 -Wall -ffree-line-length-'none'\
 -Wl,-rpath=$(LIB)
 
 #EXTRAFFLAGS =  -Wno-unused-dummy-argument -Wno-unused-parameter -Wextra -ffpe-trap=zero,invalid,overflow,underflow
