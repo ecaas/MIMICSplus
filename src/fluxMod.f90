@@ -388,15 +388,18 @@ contains
     !---------------------------------------------------------------------------------------------------------------------------------------
     !Calculate amount of inorganic N saprotrophs have access to: 
     N_for_sap  = (N_IN - ( N_INPlant + N_INEcM + N_INAM)*dt)*pctN_for_sap
-
+    print*, "max_Nimmobilized: ", max_Nimmobilized, depth,N_INEcM
+    print*, "Fluxmod: " ,k2*(N_NH4+Deposition*dt-nitrif_rate*dt- ( N_INPlant + N_INEcM + N_INAM)*dt)
+    print*, "N for SAP", N_for_sap
+    !print*, N_for_sap, max_Nimmobilized*dt
     !total C uptake (growth + respiration) of saprotrophs
     U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
     U_sf = C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf
     
     !total N uptake by saprotrophs
-    UN_sb = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb  
-    UN_sf = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
-    !print*, (C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf)*CUE_bacteria_vr(depth)/(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf),depth
+    UN_sb = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)*NUE 
+    UN_sf = (N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf)*NUE
+
     !SAP demand for N:
     N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
     N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
@@ -407,18 +410,18 @@ contains
     
     !Determine exchange of N between inorganic pool and saprotrophs:
     if ( N_INSAPb >= 0. .and. N_INSAPf >= 0. ) then !immobilization
-      if ( N_for_sap < abs((N_INSAPb + N_INSAPf)*dt) ) then !Not enough mineral N to meet demand
+      if ( max_Nimmobilized < abs((N_INSAPb + N_INSAPf)*dt) ) then !Not enough mineral N to meet demand
 
         f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
-        CUE_bacteria_vr(depth)=((f_b*N_for_sap+UN_sb*dt)*CN_ratio(3))/(U_sb*dt)
-        CUE_fungi_vr(depth) = (((1-f_b)*N_for_sap+UN_sf*dt)*CN_ratio(4))/(U_sf*dt)
+        CUE_bacteria_vr(depth)=((f_b*max_Nimmobilized+UN_sb)*CN_ratio(3))/(U_sb)
+        CUE_fungi_vr(depth) = (((1-f_b)*max_Nimmobilized+UN_sf)*CN_ratio(4))/(U_sf)
 
         !SAP demand for N:
         N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
         N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
         
-        N_INSAPb = f_b*N_for_sap 
-        N_INSAPf = (1-f_b)*N_for_sap 
+        N_INSAPb = f_b*max_Nimmobilized 
+        N_INSAPf = (1-f_b)*max_Nimmobilized 
         c1a=c1a+1
       else !Enough mineral N to meet demand
         c1b=c1b+1
@@ -430,9 +433,9 @@ contains
         continue
       
     elseif ( N_INSAPb >= 0. .and. N_INSAPf < 0. ) then ! bacteria can use N mineralized by fungi
-      N_for_sap = N_for_sap + N_INSAPf*dt 
-      if ( N_for_sap < N_INSAPb*dt ) then
-        CUE_bacteria_vr(depth)=((N_for_sap+UN_sb*dt)*CN_ratio(3))/U_sb
+      max_Nimmobilized = max_Nimmobilized + N_INSAPf 
+      if ( max_Nimmobilized < N_INSAPb ) then
+        CUE_bacteria_vr(depth)=((max_Nimmobilized+UN_sb)*CN_ratio(3))/U_sb
         N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
         N_INSAPb = N_demand_SAPb-UN_sb    
          c3a=c3a+1 
@@ -441,9 +444,9 @@ contains
          c3b=c3b+1 
       end if
     elseif ( N_INSAPb < 0. .and. N_INSAPf >= 0. ) then !fungi can use N mineralized by bacteria
-      N_for_sap = N_for_sap + N_INSAPb*dt       
-      if ( N_for_sap < N_INSAPf*dt ) then
-        CUE_fungi_vr(depth)=((N_for_sap+UN_sf*dt)*CN_ratio(4))/U_sf
+      max_Nimmobilized = max_Nimmobilized + N_INSAPb       
+      if ( max_Nimmobilized < N_INSAPf ) then
+        CUE_fungi_vr(depth)=((max_Nimmobilized+UN_sf)*CN_ratio(4))/U_sf
         
         N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
         N_INSAPf = N_demand_SAPf-UN_sf

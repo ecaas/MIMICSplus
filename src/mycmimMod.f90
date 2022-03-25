@@ -41,6 +41,16 @@ contains
 
   end subroutine annual_mean
   
+  function calc_Fmax(k,nh4) result(Fmax)
+    !In:
+    real(r8),intent(IN) :: k !loss rate [hr-1]
+    real(r8),INTENT(IN) :: nh4 !nh4 consentration [gN/m3]
+    !Out:
+    real(r8)            :: Fmax !Maximum flux from NH4 to SAP in cases with too limited N (SAP immobilization)
+    
+    Fmax = k*nh4 
+  end function calc_Fmax 
+  
   function calc_sap_turnover_rate(met_frac,moist_modifier) result(turnover_rate)
     real(r8),INTENT(IN) :: met_frac
     real(r8),INTENT(IN) :: moist_modifier
@@ -318,11 +328,17 @@ contains
         call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
         f_EcM = calc_EcMfrac(PFT_distribution)
         f_alloc(:,1) = f_EcM
-        f_alloc(:,2) = 1-f_EcM
+        f_alloc(:,2) = 1-f_EcM   
       else
         f_EcM = 999_r8
       end if
-      
+      if (f_alloc(1,1)==1.0 ) then !To avoid writing errors when AM = 0
+        print*, "inside"
+        pool_matrixC(:,7)=0.0
+        pool_matrixN(:,7)=0.0
+        pool_matrixC_previous(:,7)=0.0
+        pool_matrixN_previous(:,7)=0.0
+      end if
       if ( Spinup_run ) then
         max_mining = read_maxC(spinupncid,input_steps)
       else
@@ -330,7 +346,9 @@ contains
       end if
       
       !open and prepare files to store results. Store initial values
-      call create_yearly_mean_netcdf(run_name,nlevdecomp)  
+      if ( Spinup_run ) then
+        call create_yearly_mean_netcdf(run_name,nlevdecomp)  
+      end if
       call create_netcdf(run_name, nlevdecomp)
       call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))
       
@@ -445,7 +463,7 @@ contains
           Deposition = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j)
           Leaching = calc_Leaching(drain,h2o_liq_tot,pool_matrixN(j,12))
           nitrif_rate=nitrification((pool_matrixN(j,11)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j))
-          
+          max_Nimmobilized = calc_Fmax(k2,pool_matrixN(j,11)+Deposition*dt-nitrif_rate*dt)
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,nlevdecomp,use_Sulman,TSOIL(j), pool_matrixC, pool_matrixN,dt)
           
@@ -473,7 +491,6 @@ contains
             nh4_frac = NH4_temporary/(NH4_temporary+NO3_temporary)
           end if
       !---------------------------------------------------------------------------------------          
-      
           if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file            
            call fluxes_netcdf(writencid,int(time), write_hour, j)
           end if !write fluxes
@@ -498,7 +515,7 @@ contains
               C_Gain = CUE_bacteria_vr(j)*(C_LITmSAPb + C_LITsSAPb &
                 + C_SOMaSAPb)
               C_Loss =  C_SAPbSOMp + C_SAPbSOMa + C_SAPbSOMc
-              N_Gain = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb
+              N_Gain = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)*NUE
               N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMc
               if ( N_INSAPb>0 ) then
                 N_Gain = N_Gain + N_INSAPb              
@@ -510,7 +527,7 @@ contains
               C_Gain = CUE_fungi_vr(j)*(C_LITmSAPf + C_LITsSAPf &
                 + C_SOMaSAPf)
               C_Loss =  C_SAPfSOMp + C_SAPfSOMa + C_SAPfSOMc
-              N_Gain = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
+              N_Gain = (N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf)*NUE
               N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMc
               if ( N_INSAPf>0 ) then
                 N_Gain = N_Gain + N_INSAPf 
@@ -557,14 +574,15 @@ contains
               N_Loss = N_SOMcSOMa + N_SOMcEcM
               
             elseif (i == 11) then !NH4 inorganic N
-              N_Gain = Deposition
-              if ( N_INSAPb < 0. ) then !Nineralized n is split equally between NH4 and NO3
-                N_exchange = 0.5*N_INSAPb
+              N_Gain = Deposition + (1-NUE)*(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf+N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)
+              
+              if ( N_INSAPb < 0. ) then !Mineralized N as NH4 only
+                N_exchange = N_INSAPb
               else 
                 N_exchange = nh4_frac*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
               end if
-              if ( N_INSAPf < 0. ) then !Nineralized n is split equally between NH4 and NO3
-                N_exchange = N_exchange + 0.5*N_INSAPf
+              if ( N_INSAPf < 0. ) then !Mineralized N as NH4 only
+                N_exchange = N_exchange + N_INSAPf
               else 
                 N_exchange=N_exchange+ nh4_frac*N_INSAPf!N is immobilized based on NH4 fraction
               end if              
@@ -574,14 +592,14 @@ contains
               
             elseif (i == 12) then !NO3 inorganic N
               N_Gain = nitrif_rate
-              
-              if ( N_INSAPb < 0. ) then !Nineralized n is split equally between NH4 and NO3
-                N_exchange = 0.5*N_INSAPb
+                            
+              if ( N_INSAPb < 0. ) then !Mineralized N as NH4 only
+                N_exchange = 0.0
               else 
                 N_exchange = (1-nh4_frac)*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
               end if
-              if ( N_INSAPf < 0. ) then !Nineralized n is split equally between NH4 and NO3
-                N_exchange=N_exchange+ 0.5*N_INSAPf
+              if ( N_INSAPf < 0. ) then !Mineralized N as NH4 only
+                N_exchange=N_exchange+ 0.0
               else 
                 N_exchange= N_exchange+(1-nh4_frac)*N_INSAPf!N is immobilized based on NH4 fraction
               end if              
@@ -677,7 +695,9 @@ contains
         if (ycounter == 365*24*step_frac) then
           ycounter = 0
           write_y =write_y+1 !For writing to annual mean file
-          call annual_mean(sum_consC,sum_consN, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
+          if ( Spinup_run ) then            
+            call annual_mean(sum_consC,sum_consN, nlevdecomp,write_y , run_name) !calculates the annual mean and write the result to file
+          end if
           if (year == stop_year) then
             year = start_year         
             spinup_counter=0            

@@ -68,6 +68,10 @@ integer                             :: c3b
 integer                             :: c4a
 integer                             :: c4b
 
+real(r8)                            :: max_Nimmobilized
+real(r8),PARAMETER                  :: k1 = 0.042 !hr-1 (day)
+real(r8),PARAMETER                  :: k2 = 0.0014 !hr-1 (month)
+real(r8),PARAMETER                  :: k3 = 0.00014 !hr-1 (year)
 
 real(r8),dimension(:),allocatable    :: r_moist
 
@@ -77,6 +81,8 @@ real(r8),dimension(:),allocatable    :: CUE_ecm_vr         !Growth efficiency of
 real(r8),dimension(:),allocatable    :: CUE_am_vr         !Growth efficiency of mycorrhiza 
 real(r8),dimension(:),allocatable    :: CUE_erm_vr        !Growth efficiency of mycorrhiza 
 real(r8),parameter                   :: CUE_myc_0=0.25_r8 !Baskaran
+real(r8),parameter                   :: NUE=0.7
+
 
 real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
@@ -156,7 +162,7 @@ character (len=*), dimension(*), parameter ::  N_name_fluxes = &
   ,"PlantLITs","PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","AMPlant", "Deposition", "Leaching", "INEcM","INAM", &
   "SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
   
-character (len=*), dimension(38),parameter :: site_names = &
+character (len=*), dimension(47),parameter :: site_names = &
 [character(len=19) :: &
  '31463_Hurdal       ','31464_Hurdal       ','NR31585_Flekkefjord','32288_Sortland     ','NR32361_Lyngdal    ','NR31581_Lyngdal    ','NR31682_Tysvar     ',&
  'NR32249_Vik        ','NR32182_Stryn      ','NR31881_Sande      ','NR31578_Kvinesdal  ',&
@@ -164,7 +170,7 @@ character (len=*), dimension(38),parameter :: site_names = &
  '32032_VestreToten  ','31984_Namdalseid   ','31976_Namdalseid   ','31461_Nittedal     ','31513_Nes          ',&
  '31539_Modum        ','31652_Bygland      ','31767_Kongsvinger  ','31780_Vaaler       ','31941_Roeyrvik     ','31997_Verdal       ',&
  '32088_Lesja        ','32103_Halden       ','32139_Rennebu      ','32374_Saltdal      ','32404_Vinje        ','32409_Vang         ',&
- '32438_Porsanger    ','31519_Nissedal     ','31650_Valle        ','31714_Flaa         ','32085_Skjaak       ','NR31906_Voss       ' ]
-! '32124_Engerdal     ', '32246_SoerVaranger '  ,'NR31927_Os         ',,'NR31590_Farsund    ', 'NR31908_Ullensvang ','NR32485_Stord      '
-!'NR31579_Kvinesdal  ','NR31577_Kvinesdal  ',,'NR31677_Suldal     '
+ '32438_Porsanger    ','31519_Nissedal     ','31650_Valle        ','31714_Flaa         ','32085_Skjaak       ','NR31906_Voss       ',& 
+ '32124_Engerdal     ', '32246_SoerVaranger '  ,'NR31927_Os         ','NR31590_Farsund    ', 'NR31908_Ullensvang ','NR32485_Stord      ',&
+ 'NR31579_Kvinesdal  ','NR31577_Kvinesdal  ','NR31677_Suldal     ']
 end module paramMod

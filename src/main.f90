@@ -21,10 +21,10 @@ program main
   real(r8), dimension (:,:), allocatable   :: C_matrix_final   
   real(r8), dimension (:,:), allocatable   :: N_matrix_final   
 
-  character (len=*),parameter :: description = "PFT_noLITN"
+  character (len=*),parameter :: description = "test"
   character (len=200)  :: clm_data_file 
   character (len=200)  :: clm_surface_file
-  do name = 1, 1, 1    
+  do name = 1,1, 1    
     call system_clock(count_rate=full_clock_rate) !Find the time rate
     call system_clock(count=full_clock_start)     !Start Timer 
     clm_data_file='/home/ecaas/nird/'//trim(site_names(name))//'_historical/lnd/hist/'//trim(site_names(name))
@@ -47,7 +47,7 @@ program main
     pool_C_start=C_matrix_init,pool_N_start=N_matrix_init, pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,&
     start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file,use_ROI=.False.,use_Sulman=.False., use_ENZ=.False.)
    !|
-   !| Use output of last timestep to initialize step 2
+   !!| Use output of last timestep to initialize step 2
   !
     !!3: RUN WITH MONTHLY UPDATES of inputdata:
     call decomp(nsteps=71*24*365, run_name=trim(trim(site_names(name))//"_"//description//"_"//"to1970"),nlevdecomp=levels, step_frac=1, write_hour=1*24*365*10, &
