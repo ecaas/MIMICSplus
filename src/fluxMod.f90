@@ -1,8 +1,10 @@
 module fluxMod
   use paramMod
-  use dispmodule !External module to pretty print matrices (mainly for testing purposes)
+  use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
+  use initMod, only: nlevels
   implicit none
-
+  PRIVATE
+  public :: nitrification,calc_Leaching,set_N_dep,calc_desorp,MMK_flux,input_rates,calculate_fluxes,vertical_diffusion,myc_to_plant
 contains 
   function nitrification(nh4,t_scalar,w_scalar,soil_temp) result(f_nit)
     real(r8) :: f_nit
@@ -71,6 +73,12 @@ contains
     Leach = N_NO3*drain/h2o_tot
   end function calc_Leaching
 
+  function calc_desorp(clay_fraction) result(d)
+    real(r8)             :: d
+    real(r8), intent(in) :: clay_fraction
+    d = 1.5e-5*exp(-1.5*(clay_fraction))
+  end function calc_desorp
+  
   function MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
     !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
     !NOTE: On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
@@ -93,46 +101,6 @@ contains
      flux = C_SUBSTRATE*Vmax(MMK_nr)*C_SAP/(Km(MMK_nr)+C_SAP)
   end function reverse_MMK_flux
 
-  function Km_function(temperature) result(K_m)
-    real(r8),dimension(MM_eqs)             :: K_m
-    real(r8), intent(in)                   :: temperature
-    K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*1e4=[gC/m3]    
-  end function Km_function
-
-  function Vmax_function(temperature, moisture) result(V_max)
-    real(r8),dimension(MM_eqs)             :: V_max
-    real(r8), intent(in)                   :: temperature
-    real(r8), intent(in)                   :: moisture
-    V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
-  end function Vmax_function
-  
-  function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) ! Based on Sulman et al 2019
-      !INPUT
-      real(r8),intent(in) :: N_aquired
-      real(r8),intent(in) :: C_myc 
-      real(r8),intent(in) :: loss_rate ![1/h]
-      
-      !OUTPUT
-      real(r8) :: ROI
-      
-      !LOCAL
-      real(r8), parameter :: eps = 0.5 !From Sulman et al supplementary: epsilon_mine, epsilon_scav
-      real(r8) :: turnover ! [hour]
-      
-      turnover = 1/loss_rate 
-      ROI=(N_aquired/C_myc)*turnover*eps      
-  end function ROI_function 
-  
-  function r_input(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
-    !input
-    real(r8) :: C_input
-    real(r8) :: max_input
-    !output
-    real(r8) :: mod
-
-    mod = C_input/(max_input)
-  end function r_input 
-  
   subroutine mining_rates_Sulman(C_EcM,C_substrate,N_substrate,moisture_function,T,mining_mod, D_Cmine,D_Nmine) !Sulman et al 2019 eq 34-35 + max_mining modifier
     !NOTE: T dependence (Arrhenius) seems a bit weird, makes flux very low...
     !INPUT
@@ -153,7 +121,6 @@ contains
     real(r8),parameter :: K_m = 0.015 
     real(r8),parameter :: E_a = 54000 !J/mol
     real(r8),parameter :: R   = 8.31 !J/(K mol)
-    
     D_Cmine = V_max*exp(-E_a/(R*T))*moisture_function*C_substrate*((C_EcM/C_substrate)/(C_EcM/C_substrate+K_m))*mining_mod
     D_Nmine = V_max*exp(-E_a/(R*T))*moisture_function*N_substrate*((C_EcM/C_substrate)/(C_EcM/C_substrate+K_m))*mining_mod    
   end subroutine mining_rates_Sulman
@@ -223,14 +190,13 @@ contains
     N_ErMPlant = 0.0
   end subroutine myc_to_plant 
   
-  subroutine calculate_fluxes(depth,nlevdecomp,sulman_mining,Temp_Celsius,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
+  subroutine calculate_fluxes(depth,sulman_mining,Temp_Celsius,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
     integer,intent(in)         :: depth !depth level
-    integer,intent(in)         :: nlevdecomp
     logical,intent(in)         :: sulman_mining
     real(r8), intent(in)       :: Temp_Celsius
     real(r8),intent(in)       :: dt ! timestep
-    real(r8),target :: C_pool_matrix(nlevdecomp, pool_types)
-    real(r8),target :: N_pool_matrix(nlevdecomp, pool_types_N)
+    real(r8),target :: C_pool_matrix(nlevels, pool_types)
+    real(r8),target :: N_pool_matrix(nlevels, pool_types_N)
     
     !LOCAL:
     real(r8)  :: N_for_sap
@@ -462,13 +428,14 @@ contains
   end subroutine calculate_fluxes
 
   subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,D) !This subroutine calculates the vertical transport of carbon through the soil layers.
-
+    !IN 
     real(r8), intent(in)   :: pool_matrix(:,:)
+    real(r8), intent(in)   :: D
+    !OUT
     real(r8), intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
     real(r8), intent(out)  :: tot_diffusion_dummy ![gC/h]
     real(r8), allocatable, intent(out)  :: vert(:,:)
-    real(r8), intent(in)   :: D
-
+    
     !Local
     integer                :: depth, pool !For iteration
     integer,dimension(1)   :: max_pool, max_depth !For iteration
@@ -498,29 +465,6 @@ contains
       end do !pool
     end do !depth
   end subroutine vertical_diffusion
-
-  subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist,nlevdecomp) !NOTE: Should maybe be placed somewhere else?
-    integer :: nlevdecomp
-    real(r8), intent(out), dimension(nlevdecomp) :: r_moist
-    real(r8), intent(in), dimension(nlevdecomp)  :: theta_l, theta_sat, theta_f
-    real(r8), dimension(nlevdecomp)  :: theta_frzn, theta_liq, air_filled_porosity
-    !FROM mimics_cycle.f90 in testbed:
-    ! ! Read in soil moisture data as in CORPSE
-    !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
-    !  theta_frzn = min(1.0, casamet%frznmoistavg(npt)/soil%ssat(npt)) ! fraction of frozen water-filled pore space (0.0 - 1.0)
-    !  air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
-    !
-    !  if (mimicsbiome%fWFunction .eq. CORPSE) then
-    !    ! CORPSE water scalar, adjusted to give maximum values of 1
-    !    fW = (theta_liq**3 * air_filled_porosity**2.5)/0.022600567942709
-    !    fW = max(0.05, fW)
-    theta_liq  = min(1.0, theta_l/theta_sat)     ! fraction of liquid water-filled pore space (0.0 - 1.0)
-    theta_frzn = min(1.0, theta_f/theta_sat)     ! fraction of frozen water-filled pore space (0.0 - 1.0)
-    air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
-
-    r_moist = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
-    r_moist = max(0.05, r_moist)
-  end subroutine moisture_func
 
   subroutine input_rates(layer_nr, LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,&
                         FROOTN_TO_LIT,&
@@ -571,19 +515,8 @@ contains
     N_inSOMc = fMET*totN_LIT_input*f_met_to_som*fCHEM(1)
     N_inSOMa = fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)        
     
-
   end subroutine input_rates
   
-  function calc_EcMfrac(PFT_dist) result(EcM_frac)
-    real(r8)                             :: EcM_frac
-    real(r8),dimension(15)               :: PFT_dist
-    real(r8),dimension(15),parameter     :: EcM_fraction=(/1.,1.,1.,1.,0.,0.,0.,0.5,1.,1.,1.,1.,1.,0.,0./)
-    integer                              :: i
-    EcM_frac = 0.0
-    do i = 1, 15, 1
-        EcM_frac = EcM_frac + PFT_dist(i)*EcM_fraction(i)
-    end do
-    EcM_frac = EcM_frac/100.
-  end function calc_EcMfrac
+
 
 end module fluxMod

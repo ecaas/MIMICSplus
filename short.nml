@@ -1,0 +1,6 @@
+&options
+    use_ROI = .False.
+    use_Sulman = .True.
+    use_ENZ = .False.
+/ 
+

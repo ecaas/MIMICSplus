@@ -1,10 +1,35 @@
 module writeMod
-  use paramMod
+  use shr_kind_mod   , only : r8 => shr_kind_r8
+  use paramMod !, only: pool_types, pool_types_N
   use netcdf
-  use dispmodule
+  use dispmodule, only: disp
+  use initMod, only: nlevels
   implicit none
+  private
+  public :: check, create_netcdf,fill_netcdf,store_parameters,fluxes_netcdf,create_yearly_mean_netcdf,fill_yearly_netcdf
+  
+  
+  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid
+  character (len=4), dimension(pool_types)     :: variables = &
+  (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
 
-  integer,private :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid
+  character (len=10), dimension(pool_types):: change_variables = &
+  (/  "changeLITm", "changeLITs", "changeSAPb","changeSAPf", "changeEcM ", "changeErM ",&
+      "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
+      !
+  character (len=*), dimension(*), parameter ::  C_name_fluxes = &
+  [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
+    "EcMSOMp ", "EcMSOMa ","EcMSOMc ",&
+  "AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
+    ,"PlantLITs","PlantEcM","PlantAM","PlantSOMc  ","PlantSOMp  ","PlantSOMa  ", &
+    "EcMdecoSOMp","EcMdecoSOMc","EcMenz_prod","SOMcEcM","SOMpEcM"]
+  !  "ErMSOMa ","ErMSOMc ", "ErMSOMp ","PlantErM",,"ErMPlant"  "ErMSOMa ","ErMSOMc ", "ErMSOMp ",, "INErM"
+  character (len=*), dimension(*), parameter ::  N_name_fluxes = &
+  [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc" &
+    ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ",&
+  "AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
+    ,"PlantLITs","PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","AMPlant", "Deposition", "Leaching", "INEcM","INAM", &
+    "SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
 
   contains
 
@@ -16,18 +41,17 @@ module writeMod
       end if
     end subroutine check
 
-    subroutine create_netcdf(run_name, levsoi)
+    subroutine create_netcdf(run_name)
       character (len = *):: run_name
       integer :: ncid, varid
       integer, parameter :: gridcell = 1, column = 1
-      integer :: levsoi
       integer :: v
       call check(nf90_create(output_path//trim(run_name)//".nc",NF90_NETCDF4,ncid))
 
       call check(nf90_def_dim(ncid, "time", nf90_unlimited, t_dimid))
       call check(nf90_def_dim(ncid, "gridcell", gridcell, grid_dimid))
       call check(nf90_def_dim(ncid, "column", column, col_dimid))
-      call check(nf90_def_dim(ncid, "levsoi", levsoi, lev_dimid))
+      call check(nf90_def_dim(ncid, "levsoi", nlevels, lev_dimid))
       call check(nf90_def_dim(ncid, "NoMMKeqs", MM_eqs, mmk_dimid))
       call check(nf90_def_dim(ncid,"SAPpools",size(fPHYS),fracid))
       do v = 1, size(variables)
@@ -80,25 +104,24 @@ module writeMod
 
     subroutine fill_netcdf(ncid, time, pool_matrix, Npool_matrix, &
       mcdate,HR_sum, HR_flux, HRb,HRf,vert_sum,Nvert_sum, write_hour,month, &
-      TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,levsoi,ROI_EcM,ROI_AM,enz_frac,f_alloc)
+      TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,ROI_EcM,ROI_AM,enz_frac,f_alloc)
       !INPUT:
       integer,intent(in)               :: ncid 
-      real(r8), intent(in)             :: pool_matrix(levsoi,pool_types), Npool_matrix(levsoi,pool_types_N)   ! For storing pool concentrations [gC/m3]
-      real(r8), intent(in)             :: vert_sum(levsoi,pool_types)
-      real(r8), intent(in)             :: Nvert_sum(levsoi,pool_types)
+      real(r8), intent(in)             :: pool_matrix(nlevels,pool_types), Npool_matrix(nlevels,pool_types_N)   ! For storing pool concentrations [gC/m3]
+      real(r8), intent(in)             :: vert_sum(nlevels,pool_types)
+      real(r8), intent(in)             :: Nvert_sum(nlevels,pool_types)
       integer, intent(in)              :: mcdate
       integer, intent(in)              :: write_hour
-      integer, intent(in)              :: levsoi
       integer, intent(in)              :: month
       integer, intent(in)              :: time
       real(r8),intent(in)              :: HR_sum
-      real(r8),dimension(levsoi,2),intent(in)              :: f_alloc
-      real(r8),dimension(levsoi), intent(in)       :: HR_flux,HRb,HRf
-      real(r8),dimension(levsoi), intent(in)       :: ROI_EcM
-      real(r8),dimension(levsoi), intent(in)       :: ROI_AM  
-      real(r8),dimension(levsoi), intent(in)       :: enz_frac          
-      real(r8),dimension(levsoi), intent(in)       :: TSOIL, MOIST  
-      real(r8),dimension(levsoi), intent(in)       :: CUE_bacteria,CUE_fungi, CUE_ecm,CUE_am
+      real(r8),dimension(nlevels,2),intent(in)              :: f_alloc
+      real(r8),dimension(nlevels), intent(in)       :: HR_flux,HRb,HRf
+      real(r8),dimension(nlevels), intent(in)       :: ROI_EcM
+      real(r8),dimension(nlevels), intent(in)       :: ROI_AM  
+      real(r8),dimension(nlevels), intent(in)       :: enz_frac          
+      real(r8),dimension(nlevels), intent(in)       :: TSOIL, MOIST  
+      real(r8),dimension(nlevels), intent(in)       :: CUE_bacteria,CUE_fungi, CUE_ecm,CUE_am
           
       !OUTPUT:
       
@@ -121,7 +144,7 @@ module writeMod
       call check(nf90_inq_varid(ncid, "r_input", varid))
       call check(nf90_put_var(ncid, varid, input_mod, start = (/ timestep /)))
       
-      do j=1,levsoi
+      do j=1,nlevels
         call check(nf90_inq_varid(ncid, "Temp",varid))
         call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/timestep,j/)))
 
@@ -427,18 +450,17 @@ module writeMod
 
     end subroutine write_Nfluxes
 
-    subroutine create_yearly_mean_netcdf(run_name, levsoi)
+    subroutine create_yearly_mean_netcdf(run_name)
       character (len = *), intent(in):: run_name
       integer :: ncid, varid
       integer, parameter :: gridcell = 1, column = 1
-      integer :: levsoi
       integer :: v
       call check(nf90_create(output_path//trim(run_name)//"_yearly_mean.nc",NF90_NETCDF4,ncid))
 
       call check(nf90_def_dim(ncid, "time", nf90_unlimited, t_dimid))
       call check(nf90_def_dim(ncid, "gridcell", gridcell, grid_dimid))
       call check(nf90_def_dim(ncid, "column", column, col_dimid))
-      call check(nf90_def_dim(ncid, "levsoi", levsoi, lev_dimid))
+      call check(nf90_def_dim(ncid, "levsoi", nlevels, lev_dimid))
 
       do v = 1, size(variables)
         call check(nf90_def_var(ncid, trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
@@ -454,22 +476,21 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_yearly_mean_netcdf
 
-    subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, levsoi) !TODO: yearly HR and climate variables (if needed?)
+    subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly) !TODO: yearly HR and climate variables (if needed?)
       !INPUT
       character (len = *),intent(in):: run_name
       integer,intent(in)            :: year
-      real(r8), intent(in)          :: Cpool_yearly(levsoi,pool_types)  ! For storing C pool sizes [gC/m3]
-      real(r8),intent(in)           :: Npool_yearly(levsoi,pool_types_N)  
+      real(r8), intent(in)          :: Cpool_yearly(nlevels,pool_types)  ! For storing C pool sizes [gC/m3]
+      real(r8),intent(in)           :: Npool_yearly(nlevels,pool_types_N)  
 
       !LOCAL
-      integer :: levsoi
       integer :: i,j,varid,ncid
 
       call check(nf90_open(output_path//trim(run_name)//"_yearly_mean.nc", nf90_write, ncid))
       call check(nf90_inq_varid(ncid, "year_since_start", varid))
       call check(nf90_put_var(ncid, varid, year , start = (/ year /)))
 
-      do j=1,levsoi
+      do j=1,nlevels
         call check(nf90_inq_varid(ncid, "N_NO3", varid))
         call check(nf90_put_var(ncid, varid, Npool_yearly(j,11), start = (/year, j/)))
 

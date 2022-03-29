@@ -34,25 +34,25 @@ $(BUILD_DIR)/mycmimMod.o: $(SRC_DIRS)/mycmimMod.f90 $(BUILD_DIR)/paramMod.o $(BU
 $(BUILD_DIR)/testMod.o $(BUILD_DIR)/readMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/mycmimMod.f90 -o $@
 
-$(BUILD_DIR)/fluxMod.o: $(SRC_DIRS)/fluxMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o
+$(BUILD_DIR)/fluxMod.o: $(SRC_DIRS)/fluxMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o $(BUILD_DIR)/initMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/fluxMod.f90 -o $@
 
-$(BUILD_DIR)/initMod.o: $(SRC_DIRS)/initMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o
+$(BUILD_DIR)/initMod.o: $(SRC_DIRS)/initMod.f90
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/initMod.f90 -o $@
 
-$(BUILD_DIR)/testMod.o: $(SRC_DIRS)/testMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o
+$(BUILD_DIR)/testMod.o: $(SRC_DIRS)/testMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o $(BUILD_DIR)/initMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/testMod.f90 -o $@
 
-$(BUILD_DIR)/writeMod.o: $(SRC_DIRS)/writeMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o
+$(BUILD_DIR)/writeMod.o: $(SRC_DIRS)/writeMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o $(BUILD_DIR)/initMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/writeMod.f90 -o $@
 
-$(BUILD_DIR)/main.o: $(SRC_DIRS)/main.f90 $(BUILD_DIR)/mycmimMod.o
+$(BUILD_DIR)/main.o: $(SRC_DIRS)/main.f90 $(BUILD_DIR)/mycmimMod.o $(BUILD_DIR)/initMod.o
 	 $(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/main.f90 -o $@
 
-$(BUILD_DIR)/paramMod.o: $(SRC_DIRS)/paramMod.f90 $(BUILD_DIR)/shr_kind_mod.o
+$(BUILD_DIR)/paramMod.o: $(SRC_DIRS)/paramMod.f90 $(BUILD_DIR)/shr_kind_mod.o $(BUILD_DIR)/initMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/paramMod.f90 -o $@
 
-$(BUILD_DIR)/readMod.o: $(SRC_DIRS)/readMod.f90 $(BUILD_DIR)/dispmodule.o $(BUILD_DIR)/shr_kind_mod.o
+$(BUILD_DIR)/readMod.o: $(SRC_DIRS)/readMod.f90 $(BUILD_DIR)/dispmodule.o $(BUILD_DIR)/shr_kind_mod.o $(BUILD_DIR)/initMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/readMod.f90 -o $@
 
 $(BUILD_DIR)/dispmodule.o: $(SRC_DIRS)/dispmodule.f90

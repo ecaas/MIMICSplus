@@ -182,7 +182,8 @@ src/simple_xy_wr.f90
 src/.tags*
 src/*.txt
 text_files/
-jupyter_notebooks/
+/results/*
+/jupyter_notebooks
 unused/
 .tags*
 fort.1
