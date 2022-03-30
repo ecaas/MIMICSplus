@@ -256,6 +256,17 @@ contains
     r_moist = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
     r_moist = max(0.05, r_moist)
   end subroutine moisture_func
+  
+  function calc_Fmax(k,nh4) result(Fmax)
+    !In:
+    real(r8),intent(IN) :: k !loss rate [hr-1]
+    real(r8),INTENT(IN) :: nh4 !nh4 consentration [gN/m3]
+    !Out:
+    real(r8)            :: Fmax !Maximum flux from NH4 to SAP in cases with too limited N (SAP immobilization)
+    
+    Fmax = k*nh4 
+  end function calc_Fmax 
+
 
   
 end module paramMod
