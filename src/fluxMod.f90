@@ -166,13 +166,18 @@ contains
     !----------------------------------------------------------------------------------------------------------------------------------
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
     AM_N_demand = CUE_AM*C_PlantAM/CN_ratio(7)
-    AM_N_uptake = N_INAM 
-    
+    AM_N_uptake = N_INAM     
     if ( AM_N_uptake >= AM_N_demand ) then   
       N_AMPlant = AM_N_uptake - AM_N_demand
     else
       N_AMPlant = (1-f_growth)*AM_N_uptake
       CUE_AM = f_growth*AM_N_uptake*CN_ratio(7)/(C_PlantAM)
+    end if
+    if ( N_AMPlant .ne. 0 ) then      
+      if ( abs(N_AMPlant) < 1e-18 ) then
+        !print*, N_AMPlant, "N_AMPlant", layer_nr
+        N_AMPlant=0.0
+      end if
     end if
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
     EcM_N_demand = (CUE_EcM*(1-enzyme_prod)*C_PlantEcM+C_SOMcEcM+C_SOMpEcM)/CN_ratio(5)
@@ -187,6 +192,12 @@ contains
           CUE_EcM = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-f_enzprod(layer_nr))*C_PlantEcM)
         end if
       end if
+    if ( N_EcMPlant .ne. 0 ) then          
+      if ( abs(N_EcMPlant) < 1e-18 ) then
+        !print*, N_EcMPlant, "N_EcMPlant",layer_nr
+        N_EcMPlant=0.0
+      end if
+    end if 
     N_ErMPlant = 0.0
   end subroutine myc_to_plant 
   
@@ -310,6 +321,9 @@ contains
     end if
     N_INErM = 0.0
     N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))*input_mod
+    if ( N_INAM .NE. 0.0 ) then
+        N_INAM=max(N_INEcM,1.175494351E-38)
+    end if
 
     !Decomposition of LIT and SOMa by SAP
     N_LITmSAPb = calc_parallel_Nrates(C_LITmSAPb,N_LITm,C_LITm)
@@ -350,9 +364,9 @@ contains
     !---------------------------------------------------------------------------------------------------------------------------------------
     !Calculate amount of inorganic N saprotrophs have access to: 
     N_for_sap  = (N_IN - ( N_INPlant + N_INEcM + N_INAM)*dt)*pctN_for_sap
-    print*, "max_Nimmobilized: ", max_Nimmobilized, depth,N_INEcM
-    print*, "Fluxmod: " ,k2*(N_NH4+Deposition*dt-nitrif_rate*dt- ( N_INPlant + N_INEcM + N_INAM)*dt)
-    print*, "N for SAP", N_for_sap
+    ! print*, "max_Nimmobilized: ", max_Nimmobilized, depth,N_INEcM
+    ! print*, "Fluxmod: " ,k2*(N_NH4+Deposition*dt-nitrif_rate*dt- ( N_INPlant + N_INEcM + N_INAM)*dt)
+    ! print*, "N for SAP", N_for_sap
     !print*, N_for_sap, max_Nimmobilized*dt
     !total C uptake (growth + respiration) of saprotrophs
     U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
