@@ -173,7 +173,7 @@ contains
       call system_clock(count=clock_start)     !Start Timer  
       
       dt= 1.0/step_frac !Setting the time step
-      print*, nlevels
+
       if (nlevels>1) then 
         soil_depth=sum(delta_z(1:nlevels))
         isVertical = .True.
@@ -185,7 +185,7 @@ contains
                      !TODO: This can be done better
       end if
       
-      call read_some_parameters('short.nml',use_ROI, use_Sulman, use_ENZ)
+      call read_some_parameters('options.nml',use_ROI, use_Sulman, use_ENZ)
       
       !Allocate and initialize
       allocate(CUE_bacteria_vr(nlevels))
