@@ -297,6 +297,7 @@ contains
     N_IN = N_NH4+ N_NO3+(Deposition - Leaching)*dt !
     if ( N_IN < 0._r8 ) then
       print*, "Negative inorganic N pool at layer", depth, N_IN
+      print*, N_NH4,N_NO3,Deposition,Leaching
     end if
     !Nitrogen aquired bymycorrhiza via oxidation of protected SOM pools.  gN/m3h
         
@@ -311,45 +312,40 @@ contains
     N_INAM = V_max_myc*N_IN*(C_AM/(C_AM + Km_myc/soil_depth))*input_mod
 
     !Decomposition of LIT and SOMa by SAP
-    N_LITmSAPb = C_LITmSAPb*N_LITm/C_LITm
-    N_LITsSAPb = C_LITsSAPb*N_LITs/C_LITs
+    N_LITmSAPb = calc_parallel_Nrates(C_LITmSAPb,N_LITm,C_LITm)
+    N_LITsSAPb = calc_parallel_Nrates(C_LITsSAPb,N_LITs,C_LITs)
 
-    N_LITmSAPf = C_LITmSAPf*N_LITm/C_LITm
-    N_LITsSAPf = C_LITsSAPf*N_LITs/C_LITs
+    N_LITmSAPf = calc_parallel_Nrates(C_LITmSAPf,N_LITm,C_LITm)
+    N_LITsSAPf = calc_parallel_Nrates(C_LITsSAPf,N_LITs,C_LITs)
 
-    N_SOMaSAPb = C_SOMaSAPb*N_SOMa/C_SOMa
-    N_SOMaSAPf = C_SOMaSAPf*N_SOMa/C_SOMa
+    N_SOMaSAPb = calc_parallel_Nrates(C_SOMaSAPb,N_SOMa,C_SOMa)
+    N_SOMaSAPf = calc_parallel_Nrates(C_SOMaSAPf,N_SOMa,C_SOMa)
 
     !Dead mycorrhizal biomass enters SOM pools
-    N_EcMSOMp = C_EcMSOMp*(N_EcM/C_EcM)
-    N_EcMSOMa = C_EcMSOMa*(N_EcM/C_EcM)
-    N_EcMSOMc = C_EcMSOMc*(N_EcM/C_EcM)
+    N_EcMSOMp = calc_parallel_Nrates(C_EcMSOMp,N_EcM,C_EcM)
+    N_EcMSOMa = calc_parallel_Nrates(C_EcMSOMa,N_EcM,C_EcM)
+    N_EcMSOMc = calc_parallel_Nrates(C_EcMSOMc,N_EcM,C_EcM)
     N_ErMSOMp = 0.0!C_ErMSOMp*(N_ErM/C_ErM)
     N_ErMSOMa = 0.0!C_ErMSOMa*(N_ErM/C_ErM)
     N_ErMSOMc = 0.0!C_ErMSOMc*(N_ErM/C_ErM)
-    if ( C_AM .LT. 1.175494351E-38 ) then
-      N_AMSOMp=0.0
-      N_AMSOMa=0.0
-      N_AMSOMc=0.0
-    else
-      N_AMSOMp = max(C_AMSOMp*(N_AM/C_AM),1.175494351E-38) !Hack to ensure that the numbers can be written as floats to netcdf files
-      N_AMSOMa = max(C_AMSOMa*(N_AM/C_AM),1.175494351E-38)
-      N_AMSOMc = max(C_AMSOMc*(N_AM/C_AM),1.175494351E-38)
-    end if
-    
+
+    N_AMSOMp = calc_parallel_Nrates(C_AMSOMp,N_AM,C_AM)
+    N_AMSOMa = calc_parallel_Nrates(C_AMSOMa,N_AM,C_AM)
+    N_AMSOMc = calc_parallel_Nrates(C_AMSOMc,N_AM,C_AM)
+
     !Dead saphrotroph biomass enters SOM pools
-    N_SAPbSOMp = C_SAPbSOMp*N_SAPb/C_SAPb
-    N_SAPbSOMa = C_SAPbSOMa*N_SAPb/C_SAPb
-    N_SAPbSOMc = C_SAPbSOMc*N_SAPb/C_SAPb
-    N_SAPfSOMp = C_SAPfSOMp*N_SAPf/C_SAPf
-    N_SAPfSOMa = C_SAPfSOMa*N_SAPf/C_SAPf
-    N_SAPfSOMc = C_SAPfSOMc*N_SAPf/C_SAPf
+    N_SAPbSOMp = calc_parallel_Nrates(C_SAPbSOMp,N_SAPb,C_SAPb)
+    N_SAPbSOMa = calc_parallel_Nrates(C_SAPbSOMa,N_SAPb,C_SAPb)
+    N_SAPbSOMc = calc_parallel_Nrates(C_SAPbSOMc,N_SAPb,C_SAPb)
+    N_SAPfSOMp = calc_parallel_Nrates(C_SAPfSOMp,N_SAPf,C_SAPf)
+    N_SAPfSOMa = calc_parallel_Nrates(C_SAPfSOMa,N_SAPf,C_SAPf)
+    N_SAPfSOMc = calc_parallel_Nrates(C_SAPfSOMc,N_SAPf,C_SAPf)
 
     !Desorption of SOMp to SOMa
-    N_SOMpSOMa = C_SOMpSOMa*N_SOMp/C_SOMp
+    N_SOMpSOMa = calc_parallel_Nrates(C_SOMpSOMa,N_SOMp,C_SOMp)
 
     !Transport from SOMc to SOMa:
-    N_SOMcSOMa = C_SOMcSOMa*N_SOMc/C_SOMc
+    N_SOMcSOMa = calc_parallel_Nrates(C_SOMcSOMa,N_SOMc,C_SOMc)
 
     !---------------------------------------------------------------------------------------------------------------------------------------
     !Calculate amount of inorganic N saprotrophs have access to: 
@@ -445,6 +441,7 @@ contains
       !Get how many depth levels and pools we will loop over.
       max_depth=shape(pool_matrix(:,1)) !TODO: Easier way to do this?
       max_pool=shape(pool_matrix(1,:))
+      !print*, max_depth,max_pool
       !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
       !pool_matrix is used here to calculate the diffusion.
     do depth = 1,max_depth(1)
@@ -517,6 +514,21 @@ contains
     
   end subroutine input_rates
   
+  function calc_parallel_Nrates(C_rate,N_pool,C_pool) result(N_rate)
+    !in: 
+    real(r8),intent(in) :: C_rate
+    real(r8),intent(in) :: N_pool
+    real(r8),intent(in) :: C_pool
+    
+    !out
+    real(r8) :: N_rate
+     
+    if ( abs(C_pool) < 1E-18 ) then
+      N_rate=0.0
+    else
+      N_rate=C_rate*(N_pool/C_pool)
+    end if
+  end function calc_parallel_Nrates
 
 
 end module fluxMod

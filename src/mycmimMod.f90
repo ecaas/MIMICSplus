@@ -255,7 +255,7 @@ contains
       if ( start_year == 1850 ) then
         Spinup_run = .True.
         spinup_counter =1
-        call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.for_spinup.1850-1869.nc'), nf90_nowrite, spinupncid)) !open netcdf containing values for the next year  
+        call check(nf90_open(trim(adjustr(clm_input_path)//'.clm2.for_spinup.1850-1869.nc'), nf90_nowrite, spinupncid)) !open netcdf containing values for the next year  
         call read_time(spinupncid,input_steps) !Check if inputdata is daily or monthly:         
         call read_clm_model_input(spinupncid,Spinup_counter, &
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
@@ -270,12 +270,12 @@ contains
         C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
         W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
       end if
-
       allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels))   
          
       call read_WATSAT_and_profiles(adjustr(clm_input_path)//'_historical.clm2.all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof)         
       call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)                   
       call read_clay(adjustr(clm_surf_path),fCLAY)
+      print*, "test"
       
       if ( .not. use_ROI ) then !use static PFT determined fractionation between EcM and AM C input
         call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
@@ -568,37 +568,38 @@ contains
             pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt
 
             !NOTE: This is introduced to avoid very small errors that may make inorganic N pools negative (~ E-020). Overall mass balance is still within error limits
-            if ( abs(pool_temporaryN(j,i)) < 1e-18 ) then
-              pool_temporaryN(j,i)=0._r8
-            end if
-            
+            ! if ( abs(pool_temporaryN(j,i)) < 1e-18 ) then
+            !   pool_temporaryN(j,i)=0._r8
+            ! end if
+            ! 
             if (isnan(pool_temporaryN(j,i))) then
               print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
               stop
             end if
-            if (pool_temporaryN(j,i) < 0.000) then
-              print*, 'Too small pool size: NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
-              print*, pool_matrixN(j,11), pool_matrixN(j,12), pool_matrixN(j,11)+ pool_matrixN(j,12)
-              print*, change_matrixN(j,11), change_matrixN(j,12), change_matrixN(j,11)+ change_matrixN(j,12)
-              print*, pool_temporaryN(j,11), pool_temporaryN(j,12), pool_temporaryN(j,11)+ pool_temporaryN(j,12), nitrif_rate
-              call disp(pool_temporaryN)
-              call disp(pool_temporaryC)
-              call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))              
-              stop
-            end if
             
+            if (abs(pool_temporaryN(j,i)) < 1e-17) then
+              !print*, 'Too small pool size: NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
+              ! print*, pool_matrixN(j,11), pool_matrixN(j,12), pool_matrixN(j,11)+ pool_matrixN(j,12)
+              ! print*, change_matrixN(j,11), change_matrixN(j,12), change_matrixN(j,11)+ change_matrixN(j,12)
+              ! print*, pool_temporaryN(j,11), pool_temporaryN(j,12), pool_temporaryN(j,11)+ pool_temporaryN(j,12), nitrif_rate
+              ! call disp(pool_temporaryN)
+              ! call disp(pool_temporaryC)
+              ! call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))              
+              pool_temporaryN(j,i)=0.0
+            end if
+            ! 
             if (i < 11 ) then
               if (isnan(pool_temporaryC(j,i))) then
-                print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
+                !print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
                 stop
               end if
-              if (pool_temporaryC(j,i) < 0.000) then
-                print*, 'Too small pool size: CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
-                stop
+              if (abs(pool_temporaryC(j,i)) < 1e-17) then
+                !print*, 'Too small pool size: CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
+                pool_temporaryC(j,i)=0.0
               end if
-              if ( abs(pool_temporaryN(j,i)) < 1e-18 ) then
-                pool_temporaryN(j,i)=0._r8
-              end if
+              ! if ( abs(pool_temporaryN(j,i)) < 1e-18 ) then
+              !   pool_temporaryN(j,i)=0._r8
+              ! end if
             end if
 
           end do !i, pool_types
@@ -611,6 +612,7 @@ contains
 
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t
+            print*, C_LITmSAPb,C_LITsSAPb,C_SOMaSAPb,C_LITmSAPf,C_LITsSAPf,C_SOMaSAPf
           end if
           
           !Summarize in and out print timestep to check mass balance
@@ -619,7 +621,6 @@ contains
           sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_AMPlant+N_INPlant+Leaching)*dt*delta_z(j)
 
         end do !j, depth_level
-
         !Store accumulated HR mass
         call respired_mass(HR, HR_mass)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
@@ -640,6 +641,14 @@ contains
         if (ycounter == 365*24*step_frac) then
           ycounter = 0
           write_y =write_y+1 !For writing to annual mean file
+          ! call disp("Temp",pool_temporaryC)
+          ! call disp("Vert",pool_matrixC)
+          ! call disp("change",vertC)
+          ! print*, "---------------------------"
+          ! call disp("Temp",pool_temporaryN)
+          ! call disp("Vert",pool_matrixN)
+          ! call disp("change",vertN)
+          ! print*, "---------------------------"
           call annual_mean(sum_consC,sum_consN, nlevels,write_y , run_name) !calculates the annual mean and write the result to file
           if (year == stop_year) then
             year = start_year         

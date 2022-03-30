@@ -46,7 +46,7 @@ program main
 !   !1: INITIALIZE
   call initialize(C_matrix_init,N_matrix_init)
   !2: SPINUP
-  call decomp(nsteps=1500*24*365, run_name=trim(trim(site)//"_"//trim(description)//"_"//"Spunup"), step_frac=1, write_hour=200+24*365*100,&
+  call decomp(nsteps=1500*24*365, run_name=trim(trim(site)//"_"//trim(description)//"_"//"Spunup"), step_frac=1, write_hour=200+24*365,&
   pool_C_start=C_matrix_init,pool_N_start=N_matrix_init, pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,&
   start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
  !|
