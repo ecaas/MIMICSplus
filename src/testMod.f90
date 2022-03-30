@@ -1,10 +1,12 @@
 module testMod
-  use paramMod
-  use dispmodule
+  use shr_kind_mod   , only : r8 => shr_kind_r8
+  use paramMod, only : delta_z,pool_types
+  use dispmodule, only: disp
+  use initMod, only: nlevels
   implicit none
 
     integer                        :: i,j
-  
+
 contains
 
   subroutine cons_to_mass(matrix, mass_matrix,layers,pools) !Convert from g/m3 to g/m2 !Tested and works
@@ -60,18 +62,16 @@ contains
     print*, diff, sum_new
   end subroutine mass_conservation_pool
 
-  subroutine respired_mass(HR_conc_vr, HR_mass_tot,nlevdecomp) !Calculates the total mass of carbon that is respired (in a time step)    
+  subroutine respired_mass(HR_conc_vr, HR_mass_tot) !Calculates the total mass of carbon that is respired (in a time step)    
     !INPUT
-    real(r8), intent(in), dimension(nlevdecomp) :: HR_conc_vr ![gC/m3]
-    integer                                     :: nlevdecomp
+    real(r8), intent(in), dimension(nlevels) :: HR_conc_vr ![gC/m3]
     
     !OUTPUT
     real(r8), intent(out)             :: HR_mass_tot ![gC/m2]
     
     !LOCAL
-    real(r8), dimension(nlevdecomp)   :: HR_mass_vr
-
-    do i = 1,nlevdecomp
+    real(r8), dimension(nlevels)   :: HR_mass_vr
+    do i = 1,nlevels
       HR_mass_vr(i) = HR_conc_vr(i)*delta_z(i)
     end do
     HR_mass_tot = sum(HR_mass_vr)

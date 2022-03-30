@@ -1,6 +1,6 @@
 module paramMod
 use shr_kind_mod   , only : r8 => shr_kind_r8
-
+use initMod, only : nlevels
 implicit none
 
 !For conversion
@@ -120,7 +120,7 @@ integer(r8)     :: clock_rate,clock_start,clock_stop
 integer(r8)     :: full_clock_rate,full_clock_start,full_clock_stop
 !Fluxes etc:
 real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_AMSOMp, &
-C_LITmSAPf, C_LITsSAPf, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa, &
+            C_LITmSAPf, C_LITsSAPf, C_AMSOMa, C_AMSOMc, C_SOMaSAPb,C_SOMaSAPf, C_SOMpSOMa, C_SOMcSOMa, &
 C_SAPbSOMa, C_SAPbSOMp, C_SAPbSOMc,C_SAPfSOMa, C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp,C_PlantSOMa, &
 N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc,  N_AMSOMp, N_AMSOMa,&
 N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, N_LITmSAPf, N_LITsSAPf, &
@@ -131,40 +131,125 @@ C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp,C_EcMdecompSOM
  Leaching, Deposition,nitrif_rate,f, U_sb, U_sf,UN_sb,UN_sf,N_demand_SAPf,N_demand_SAPb,N_INSAPb,N_INSAPf,&
  C_EcMdecompSOMa,N_PlantSOMp,N_PlantSOMa,N_PlantSOMc,C_SOMcEcM,C_SOMpEcM,C_EcMenz_prod,&
  C_ErMSOMp, C_ErMSOMa, C_ErMSOMc,C_PlantErM,N_INErM,N_ErMSOMc,N_ErMPlant, N_ErMSOMp, N_ErMSOMa
+ 
 !For writing to file:
-character (len=*),parameter                  :: output_path = '/home/ecaas/decomposition_results/sites/'
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
-character (len=4), dimension(pool_types)     :: variables = &
-(/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
-character (len=*), dimension(pool_types_N), parameter:: N_variables = &
-(/  "N_LITm", "N_LITs", "N_SAPb","N_SAPf", "N_EcM ", "N_ErM ", "N_AM  ", "N_SOMp", "N_SOMa", "N_SOMc", "NH4   ","NO3   "/)
-character (len=10), dimension(pool_types):: change_variables = &
-(/  "changeLITm", "changeLITs", "changeSAPb","changeSAPf", "changeEcM ", "changeErM ",&
-    "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
-    !
-character (len=*), dimension(*), parameter ::  C_name_fluxes = &
-[character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
-  "EcMSOMp ", "EcMSOMa ","EcMSOMc ",&
-"AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
-  ,"PlantLITs","PlantEcM","PlantAM","PlantSOMc  ","PlantSOMp  ","PlantSOMa  ", &
-  "EcMdecoSOMp","EcMdecoSOMc","EcMenz_prod","SOMcEcM","SOMpEcM"]
-!  "ErMSOMa ","ErMSOMc ", "ErMSOMp ","PlantErM",,"ErMPlant"  "ErMSOMa ","ErMSOMc ", "ErMSOMp ",, "INErM"
-character (len=*), dimension(*), parameter ::  N_name_fluxes = &
-[character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc" &
-  ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ",&
-"AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
-  ,"PlantLITs","PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","AMPlant", "Deposition", "Leaching", "INEcM","INAM", &
-  "SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
+character (len=*),parameter                  :: output_path = './results/'
+
+contains
   
-character (len=*), dimension(38),parameter :: site_names = &
-[character(len=19) :: &
- '31463_Hurdal       ','31464_Hurdal       ','NR31585_Flekkefjord','32288_Sortland     ','NR32361_Lyngdal    ','NR31581_Lyngdal    ','NR31682_Tysvar     ',&
- 'NR32249_Vik        ','NR32182_Stryn      ','NR31881_Sande      ','NR31578_Kvinesdal  ',&
- '32087_Dovre        ','32379_Hemne        ','32441_Sel          ','32258_Maaselv      ',&
- '32032_VestreToten  ','31984_Namdalseid   ','31976_Namdalseid   ','31461_Nittedal     ','31513_Nes          ',&
- '31539_Modum        ','31652_Bygland      ','31767_Kongsvinger  ','31780_Vaaler       ','31941_Roeyrvik     ','31997_Verdal       ',&
- '32088_Lesja        ','32103_Halden       ','32139_Rennebu      ','32374_Saltdal      ','32404_Vinje        ','32409_Vang         ',&
- '32438_Porsanger    ','31519_Nissedal     ','31650_Valle        ','31714_Flaa         ','32085_Skjaak       ','NR31906_Voss       ' ]
-! '32124_Engerdal     ', '32246_SoerVaranger '  ,'NR31927_Os         ',,'NR31590_Farsund    ', 'NR31908_Ullensvang ','NR32485_Stord      '
-!'NR31579_Kvinesdal  ','NR31577_Kvinesdal  ',,'NR31677_Suldal     '
+  function calc_Kmod(clay_fraction) result(K_mod)
+    !Input:
+    real(r8), intent(in) :: clay_fraction
+    !Output:
+    real(r8), dimension(MM_eqs) :: K_mod
+    !Local:
+    real(r8)         :: p 
+    
+    p = 1.0/(2*exp(-2.0*sqrt(clay_fraction)))
+    K_mod =  [real(r8) :: 0.125,0.5,0.25*p,0.5,0.25,0.167*p]
+  end function calc_Kmod
+  
+  function Km_function(temperature) result(K_m)
+    real(r8),dimension(MM_eqs)             :: K_m
+    real(r8), intent(in)                   :: temperature
+    K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*1e4=[gC/m3]    
+  end function Km_function
+
+  function Vmax_function(temperature, moisture) result(V_max)
+    real(r8),dimension(MM_eqs)             :: V_max
+    real(r8), intent(in)                   :: temperature
+    real(r8), intent(in)                   :: moisture
+    V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
+  end function Vmax_function
+  
+  function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) ! Based on Sulman et al 2019
+    !INPUT
+    real(r8),intent(in) :: N_aquired
+    real(r8),intent(in) :: C_myc 
+    real(r8),intent(in) :: loss_rate ![1/h]
+    
+    !OUTPUT
+    real(r8) :: ROI
+    
+    !LOCAL
+    real(r8), parameter :: eps = 0.5 !From Sulman et al supplementary: epsilon_mine, epsilon_scav
+    real(r8) :: turnover ! [hour]
+    
+    turnover = 1/loss_rate 
+    ROI=(N_aquired/C_myc)*turnover*eps      
+  end function ROI_function 
+  
+  function r_input(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
+    !input
+    real(r8) :: C_input
+    real(r8) :: max_input
+    !output
+    real(r8) :: mod
+
+    mod = C_input/(max_input)
+  end function r_input 
+    
+  
+  function calc_sap_to_som_fractions(clay_frac,met_frac) result(f_saptosom)
+    !input
+    real(r8),intent(in)      :: clay_frac
+    real(r8),INTENT(IN)      :: met_frac
+    !output
+    real(r8),dimension(no_of_som_pools,no_of_sap_pools) :: f_saptosom
+    
+    f_saptosom(1,:) = [real(r8) :: 0.3*exp(1.3*clay_frac), 0.2*exp(0.8*clay_frac)]
+    f_saptosom(2,:) = [real(r8) :: 0.1*exp(-3.0*met_frac), 0.3*exp(-3.0*met_frac)]
+    f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))
+  end function calc_sap_to_som_fractions
+  
+  function calc_myc_mortality() result(myc_mortality)
+    !NOTE: Is it better to call it turnover rate? Is there a difference?
+    real(r8), dimension(no_of_myc_pools) :: myc_mortality
+    myc_mortality=(/1.14_r8,1.14_r8,1.14_r8/)*1e-4  ![1/h]  1/yr  
+  end function calc_myc_mortality
+
+  function calc_sap_turnover_rate(met_frac,moist_modifier) result(turnover_rate)
+    real(r8),INTENT(IN) :: met_frac
+    real(r8),INTENT(IN) :: moist_modifier
+    
+    real(r8),dimension(no_of_sap_pools) :: turnover_rate
+
+    turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*moist_modifier, 2.4e-4*exp(0.1_r8*met_frac)*moist_modifier]
+  end function calc_sap_turnover_rate
+
+  function calc_EcMfrac(PFT_dist) result(EcM_frac)
+    real(r8)                             :: EcM_frac
+    real(r8),dimension(15)               :: PFT_dist
+    real(r8),dimension(15),parameter     :: EcM_fraction=(/1.,1.,1.,1.,0.,0.,0.,0.5,1.,1.,1.,1.,1.,0.,0./)
+    integer                              :: i
+    EcM_frac = 0.0
+    do i = 1, 15, 1
+        EcM_frac = EcM_frac + PFT_dist(i)*EcM_fraction(i)
+    end do
+    EcM_frac = EcM_frac/100.
+  end function calc_EcMfrac
+  
+  subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist) !NOTE: Should maybe be placed somewhere else?
+    real(r8), intent(out), dimension(nlevels) :: r_moist
+    real(r8), intent(in), dimension(nlevels)  :: theta_l, theta_sat, theta_f
+    real(r8), dimension(nlevels)  :: theta_frzn, theta_liq, air_filled_porosity
+    !FROM mimics_cycle.f90 in testbed:
+    ! ! Read in soil moisture data as in CORPSE
+    !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
+    !  theta_frzn = min(1.0, casamet%frznmoistavg(npt)/soil%ssat(npt)) ! fraction of frozen water-filled pore space (0.0 - 1.0)
+    !  air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
+    !
+    !  if (mimicsbiome%fWFunction .eq. CORPSE) then
+    !    ! CORPSE water scalar, adjusted to give maximum values of 1
+    !    fW = (theta_liq**3 * air_filled_porosity**2.5)/0.022600567942709
+    !    fW = max(0.05, fW)
+    theta_liq  = min(1.0, theta_l/theta_sat)     ! fraction of liquid water-filled pore space (0.0 - 1.0)
+    theta_frzn = min(1.0, theta_f/theta_sat)     ! fraction of frozen water-filled pore space (0.0 - 1.0)
+    air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
+    r_moist = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
+    r_moist = max(0.05, r_moist)
+  end subroutine moisture_func
+
+  
 end module paramMod
