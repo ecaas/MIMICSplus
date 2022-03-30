@@ -68,6 +68,10 @@ integer                             :: c3b
 integer                             :: c4a
 integer                             :: c4b
 
+real(r8)                            :: max_Nimmobilized
+real(r8),PARAMETER                  :: k1 = 0.042 !hr-1 (day)
+real(r8),PARAMETER                  :: k2 = 0.0014 !hr-1 (month)
+real(r8),PARAMETER                  :: k3 = 0.00014 !hr-1 (year)
 
 real(r8),dimension(:),allocatable    :: r_moist
 
@@ -77,6 +81,8 @@ real(r8),dimension(:),allocatable    :: CUE_ecm_vr         !Growth efficiency of
 real(r8),dimension(:),allocatable    :: CUE_am_vr         !Growth efficiency of mycorrhiza 
 real(r8),dimension(:),allocatable    :: CUE_erm_vr        !Growth efficiency of mycorrhiza 
 real(r8),parameter                   :: CUE_myc_0=0.25_r8 !Baskaran
+real(r8),parameter                   :: NUE=0.7
+
 
 real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
@@ -250,6 +256,17 @@ contains
     r_moist = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
     r_moist = max(0.05, r_moist)
   end subroutine moisture_func
+  
+  function calc_Fmax(k,nh4) result(Fmax)
+    !In:
+    real(r8),intent(IN) :: k !loss rate [hr-1]
+    real(r8),INTENT(IN) :: nh4 !nh4 consentration [gN/m3]
+    !Out:
+    real(r8)            :: Fmax !Maximum flux from NH4 to SAP in cases with too limited N (SAP immobilization)
+    
+    Fmax = k*nh4 
+  end function calc_Fmax 
+
 
   
 end module paramMod
