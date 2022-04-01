@@ -140,10 +140,9 @@ contains
     D_Nmine = D_Cmine*N_substrate/C_substrate
   end subroutine mining_rates_Baskaran
   
-  subroutine myc_to_plant(layer_nr,use_enz,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM,CUE_AM,enzyme_prod)
+  subroutine myc_to_plant(layer_nr,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM,CUE_AM,enzyme_prod)
     !INPUT
     integer,intent(in)  :: layer_nr 
-    logical,intent(in)  :: use_enz
     real(r8),intent(in) :: C_PlantEcM
     real(r8),intent(in) :: C_PlantAM
     
@@ -190,9 +189,8 @@ contains
     N_ErMPlant = 0.0
   end subroutine myc_to_plant 
   
-  subroutine calculate_fluxes(depth,sulman_mining,Temp_Celsius,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
-    integer,intent(in)         :: depth !depth level
-    logical,intent(in)         :: sulman_mining
+  subroutine calculate_fluxes(depth,Temp_Celsius,C_pool_matrix,N_pool_matrix,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
+    integer,intent(in)         :: depth !depth level    
     real(r8), intent(in)       :: Temp_Celsius
     real(r8),intent(in)       :: dt ! timestep
     real(r8),target :: C_pool_matrix(nlevels, pool_types)
@@ -278,7 +276,7 @@ contains
                    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
 
     !Ectomycorrhizal mining options:
-    if ( sulman_mining ) then
+    if ( use_Sulman ) then
       call mining_rates_Sulman(C_EcM,C_SOMc,N_SOMc,r_moist(depth),Temp_Kelvin,input_mod, minedSOMc,N_SOMcEcM)
       call mining_rates_Sulman(C_EcM,C_SOMp,N_SOMp,r_moist(depth),Temp_Kelvin, input_mod, minedSOMp,N_SOMpEcM)
     else
@@ -353,16 +351,20 @@ contains
 
     !---------------------------------------------------------------------------------------------------------------------------------------
     !Calculate amount of inorganic N saprotrophs have access to: 
-    N_for_sap  = (N_IN - ( N_INPlant + N_INEcM + N_INAM)*dt)*pctN_for_sap
+    if ( use_Fmax ) then
+      N_for_sap = max_Nimmobilized*dt !gN/m3
+    else
+      N_for_sap  = (N_IN - ( N_INPlant + N_INEcM + N_INAM)*dt)*pctN_for_sap !gN/m3
+    end if
 
     !total C uptake (growth + respiration) of saprotrophs
     U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
     U_sf = C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf
     
     !total N uptake by saprotrophs
-    UN_sb = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb  
-    UN_sf = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
-    !print*, (C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf)*CUE_bacteria_vr(depth)/(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf),depth
+    UN_sb = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)*NUE 
+    UN_sf = (N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf)*NUE
+
     !SAP demand for N:
     N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
     N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
@@ -372,7 +374,7 @@ contains
     N_INSAPf = N_demand_SAPf-UN_sf
     
     !Determine exchange of N between inorganic pool and saprotrophs:
-    if ( N_INSAPb >= 0. .and. N_INSAPf >= 0. ) then !immobilization
+    if ( N_INSAPb > 0. .and. N_INSAPf > 0. ) then !immobilization
       if ( N_for_sap < abs((N_INSAPb + N_INSAPf)*dt) ) then !Not enough mineral N to meet demand
 
         f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
@@ -383,8 +385,8 @@ contains
         N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
         N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
         
-        N_INSAPb = f_b*N_for_sap 
-        N_INSAPf = (1-f_b)*N_for_sap 
+        N_INSAPb = f_b*N_for_sap/dt
+        N_INSAPf = (1-f_b)*N_for_sap/dt
         c1a=c1a+1
       else !Enough mineral N to meet demand
         c1b=c1b+1
@@ -395,24 +397,24 @@ contains
         c2=c2+1
         continue
       
-    elseif ( N_INSAPb >= 0. .and. N_INSAPf < 0. ) then ! bacteria can use N mineralized by fungi
-      N_for_sap = N_for_sap + N_INSAPf*dt 
+    elseif ( N_INSAPb > 0. .and. N_INSAPf < 0. ) then ! bacteria can use N mineralized by fungi
+      N_for_sap = N_for_sap + N_INSAPf*dt
       if ( N_for_sap < N_INSAPb*dt ) then
-        CUE_bacteria_vr(depth)=((N_for_sap+UN_sb*dt)*CN_ratio(3))/U_sb
+        CUE_bacteria_vr(depth)=((N_for_sap+UN_sb*dt)*CN_ratio(3))/(U_sb*dt)
         N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
-        N_INSAPb = N_demand_SAPb-UN_sb    
+        N_INSAPb = N_demand_SAPb/dt-UN_sb    
          c3a=c3a+1 
             
       else
          c3b=c3b+1 
       end if
-    elseif ( N_INSAPb < 0. .and. N_INSAPf >= 0. ) then !fungi can use N mineralized by bacteria
+    elseif ( N_INSAPb < 0. .and. N_INSAPf > 0. ) then !fungi can use N mineralized by bacteria
       N_for_sap = N_for_sap + N_INSAPb*dt       
       if ( N_for_sap < N_INSAPf*dt ) then
-        CUE_fungi_vr(depth)=((N_for_sap+UN_sf*dt)*CN_ratio(4))/U_sf
+        CUE_fungi_vr(depth)=((N_for_sap+UN_sf*dt)*CN_ratio(4))/(U_sf*dt)
         
         N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
-        N_INSAPf = N_demand_SAPf-UN_sf
+        N_INSAPf = N_demand_SAPf/dt-UN_sf
          c4a=c4a+1 
         
       else

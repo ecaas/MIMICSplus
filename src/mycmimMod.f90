@@ -12,7 +12,7 @@
 !SOMc - Chemically protected soil organic matter
 !In addition a reservoir of inorganic nitrogen, N_IN, is found in each layer. A plant pool of carbon and nitrogen is also included (not vertically resolved).
 
-module mycmim
+module mycmimMod
   use shr_kind_mod   , only : r8 => shr_kind_r8
   use paramMod
   use initMod, only: nlevels
@@ -22,7 +22,6 @@ module mycmim
   use testMod,    only: respired_mass, test_mass_conservation,total_mass_conservation,total_nitrogen_conservation
   use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
   use netcdf,     only: nf90_nowrite,nf90_write,nf90_close,nf90_open
-  use, intrinsic :: iso_fortran_env, only: stderr => error_unit
   
   implicit none
     private 
@@ -165,10 +164,6 @@ contains
       integer :: writencid
       integer :: spinupncid
       
-      logical                   :: use_ROI                  ! True for dynamic fractionation between AM and EcM
-      logical                      :: use_Sulman               ! True if the equations from Sulman are used for mining
-      logical                       :: use_ENZ                  ! True if EcM adapts to N limitation by enzyme production
-      
       call system_clock(count_rate=clock_rate) !Find the time rate
       call system_clock(count=clock_start)     !Start Timer  
       
@@ -184,9 +179,7 @@ contains
         allocate (vertN, mold = pool_matrixN)
                      !TODO: This can be done better
       end if
-      
-      call read_some_parameters('options.nml',use_ROI, use_Sulman, use_ENZ)
-      
+          
       !Allocate and initialize
       allocate(CUE_bacteria_vr(nlevels))
       CUE_bacteria_vr=CUE_0
@@ -281,11 +274,17 @@ contains
         call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
         f_EcM = calc_EcMfrac(PFT_distribution)
         f_alloc(:,1) = f_EcM
-        f_alloc(:,2) = 1-f_EcM
+        f_alloc(:,2) = 1-f_EcM   
       else
         f_EcM = 999_r8
       end if
-      
+      if (f_alloc(1,1)==1.0 ) then !To avoid writing errors when AM = 0
+        print*, "inside"
+        pool_matrixC(:,7)=0.0
+        pool_matrixN(:,7)=0.0
+        pool_matrixC_previous(:,7)=0.0
+        pool_matrixN_previous(:,7)=0.0
+      end if
       if ( Spinup_run ) then
         max_mining = read_maxC(spinupncid,input_steps)
       else
@@ -408,9 +407,9 @@ contains
           Deposition = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j)
           Leaching = calc_Leaching(drain,h2o_liq_tot,pool_matrixN(j,12))
           nitrif_rate=nitrification((pool_matrixN(j,11)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j))
-          
+          max_Nimmobilized = calc_Fmax(k2,pool_matrixN(j,11)+Deposition*dt-nitrif_rate*dt)
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
-          call calculate_fluxes(j,use_Sulman,TSOIL(j), pool_matrixC, pool_matrixN,dt)
+          call calculate_fluxes(j,TSOIL(j), pool_matrixC, pool_matrixN,dt)
           
           if ( use_ROI ) then
             ROI_EcM(j) = ROI_function(N_INEcM+N_SOMpEcM+N_SOMcEcM,pool_matrixC(j,5),k_mycsom(1))
@@ -426,7 +425,7 @@ contains
           C_PlantEcM = f_alloc(j,1)*C_MYCinput*froot_prof(j)
           C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j)
           
-          call myc_to_plant(j,use_ENZ,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM_vr(j),CUE_AM_vr(j),f_enzprod(j))
+          call myc_to_plant(j,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM_vr(j),CUE_AM_vr(j),f_enzprod(j))
        !---------Calc fraction of inorg N that is NH4----------------------------------------          
           NH4_temporary = pool_matrixN(j,11) + (Deposition - nitrif_rate)*dt
           NO3_temporary = pool_matrixN(j,12) + (nitrif_rate - Leaching)*dt                    
@@ -436,7 +435,6 @@ contains
             nh4_frac = NH4_temporary/(NH4_temporary+NO3_temporary)
           end if
       !---------------------------------------------------------------------------------------          
-      
           if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file            
            call fluxes_netcdf(writencid,int(time), write_hour, j)
           end if !write fluxes
@@ -461,7 +459,7 @@ contains
               C_Gain = CUE_bacteria_vr(j)*(C_LITmSAPb + C_LITsSAPb &
                 + C_SOMaSAPb)
               C_Loss =  C_SAPbSOMp + C_SAPbSOMa + C_SAPbSOMc
-              N_Gain = N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb
+              N_Gain = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)*NUE
               N_Loss = N_SAPbSOMp + N_SAPbSOMa + N_SAPbSOMc
               if ( N_INSAPb>0 ) then
                 N_Gain = N_Gain + N_INSAPb              
@@ -473,7 +471,7 @@ contains
               C_Gain = CUE_fungi_vr(j)*(C_LITmSAPf + C_LITsSAPf &
                 + C_SOMaSAPf)
               C_Loss =  C_SAPfSOMp + C_SAPfSOMa + C_SAPfSOMc
-              N_Gain = N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf
+              N_Gain = (N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf)*NUE
               N_Loss = N_SAPfSOMp + N_SAPfSOMa + N_SAPfSOMc
               if ( N_INSAPf>0 ) then
                 N_Gain = N_Gain + N_INSAPf 
@@ -520,14 +518,15 @@ contains
               N_Loss = N_SOMcSOMa + N_SOMcEcM
               
             elseif (i == 11) then !NH4 inorganic N
-              N_Gain = Deposition
-              if ( N_INSAPb < 0. ) then !Nineralized n is split equally between NH4 and NO3
-                N_exchange = 0.5*N_INSAPb
+              N_Gain = Deposition + (1-NUE)*(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf+N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)
+              
+              if ( N_INSAPb < 0. ) then !Mineralized N as NH4 only
+                N_exchange = N_INSAPb
               else 
                 N_exchange = nh4_frac*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
               end if
-              if ( N_INSAPf < 0. ) then !Nineralized n is split equally between NH4 and NO3
-                N_exchange = N_exchange + 0.5*N_INSAPf
+              if ( N_INSAPf < 0. ) then !Mineralized N as NH4 only
+                N_exchange = N_exchange + N_INSAPf
               else 
                 N_exchange=N_exchange+ nh4_frac*N_INSAPf!N is immobilized based on NH4 fraction
               end if              
@@ -537,14 +536,14 @@ contains
               
             elseif (i == 12) then !NO3 inorganic N
               N_Gain = nitrif_rate
-              
-              if ( N_INSAPb < 0. ) then !Nineralized n is split equally between NH4 and NO3
-                N_exchange = 0.5*N_INSAPb
+                            
+              if ( N_INSAPb < 0. ) then !Mineralized N as NH4 only
+                N_exchange = 0.0
               else 
                 N_exchange = (1-nh4_frac)*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
               end if
-              if ( N_INSAPf < 0. ) then !Nineralized n is split equally between NH4 and NO3
-                N_exchange=N_exchange+ 0.5*N_INSAPf
+              if ( N_INSAPf < 0. ) then !Mineralized N as NH4 only
+                N_exchange=N_exchange+ 0.0
               else 
                 N_exchange= N_exchange+(1-nh4_frac)*N_INSAPf!N is immobilized based on NH4 fraction
               end if              
@@ -640,7 +639,9 @@ contains
         if (ycounter == 365*24*step_frac) then
           ycounter = 0
           write_y =write_y+1 !For writing to annual mean file
-          call annual_mean(sum_consC,sum_consN, nlevels,write_y , run_name) !calculates the annual mean and write the result to file
+          if ( Spinup_run ) then
+            call annual_mean(sum_consC,sum_consN, nlevels,write_y , run_name) !calculates the annual mean and write the result to file
+          end if
           if (year == stop_year) then
             year = start_year         
             spinup_counter=0            
@@ -717,76 +718,6 @@ contains
       print*, "Total time for decomp subroutine in minutes: ", (real(clock_stop-clock_start)/real(clock_rate))/60
   end subroutine decomp
 
-  subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ)
-    !! Read some parmeters,  Here we use a namelist 
-    !! but if you were to change the storage format (TOML,or home-made), 
-    !! this signature would not change
 
-    character(len=*),  intent(in)  :: file_path
-    logical, intent(out) :: use_ROI
-    logical, intent(out) :: use_Sulman
-    logical, intent(out) :: use_ENZ
-    !integer, intent(out) :: type_
-    integer                        :: file_unit, iostat
 
-    ! Namelist definition===============================
-    namelist /OPTIONS/ &
-        use_ROI , &
-        use_Sulman, &
-        use_ENZ
-    use_ROI = .False.
-    use_Sulman = .False.
-    use_ENZ =  .False.
-    ! Namelist definition===============================
-
-    call open_inputfile(file_path, file_unit, iostat)
-    if (iostat /= 0) then
-        print*, "Opening of file failed"
-        !! write here what to do if opening failed"
-        return
-    end if
-
-    read (nml=OPTIONS, iostat=iostat, unit=file_unit)
-    call close_inputfile(file_path, file_unit, iostat)
-    if (iostat /= 0) then
-        print*, "Closing of file failed"          
-        !! write here what to do if reading failed"
-        return
-    end if
-end subroutine read_some_parameters
-
-!! Namelist helpers
-
-subroutine open_inputfile(file_path, file_unit, iostat)
-    !! Check whether file exists, with consitent error message
-    !! return the file unit
-    character(len=*),  intent(in)  :: file_path
-    integer,  intent(out) :: file_unit, iostat
-
-    inquire (file=file_path, iostat=iostat)
-    if (iostat /= 0) then
-        write (stderr, '(3a)') 'Error: file "', trim(file_path), '" not found!'
-    end if
-    open (action='read', file=file_path, iostat=iostat, newunit=file_unit)
-end subroutine open_inputfile
-
-subroutine close_inputfile(file_path, file_unit, iostat)
-    !! Check the reading was OK
-    !! return error line IF not
-    !! close the unit
-    character(len=*),  intent(in)  :: file_path
-    character(len=1000) :: line
-    integer,  intent(in) :: file_unit, iostat
-
-    if (iostat /= 0) then
-        write (stderr, '(2a)') 'Error reading file :"', trim(file_path)
-        write (stderr, '(a, i0)') 'iostat was:"', iostat
-        backspace(file_unit)
-        read(file_unit,fmt='(A)') line
-        write(stderr,'(A)') &
-            'Invalid line : '//trim(line)
-    end if
-    close (file_unit)   
-end subroutine close_inputfile
-
-end module mycmim
+end module mycmimMod
