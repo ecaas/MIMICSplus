@@ -1,8 +1,10 @@
 program main
   use shr_kind_mod   , only : r8 => shr_kind_r8
-  use mycmim,  only: decomp
+  use mycmimMod,  only: decomp
   use initMod, only: read_nlayers,nlevels, initialize
-  use paramMod, only: full_clock_rate,full_clock_stop,full_clock_start, pool_types, pool_types_N
+  use paramMod, only: full_clock_rate,full_clock_stop,full_clock_start, &
+                      pool_types, pool_types_N, read_some_parameters, &
+                      use_Fmax, use_ROI, use_ENZ, use_Sulman
   implicit none
 
   !character (len=*),parameter :: site = "32087_Dovre" !"31767_Kongsvinger" "32374_Saltdal" "32087_Dovre"
@@ -23,6 +25,7 @@ program main
 
   character (len=200)  :: clm_data_file 
   character (len=200)  :: clm_surface_file
+  character (len=200)  :: namelist_file
   character (len=200)  :: description
   character (len=200)  :: site
 
@@ -33,9 +36,12 @@ program main
   call GET_COMMAND_ARGUMENT(number=2,value=description)
   call GET_COMMAND_ARGUMENT(number=3,value=clm_data_file)
   call GET_COMMAND_ARGUMENT(number=4,value=clm_surface_file)
+  call GET_COMMAND_ARGUMENT(number=5,value=namelist_file)
+  
 
   call read_nlayers(trim(adjustr(clm_data_file)//'_historical.clm2.all.1901.nc'))
-
+  call read_some_parameters(trim(namelist_file),use_ROI, use_Sulman, use_ENZ, use_Fmax)
+  print*, use_ROI,use_Sulman,use_ENZ,use_Fmax
   !ALLOCATE:
   allocate(C_matrix_init(nlevels,pool_types),N_matrix_init(nlevels,pool_types_N))
   allocate(C_matrix_Spunup(nlevels,pool_types),N_matrix_Spunup(nlevels,pool_types_N))

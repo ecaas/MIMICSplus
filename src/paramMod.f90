@@ -1,6 +1,8 @@
 module paramMod
 use shr_kind_mod   , only : r8 => shr_kind_r8
 use initMod, only : nlevels
+use, intrinsic :: iso_fortran_env, only: stderr => error_unit
+
 implicit none
 
 !For conversion
@@ -12,7 +14,7 @@ real(r8), parameter:: abs_zero=273.15 !Kelvin
 
 integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
 
-
+logical,public :: use_ROI, use_Sulman, use_ENZ, use_Fmax
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
 integer, parameter                           :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters
 real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = (/0.017, 0.027, 0.017, 0.017, 0.027, 0.017/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
@@ -81,7 +83,7 @@ real(r8),dimension(:),allocatable    :: CUE_ecm_vr         !Growth efficiency of
 real(r8),dimension(:),allocatable    :: CUE_am_vr         !Growth efficiency of mycorrhiza 
 real(r8),dimension(:),allocatable    :: CUE_erm_vr        !Growth efficiency of mycorrhiza 
 real(r8),parameter                   :: CUE_myc_0=0.25_r8 !Baskaran
-real(r8),parameter                   :: NUE=0.7
+real(r8),parameter                   :: NUE=1._r8 !0.7
 
 
 real(r8),parameter                   :: CUE_0=0.5
@@ -266,7 +268,80 @@ contains
     
     Fmax = k*nh4 
   end function calc_Fmax 
+  subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ,use_Fmax)
+    !! Read some parmeters,  Here we use a namelist 
+    !! but if you were to change the storage format (TOML,or home-made), 
+    !! this signature would not change
 
+    character(len=*),  intent(in)  :: file_path
+    logical, intent(out) :: use_ROI
+    logical, intent(out) :: use_Sulman
+    logical, intent(out) :: use_ENZ
+    logical, intent(out) :: use_Fmax
+    
+    !integer, intent(out) :: type_
+    integer                        :: file_unit, iostat
 
-  
+    ! Namelist definition===============================
+    namelist /OPTIONS/ &
+        use_ROI , &
+        use_Sulman, &
+        use_ENZ, &
+        use_Fmax
+    use_ROI = .False.
+    use_Sulman = .False.
+    use_ENZ =  .False.
+    use_Fmax =  .False.
+    ! Namelist definition===============================
+
+    call open_inputfile(file_path, file_unit, iostat)
+    if (iostat /= 0) then
+        print*, "Opening of file failed"
+        !! write here what to do if opening failed"
+        return
+    end if
+
+    read (nml=OPTIONS, iostat=iostat, unit=file_unit)
+    call close_inputfile(file_path, file_unit, iostat)
+    if (iostat /= 0) then
+        print*, "Closing of file failed"          
+        !! write here what to do if reading failed"
+        return
+    end if
+end subroutine read_some_parameters
+
+!! Namelist helpers
+
+subroutine open_inputfile(file_path, file_unit, iostat)
+    !! Check whether file exists, with consitent error message
+    !! return the file unit
+    character(len=*),  intent(in)  :: file_path
+    integer,  intent(out) :: file_unit, iostat
+
+    inquire (file=file_path, iostat=iostat)
+    if (iostat /= 0) then
+        write (stderr, '(3a)') 'Error: file "', trim(file_path), '" not found!'
+    end if
+    open (action='read', file=file_path, iostat=iostat, newunit=file_unit)
+end subroutine open_inputfile
+
+subroutine close_inputfile(file_path, file_unit, iostat)
+    !! Check the reading was OK
+    !! return error line IF not
+    !! close the unit
+    character(len=*),  intent(in)  :: file_path
+    character(len=1000) :: line
+    integer,  intent(in) :: file_unit, iostat
+
+    if (iostat /= 0) then
+        write (stderr, '(2a)') 'Error reading file :"', trim(file_path)
+        write (stderr, '(a, i0)') 'iostat was:"', iostat
+        backspace(file_unit)
+        read(file_unit,fmt='(A)') line
+        write(stderr,'(A)') &
+            'Invalid line : '//trim(line)
+    end if
+    close (file_unit)   
+end subroutine close_inputfile
+
 end module paramMod
