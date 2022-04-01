@@ -9,6 +9,11 @@ BUILD_DIR := ./bld
 SRC_DIRS := ./src
 MODDIR := ./mod
 
+ifneq ($(BUILD_DIR),)
+  $(shell test -d $(BUILD_DIR) || mkdir -p $(BUILD_DIR))
+  FCFLAGS+= -J $(BUILD_DIR)
+endif
+
 ifneq ($(MODDIR),)
   $(shell test -d $(MODDIR) || mkdir -p $(MODDIR))
   FCFLAGS+= -J $(MODDIR)
@@ -19,7 +24,7 @@ OBJ = $(BUILD_DIR)/main.o $(BUILD_DIR)/mycmimMod.o $(BUILD_DIR)/fluxMod.o $(BUIL
 	$(BUILD_DIR)/shr_kind_mod.o $(BUILD_DIR)/readMod.o
 #-------------------------------------------------------------------------------
 FC = gfortran
-FFLAGS = -g -fcheck=all -fbacktrace -ffpe-trap=zero,invalid,overflow,underflow -O0 -Wall -ffree-line-length-'none'\
+FFLAGS = -g -fcheck=all -fbacktrace  -ffpe-trap=zero,invalid,overflow,underflow -O0 -Wall -ffree-line-length-'none'\
 -Wl,-rpath=$(LIB) -J $(MODDIR)
 
 #EXTRAFFLAGS =  -Wno-unused-dummy-argument -Wno-unused-parameter -Wextra -ffpe-trap=zero,invalid,overflow,underflow
@@ -63,8 +68,7 @@ $(BUILD_DIR)/shr_kind_mod.o: $(SRC_DIRS)/shr_kind_mod.f90
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 strip:
-	#-rm -rf *.mod *.smod $(OBJECTS) $(ANCHORS) main
-	#-test -d $(MODDIR) && rm -r $(MODDIR)
+
 
 #-------------------------------------------------------------------------------
 clean: strip

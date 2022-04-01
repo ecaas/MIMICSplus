@@ -17,7 +17,7 @@ contains
     real(r8), dimension(10), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
     
     do j=1,nlevels
-       pools_C(j,:) =  (/1000.,1000.,10.,50.,100.,1.,1.,1500.,1500.,500./)
+       pools_C(j,:) =  1.0!(/1000.,1000.,10.,50.,100.,1.,1.,1500.,1500.,500./)
        pools_N(j,1:10) = pools_C(j,1:10)/CN_ratio
      end do
          
