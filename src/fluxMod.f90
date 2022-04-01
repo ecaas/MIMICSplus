@@ -375,7 +375,7 @@ contains
     N_INSAPf = N_demand_SAPf-UN_sf
     
     !Determine exchange of N between inorganic pool and saprotrophs:
-    if ( N_INSAPb >= 0. .and. N_INSAPf >= 0. ) then !immobilization
+    if ( N_INSAPb > 0. .and. N_INSAPf > 0. ) then !immobilization
       if ( max_Nimmobilized < abs((N_INSAPb + N_INSAPf)*dt) ) then !Not enough mineral N to meet demand
 
         f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
@@ -398,7 +398,7 @@ contains
         c2=c2+1
         continue
       
-    elseif ( N_INSAPb >= 0. .and. N_INSAPf < 0. ) then ! bacteria can use N mineralized by fungi
+    elseif ( N_INSAPb > 0. .and. N_INSAPf < 0. ) then ! bacteria can use N mineralized by fungi
       max_Nimmobilized = max_Nimmobilized + N_INSAPf 
       if ( max_Nimmobilized < N_INSAPb ) then
         CUE_bacteria_vr(depth)=((max_Nimmobilized+UN_sb)*CN_ratio(3))/U_sb
@@ -409,7 +409,7 @@ contains
       else
          c3b=c3b+1 
       end if
-    elseif ( N_INSAPb < 0. .and. N_INSAPf >= 0. ) then !fungi can use N mineralized by bacteria
+    elseif ( N_INSAPb < 0. .and. N_INSAPf > 0. ) then !fungi can use N mineralized by bacteria
       max_Nimmobilized = max_Nimmobilized + N_INSAPb       
       if ( max_Nimmobilized < N_INSAPf ) then
         CUE_fungi_vr(depth)=((max_Nimmobilized+UN_sf)*CN_ratio(4))/U_sf
