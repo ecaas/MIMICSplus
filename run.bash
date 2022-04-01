@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #site_names=31463_Hurdal 31464_Hurdal NR31585_Flekkefjord
-description="FmaxTrue_NUE1"
+description="test"
 namelist_file='options.nml'
 for site in 31463_Hurdal #31464_Hurdal NR31585_Flekkefjord
 do

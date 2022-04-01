@@ -398,7 +398,7 @@ contains
         continue
       
     elseif ( N_INSAPb > 0. .and. N_INSAPf < 0. ) then ! bacteria can use N mineralized by fungi
-      N_for_sap = N_for_sap + N_INSAPf*dt
+      N_for_sap = N_for_sap + abs(N_INSAPf*dt)
       if ( N_for_sap < N_INSAPb*dt ) then
         CUE_bacteria_vr(depth)=((N_for_sap+UN_sb*dt)*CN_ratio(3))/(U_sb*dt)
         N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
@@ -409,7 +409,7 @@ contains
          c3b=c3b+1 
       end if
     elseif ( N_INSAPb < 0. .and. N_INSAPf > 0. ) then !fungi can use N mineralized by bacteria
-      N_for_sap = N_for_sap + N_INSAPb*dt       
+      N_for_sap = N_for_sap + abs(N_INSAPb*dt)       
       if ( N_for_sap < N_INSAPf*dt ) then
         CUE_fungi_vr(depth)=((N_for_sap+UN_sf*dt)*CN_ratio(4))/(U_sf*dt)
         
