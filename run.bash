@@ -2,7 +2,7 @@
 
 #site_names=31463_Hurdal 31464_Hurdal NR31585_Flekkefjord
 description="test"
-for site in 31463_Hurdal 31464_Hurdal NR31585_Flekkefjord
+for site in 31463_Hurdal #31464_Hurdal NR31585_Flekkefjord
 do
 
   clm_data_file='/home/ecaas/nird/'${site}'_historical/lnd/hist/'${site}

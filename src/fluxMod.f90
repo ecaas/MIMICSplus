@@ -354,10 +354,7 @@ contains
     !---------------------------------------------------------------------------------------------------------------------------------------
     !Calculate amount of inorganic N saprotrophs have access to: 
     N_for_sap  = (N_IN - ( N_INPlant + N_INEcM + N_INAM)*dt)*pctN_for_sap
-    print*, "max_Nimmobilized: ", max_Nimmobilized, depth,N_INEcM
-    print*, "Fluxmod: " ,k2*(N_NH4+Deposition*dt-nitrif_rate*dt- ( N_INPlant + N_INEcM + N_INAM)*dt)
-    print*, "N for SAP", N_for_sap
-    !print*, N_for_sap, max_Nimmobilized*dt
+
     !total C uptake (growth + respiration) of saprotrophs
     U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
     U_sf = C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf
