@@ -65,7 +65,8 @@ contains
       real(r8),intent(out)                      :: pool_C_final(nlevels,pool_types)     ! For store and output final C pool sizes 
       real(r8),intent(out)                      :: pool_N_final(nlevels,pool_types_N)   ! For storing and output final N pool sizes [gN/m3] 
       
-      
+      real(r8)                    :: pool_C_start_for_mass_cons(nlevels,pool_types)     ! To use in total mass conservation subroutine
+      real(r8)                    :: pool_N_start_for_mass_cons(nlevels,pool_types_N)   ! 
      !Shape of pool_matrixC/change_matrixC
      !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc |
      !|level1   1   2    3    4   5   6   7   8    9    10  |
@@ -210,7 +211,8 @@ contains
       pool_matrixN=pool_N_start
       pool_matrixC_previous = pool_C_start
       pool_matrixN_previous = pool_N_start
-      
+      pool_C_start_for_mass_cons=pool_C_start
+      pool_N_start_for_mass_cons=pool_N_start
       !Make sure things start from zero
       sum_consN      = 0
       sum_consC      = 0
@@ -283,6 +285,8 @@ contains
         pool_matrixN(:,7)=0.0
         pool_matrixC_previous(:,7)=0.0
         pool_matrixN_previous(:,7)=0.0
+        pool_C_start_for_mass_cons=pool_matrixC
+        pool_N_start_for_mass_cons=pool_matrixN
       end if
       if ( Spinup_run ) then
         max_mining = read_maxC(spinupncid,input_steps)
@@ -708,8 +712,8 @@ contains
       end do !t
       
       !Check total mass conservation 
-      call total_mass_conservation(sum_input_total,HR_mass_accumulated,pool_C_start,pool_C_final,nlevels,pool_types)
-      call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total,pool_N_start,pool_N_final,nlevels,pool_types_N)
+      call total_mass_conservation(sum_input_total,HR_mass_accumulated,pool_C_start_for_mass_cons,pool_C_final,nlevels,pool_types)
+      call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total,pool_N_start_for_mass_cons,pool_N_final,nlevels,pool_types_N)
       
       call check(nf90_close(writencid))
       if ( Spinup_run ) then
