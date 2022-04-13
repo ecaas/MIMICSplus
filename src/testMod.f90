@@ -107,7 +107,10 @@ contains
     if (abs(diff) > 1e-10) then
       if ( no_of_pools .eq. 12 ) then
         print*, "Mass NOT conserved for NITROGEN"
-        call disp(mass_new)
+
+        ! call disp("new",new)
+        ! call disp("old",old)
+        
       else
         print*, "Mass NOT conserved for CARBON"
       end if

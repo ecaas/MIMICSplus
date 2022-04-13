@@ -38,7 +38,6 @@ program main
   call GET_COMMAND_ARGUMENT(number=4,value=clm_surface_file)
   call GET_COMMAND_ARGUMENT(number=5,value=namelist_file)
   
-
   call read_nlayers(trim(adjustr(clm_data_file)//'_historical.clm2.all.1901.nc'))
   call read_some_parameters(trim(namelist_file),use_ROI, use_Sulman, use_ENZ, use_Fmax)
   print*, use_ROI,use_Sulman,use_ENZ,use_Fmax
@@ -52,7 +51,7 @@ program main
 !   !1: INITIALIZE
   call initialize(C_matrix_init,N_matrix_init)
   !2: SPINUP
-  call decomp(nsteps=1500*24*365, run_name=trim(trim(site)//"_"//trim(description)//"_"//"Spunup"), step_frac=1, write_hour=200+24*365,&
+  call decomp(nsteps=5000*24*365, run_name=trim(trim(site)//"_"//trim(description)//"_"//"Spunup"), step_frac=1, write_hour=200*24+24*365*100,&
   pool_C_start=C_matrix_init,pool_N_start=N_matrix_init, pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,&
   start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
  !|

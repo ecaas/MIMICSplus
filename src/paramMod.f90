@@ -56,10 +56,10 @@ real(r8)                                :: desorp ![1/h]From Mimics, used for th
 
 !Depth & vertical transport
 real(r8)                             :: soil_depth           ![m] 
-real(r8),dimension(25),parameter     :: node_z =  (/0.01,0.04,0.09,0.16,0.26,0.40,0.587,0.80,1.06,1.36,1.70,1.08,2.50,2.99,3.58,4.27,5.06,5.95,6.94,8.03,9.795,13.328,19.483,28.871,41.998/)!(/0.076,0.228, 0.380,0.532, 0.684,0.836,0.988,1.140,1.292,1.444/)!![m] Depth of center in each soil layer. Same as the first layers of default CLM5 with vertical resolution.
+real(r8),dimension(25),parameter     :: node_z =  (/0.01,0.04,0.09,0.16,0.26,0.40,0.587,0.80,1.06,1.36,1.70,2.08,2.50,2.99,3.58,4.27,5.06,5.95,6.94,8.03,9.795,13.328,19.483,28.871,41.998/)!(/0.076,0.228, 0.380,0.532, 0.684,0.836,0.988,1.140,1.292,1.444/)!![m] Depth of center in each soil layer. Same as the first layers of default CLM5 with vertical resolution.
 real(r8),dimension(25),parameter     :: delta_z = (/0.02, 0.04, 0.06, 0.08,0.12,0.16,0.20,0.24,0.28,0.32,0.36,0.40,0.44,0.54,0.64,0.74,0.84,0.94,1.04,1.14,2.39,4.676,7.635,11.140,15.115/)!0.152![m] Thickness of each soil of the top layers in default clm5.
-real(r8),parameter                   :: D_carbon = 0.0!1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
-real(r8),parameter                   :: D_nitrogen = 0.0!1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
+real(r8),parameter                   :: D_carbon = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
+real(r8),parameter                   :: D_nitrogen = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
 
 !counts: 
 integer                             :: c1a
@@ -83,8 +83,9 @@ real(r8),dimension(:),allocatable    :: CUE_ecm_vr         !Growth efficiency of
 real(r8),dimension(:),allocatable    :: CUE_am_vr         !Growth efficiency of mycorrhiza 
 real(r8),dimension(:),allocatable    :: CUE_erm_vr        !Growth efficiency of mycorrhiza 
 real(r8),parameter                   :: CUE_myc_0=0.25_r8 !Baskaran
-real(r8),parameter                   :: NUE=1._r8 !0.7
+real(r8),parameter                   :: NUE=0.7_r8
 
+real(r8),parameter                   :: k_plant = 5E-7
 
 real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
@@ -185,7 +186,11 @@ contains
     real(r8) :: turnover ! [hour]
     
     turnover = 1/loss_rate 
-    ROI=(N_aquired/C_myc)*turnover*eps      
+    if ( N_aquired < epsilon(N_aquired) ) then
+      ROI=0.0
+    else 
+      ROI=(N_aquired/C_myc)*turnover*eps  
+    end if
   end function ROI_function 
   
   function r_input(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
@@ -265,8 +270,11 @@ contains
     real(r8),INTENT(IN) :: nh4 !nh4 consentration [gN/m3]
     !Out:
     real(r8)            :: Fmax !Maximum flux from NH4 to SAP in cases with too limited N (SAP immobilization)
-    
-    Fmax = k*nh4 
+    if ( nh4 < epsilon(nh4) ) then
+      Fmax = 0.0
+    else 
+      Fmax = k*nh4 
+    end if
   end function calc_Fmax 
   subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ,use_Fmax)
     !! Read some parmeters,  Here we use a namelist 
