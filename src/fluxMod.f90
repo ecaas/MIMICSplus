@@ -572,17 +572,17 @@ contains
 
     totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !gC/m3h 
     C_inLITm   = fMET*totC_LIT_input*(1-f_met_to_som)
-    C_inLITs   = (1-fMET)*totC_LIT_input + C_CWD(layer_nr)
-    C_inSOMp = fMET*totC_LIT_input*f_met_to_som*fPHYS(1)
-    C_inSOMc = fMET*totC_LIT_input*f_met_to_som*fCHEM(1)
-    C_inSOMa = fMET*totC_LIT_input*f_met_to_som*fAVAIL(1)
+    C_inLITs   = ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*(1-f_struct_to_som)
+    C_inSOMp = fMET*totC_LIT_input*f_met_to_som*fPHYS(1) + ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som*fPHYS(2)
+    C_inSOMc = fMET*totC_LIT_input*f_met_to_som*fCHEM(1) + ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som*fCHEM(2)
+    C_inSOMa = fMET*totC_LIT_input*f_met_to_som*fAVAIL(1) + ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som*fAVAIL(2)
         
     totN_LIT_input = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
     N_inLITm    = fMET*totN_LIT_input*(1-f_met_to_som)
     N_inLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)
-    N_inSOMp = fMET*totN_LIT_input*f_met_to_som*fPHYS(1)
-    N_inSOMc = fMET*totN_LIT_input*f_met_to_som*fCHEM(1)
-    N_inSOMa = fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)        
+    N_inSOMp = fMET*totN_LIT_input*f_met_to_som*fPHYS(1)+((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som*fPHYS(2)
+    N_inSOMc = fMET*totN_LIT_input*f_met_to_som*fCHEM(1)+((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som*fCHEM(2)
+    N_inSOMa = fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)+((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som*fAVAIL(2)        
     
   end subroutine input_rates
   

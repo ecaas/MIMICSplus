@@ -21,13 +21,13 @@ real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = (/0.017, 0.027, 0.017,
 real(kind=r8),dimension(MM_eqs),parameter    :: Vslope  = (/0.063, 0.063, 0.063, 0.063, 0.063, 0.063/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),dimension(MM_eqs),parameter    :: Kint    = 3.19      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (10 mg/cm3 from german et al 2012)
+real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (1000g/mg*cm3/m3 * 10 mg/cm3 from german et al 2012)
 real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
 real(kind=r8)                                :: pscalar 
 real(kind=r8),dimension(MM_eqs)              :: Kmod   
-real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 2.0, 10.0, 3.0,3.0, 2.0/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 2.0, 10.0, 3.0,3.0, 2.0/)*0.5 !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter, dimension(2)        :: KO      =  4                 ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
-real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*10e3=[gC/m3]
+real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*1e3=[gC/m3] (convert units in a_k)
 real(kind=r8),dimension(MM_eqs)              :: Vmax                            ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
 
 !Pools: NOTE: This needs to be updated if pools are added to/removed from the system.
@@ -90,7 +90,9 @@ real(r8),parameter                   :: k_plant = 5E-7
 real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
 
-real(r8), parameter                  :: f_met_to_som=0.05_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
+real(r8), parameter                  :: f_met_to_som=0.3_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
+real(r8), parameter                  :: f_struct_to_som=0.3_r8 ! fraction of structural litter flux that goes directly to SOM pools
+
 real(r8)                             :: max_mining 
 real(r8)                             :: input_mod 
 
