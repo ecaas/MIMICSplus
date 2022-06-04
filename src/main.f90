@@ -41,6 +41,7 @@ program main
   call read_nlayers(trim(adjustr(clm_data_file)//'_historical.clm2.all.1901.nc'))
   call read_some_parameters(trim(namelist_file),use_ROI, use_Sulman, use_ENZ, use_Fmax)
   print*, use_ROI,use_Sulman,use_ENZ,use_Fmax
+    
   !ALLOCATE:
   allocate(C_matrix_init(nlevels,pool_types),N_matrix_init(nlevels,pool_types_N))
   allocate(C_matrix_Spunup(nlevels,pool_types),N_matrix_Spunup(nlevels,pool_types_N))
@@ -48,15 +49,16 @@ program main
   allocate(C_matrix_1987(nlevels,pool_types),N_matrix_1987(nlevels,pool_types_N))
   allocate(C_matrix_final(nlevels,pool_types),N_matrix_final(nlevels,pool_types_N))
 
+  
 !   !1: INITIALIZE
   call initialize(C_matrix_init,N_matrix_init)
   !2: SPINUP
-  call decomp(nsteps=5000*24*365, run_name=trim(trim(site)//"_"//trim(description)//"_"//"Spunup"), step_frac=1, write_hour=200*24+24*365*100,&
+  call decomp(nsteps=2500*24*365, run_name=trim(trim(site)//"_"//trim(description)//"_"//"Spunup"), step_frac=1, write_hour=200*24+24*365*100,&
   pool_C_start=C_matrix_init,pool_N_start=N_matrix_init, pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,&
   start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
- !|
- !| Use output of last timestep to initialize step 2
- !V
+ ! |
+ ! | Use output of last timestep to initialize step 2
+ ! V
   !!3: RUN WITH MONTHLY UPDATES of inputdata:
   call decomp(nsteps=71*24*365, run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1970"), step_frac=1, write_hour=1*24*365*10, &
   pool_C_start=C_matrix_Spunup,pool_N_start=N_matrix_Spunup, pool_C_final=C_matrix_1970,pool_N_final=N_matrix_1970,&
@@ -68,7 +70,7 @@ program main
   call decomp(nsteps=17*24*365, run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1987"), step_frac=1, write_hour=1*24*365, &
   pool_C_start=C_matrix_1970,pool_N_start=N_matrix_1970, pool_C_final=C_matrix_1987,pool_N_final=N_matrix_1987,&
   start_year=1971,stop_year=1987,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
-
+  
   !5: RUN WITH DAILY UPDATES of inputdata,output every day:
   call decomp(nsteps=5*24*365, run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1992"), step_frac=1, write_hour=1*24, &
   pool_C_start=C_matrix_1987,pool_N_start=N_matrix_1987, pool_C_final=C_matrix_final,pool_N_final=N_matrix_final,&
@@ -78,7 +80,6 @@ program main
   deallocate (C_matrix_1970,N_matrix_1970,C_matrix_1987,N_matrix_1987)
   deallocate (C_matrix_final,N_matrix_final)
   call system_clock(count=full_clock_stop)      ! Stop Timer
-  print*, "Total time for simulation: ", real(full_clock_stop-full_clock_start)/real(full_clock_rate)
   print*, "Total time for simulation in minutes: ", (real(full_clock_stop-full_clock_start)/real(full_clock_rate))/60
 
 end program main

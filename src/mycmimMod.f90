@@ -15,7 +15,7 @@
 module mycmimMod
   use shr_kind_mod   , only : r8 => shr_kind_r8
   use paramMod
-  use initMod, only: nlevels
+  use initMod, only: nlevels,calc_init_NH4
   use readMod, only: read_maxC, read_time,read_clm_model_input,read_clay,read_WATSAT_and_profiles,read_PFTs
   use fluxMod,    only: calc_nitrification,calc_Leaching,set_N_dep,calc_desorp,MMK_flux,input_rates,calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_final, NO3_final
   use writeMod,   only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf,fill_yearly_netcdf,fluxes_netcdf,store_parameters,check
@@ -26,6 +26,7 @@ module mycmimMod
   implicit none
     private 
     public :: decomp
+    
 contains
   
   subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
@@ -113,7 +114,7 @@ contains
       real(r8)                       :: C_CWD_litter(nlevels)
       real(r8)                       :: N_CWD_litter(nlevels)
 
-      real(r8)                       :: dt                            ! size of time step
+!      real(r8)                       :: dt                            ! size of time step
       real(r8)                       :: time                          ! t*dt
       real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss
       real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion
@@ -141,7 +142,7 @@ contains
       integer,parameter              ::t_init=1
       integer                        :: date
       integer                       :: input_steps
-
+      real(r8)                       :: NH4_sorp,NH4_sol
       real(r8)                       :: change_sum(nlevels, pool_types)
       real(r8)                       :: vertC_change_sum(nlevels, pool_types)
       real(r8),dimension(15)         :: PFT_distribution
@@ -157,6 +158,7 @@ contains
       real(r8), dimension(nlevels)          :: T_SCALAR
       real(r8)                                 :: drain
       real(r8)                                 :: h2o_liq_tot
+      real(r8)                              :: H2OSOI
       
       real(r8) :: save_N,save_C
           
@@ -167,8 +169,8 @@ contains
       call system_clock(count_rate=clock_rate) !Find the time rate
       call system_clock(count=clock_start)     !Start Timer  
       
-      dt= 1.0/step_frac !Setting the time step
-
+!      dt = calc_timestep(step_frac)
+      
       if (nlevels>1) then 
         soil_depth=sum(delta_z(1:nlevels))
         isVertical = .True.
@@ -385,6 +387,13 @@ contains
         
         
         do j = 1, nlevels !For each depth level (for the no vertical transport case, nlevels = 1, so loop is only done once):
+          
+          H2OSOI=SOILLIQ(j)+SOILICE(j)
+          if (t ==1 ) then
+            call calc_init_NH4(pool_matrixN(j,11),H2OSOI,NH4_sorp,NH4_sol)
+            print*, NH4_sol, "mycmim"
+          end if
+          
           !Michaelis Menten parameters:
           Km      = Km_function(TSOIL(j))
           Vmax    = Vmax_function(TSOIL(j),r_moist(j)) !  ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
@@ -409,10 +418,10 @@ contains
                                       
           Deposition = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j)
           Leaching = calc_Leaching(drain,h2o_liq_tot,pool_matrixN(j,12))
-          nitrif_rate=calc_nitrification((pool_matrixN(j,11)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton in timestep
+          nitrif_rate=calc_nitrification((NH4_sol+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton in timestep
 
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
-          call calculate_fluxes(j,TSOIL(j), pool_matrixC, pool_matrixN,Deposition, Leaching, nitrif_rate,dt)
+          call calculate_fluxes(j,TSOIL(j),H2OSOI, pool_matrixC, pool_matrixN,Deposition, Leaching, nitrif_rate,dt)
           !print*, NH4_final,NO3_final, "mycmim"
           pool_temporaryN(j,11)=NH4_final
           pool_temporaryN(j,12)=NO3_final
@@ -448,9 +457,9 @@ contains
           C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j)          
           call myc_to_plant(j,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM_vr(j),CUE_AM_vr(j),f_enzprod(j))
       !---------------------------------------------------------------------------------------          
-          ! if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file            
-          !   call fluxes_netcdf(writencid,int(time), write_hour, j)
-          ! end if !write fluxes
+          if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file            
+            call fluxes_netcdf(writencid,int(time), write_hour, j)
+          end if !write fluxes
 
           do i = 1,pool_types !loop over all the pool types, i, in depth level j 
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
@@ -577,8 +586,16 @@ contains
         if (isVertical) then
           call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC,D_carbon)
           call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN,D_nitrogen)
+          ! call disp("Temporary C gC/m3 ",pool_matrixC)
+          ! call disp("TempN gN/m3 ",pool_matrixN)  
           pool_matrixC = vertC*dt + pool_temporaryC
           pool_matrixN = vertN*dt + pool_temporaryN
+          ! where (pool_matrixC < epsilon(pool_matrixC)) pool_matrixC = 0.0
+          ! where (pool_matrixN < epsilon(pool_matrixC)) pool_matrixN = 0.0
+          ! call disp("pool_matrixC gC/m3 ",pool_matrixC)
+          ! call disp("pool_matrixN gN/m3 ",pool_matrixN)   
+          ! call disp("vert C",vertC)
+          ! call disp("vert N",vertC)  
         else
           pool_matrixC=pool_temporaryC
           pool_matrixN=pool_temporaryN
@@ -590,12 +607,12 @@ contains
         if (ycounter == 365*24*step_frac) then
           ycounter = 0
           write_y =write_y+1 !For writing to annual mean file
-          call disp("pool_matrixC gC/m3 ",pool_matrixC)
-          call disp("pool_matrixN gN/m3 ",pool_matrixN)   
+          ! call disp("pool_matrixC gC/m3 ",pool_matrixC)
+          ! call disp("pool_matrixN gN/m3 ",pool_matrixN)   
           
-          ! if ( Spinup_run ) then
-          !    call annual_mean(sum_consC,sum_consN, nlevels,write_y , run_name) !calculates the annual mean and write the result to file
-          ! end if
+          if ( Spinup_run ) then
+             call annual_mean(sum_consC,sum_consN, nlevels,write_y , run_name) !calculates the annual mean and write the result to file
+          end if
           if (year == stop_year) then
             year = start_year         
             spinup_counter=0            
@@ -614,8 +631,8 @@ contains
 
         if (counter == write_hour*step_frac) then
           counter = 0        
-          call disp("pool_matrixC gC/m3 ",pool_matrixC)
-          call disp("pool_matrixN gN/m3 ",pool_matrixN)   
+          ! call disp("pool_matrixC gC/m3 ",pool_matrixC)
+          ! call disp("pool_matrixN gN/m3 ",pool_matrixN)   
           call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,&
            date, HR_mass_accumulated,HR,HRb,HRf,vertC,vertN, write_hour,current_month, &
            TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc)

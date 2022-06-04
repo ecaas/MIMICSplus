@@ -204,13 +204,14 @@ contains
     N_ErMPlant = 0.0
   end subroutine myc_to_plant 
   
-  subroutine calculate_fluxes(depth,Temp_Celsius,C_pool_matrix,N_pool_matrix,Deposition_rate, Leaching_rate, nitrification,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
-    integer,intent(in)         :: depth !depth level    
-    real(r8), intent(in)       :: Temp_Celsius
+  subroutine calculate_fluxes(depth,Temp_Celsius,water_content,C_pool_matrix,N_pool_matrix,Deposition_rate, Leaching_rate, nitrification,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
+    integer,intent(in)        :: depth !depth level    
+    real(r8), intent(in)      :: Temp_Celsius
     real(r8),intent(in)       :: dt ! timestep
     real(r8),intent(in)       :: Deposition_rate
     real(r8),intent(in)       :: Leaching_rate
     real(r8),intent(in)       :: nitrification
+    real(r8),intent(in)       :: water_content
     
     real(r8),target :: C_pool_matrix(nlevels, pool_types)
     real(r8),target :: N_pool_matrix(nlevels, pool_types_N)
@@ -218,10 +219,14 @@ contains
     !LOCAL:
     real(r8)  :: N_for_sap
     real(r8)  :: NH4_tmp
+    real(r8)  :: NH4_sol_tmp
+    real(r8)  :: nh4_sol_frac
+    real(r8)  :: nh4_sorp_new
+    real(r8)  :: nh4_sorp_old
+    
     real(r8)  :: NO3_tmp
     real(r8)  :: N_IN
     real(r8)  :: f_b
-    real(r8)  :: nh4_frac
     real(r8)  :: minedSOMp
     real(r8)  :: minedSOMc
     real(r8)  :: Temp_Kelvin
@@ -342,16 +347,17 @@ contains
     N_SOMpSOMa = calc_parallel_Nrates(C_SOMpSOMa,N_SOMp,C_SOMp)
     !Transport from SOMc to SOMa:
     N_SOMcSOMa = calc_parallel_Nrates(C_SOMcSOMa,N_SOMc,C_SOMc)
-    
+    !*****************************************************************************
     !(1)Update inorganic pools to account for Leaching, deposition,  nitrification rate and gain from decomposition (1-NUE):
-    NH4_tmp = N_NH4 + (1-NUE)*(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf+N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)*dt + (Deposition_rate - nitrification)*dt
+    NH4_sol_tmp = NH4_sol + (1-NUE)*(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf+N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)*dt + (Deposition_rate - nitrification)*dt
     NO3_tmp = N_NO3-Leaching_rate*dt + nitrification*dt
-    nh4_frac = calc_nh4_frac(NH4_tmp,NO3_tmp)
-    
-    N_IN = NH4_tmp+NO3_tmp !Total inorganic N in pools
+    nh4_sol_frac = calc_nh4_frac(NH4_sol_tmp,NO3_tmp) !Fraction of microbially/plant available N that is NH4
+    N_IN = NH4_sol_tmp+NO3_tmp !The inorganic N available to microbes and plants (the rest, NH4_sorb_tmp is sorbed onto particles)
+    print*, NH4_sol, "fluxmod"
+    stop
     if ( N_IN < 0._r8 ) then
       print*, "Negative inorganic N pool at layer", depth, N_IN
-      print*, N_NH4,N_NO3,Deposition_rate,Leaching_rate, nitrification
+      print*,NH4_sol_tmp,NO3_tmp,Deposition_rate,Leaching_rate, nitrification
     end if
     
     !Inorganic N taken up directly by plant roots:
@@ -369,21 +375,15 @@ contains
     end if
     
     !(2)Update inorganic pools to account for uptake by plans and mycorrhizal fungi
-    NH4_tmp = NH4_tmp - nh4_frac*(N_INEcM+N_INAM+N_InPlant)*dt
-    NO3_tmp = NO3_tmp - (1-nh4_frac)*(N_INEcM+N_INAM+N_InPlant)*dt
-    nh4_frac = calc_nh4_frac(NH4_tmp,NO3_tmp)!Recalculate nh4_frac
+    NH4_sol_tmp = NH4_sol_tmp - nh4_sol_frac*(N_INEcM+N_INAM+N_InPlant)*dt
+    NO3_tmp = NO3_tmp - (1-nh4_sol_frac)*(N_INEcM+N_INAM+N_InPlant)*dt
+    nh4_sol_frac = calc_nh4_frac(NH4_sol_tmp,NO3_tmp)!Recalculate nh4_sol_frac
+    N_IN = NH4_sol_tmp+NO3_tmp !The inorganic N available to microbes and plants (the rest, NH4_sorb_tmp is sorbed onto particles)
 
-    !Calculate amount of inorganic N saprotrophs have access to: 
-    if ( use_Fmax ) then
-      N_for_sap = calc_Fmax(k1,NH4_tmp)*dt !gN/m3
-    else
-      N_for_sap  = (NO3_tmp+NH4_tmp)*pctN_for_sap !gN/m3
-    end if
-        
     !total C uptake (growth + respiration) of saprotrophs
     U_sb = C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb  
     U_sf = C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf    
-    !total N uptake by saprotrophs
+    ! N uptake by saprotrophs
     UN_sb = (N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)*NUE 
     UN_sf = (N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf)*NUE
     !SAP demand for N:
@@ -397,21 +397,21 @@ contains
     !Determine exchange of N between inorganic pool and saprotrophs, N_INSAPb and N_INSAPf:
     if ( N_INSAPb >= 0. .and. N_INSAPf >= 0. ) then !immobilization
       
-      if ( N_for_sap < abs((N_INSAPb + N_INSAPf)*dt) ) then !Not enough mineral N to meet demand
+      if ( N_IN < abs((N_INSAPb + N_INSAPf)*dt) ) then !Not enough mineral N to meet demand
         f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
         if ( U_sb ==0.0 ) then !To avoid division by zero 
           N_INSAPb =0.0
         else
-          CUE_bacteria_vr(depth)=((f_b*N_for_sap+UN_sb*dt)*CN_ratio(3))/(U_sb*dt)
+          CUE_bacteria_vr(depth)=((f_b*N_IN+UN_sb*dt)*CN_ratio(3))/(U_sb*dt)
           !N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
-          N_INSAPb = f_b*N_for_sap/dt
+          N_INSAPb = f_b*N_IN/dt
         end if
         if ( U_sf ==0.0 ) then !To avoid division by zero
           N_INSAPf = 0.0
         else
-          CUE_fungi_vr(depth) = (((1-f_b)*N_for_sap+UN_sf*dt)*CN_ratio(4))/(U_sf*dt)
+          CUE_fungi_vr(depth) = (((1-f_b)*N_IN+UN_sf*dt)*CN_ratio(4))/(U_sf*dt)
           !N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
-          N_INSAPf = (1-f_b)*N_for_sap/dt
+          N_INSAPf = (1-f_b)*N_IN/dt
         end if
         !SAP demand for N:      
         c1a=c1a+1
@@ -426,14 +426,14 @@ contains
          
     elseif ( N_INSAPb >= 0. .and. N_INSAPf < 0. ) then ! bacteria can use N mineralized by fungi
       
-      if ( (N_for_sap + abs(N_INSAPf*dt)) < N_INSAPb*dt ) then
+      if ( (N_IN + abs(N_INSAPf*dt)) < N_INSAPb*dt ) then
         if ( U_sb ==0.0 ) then !To avoid division by zero 
           N_INSAPb =0.0
         else
-          CUE_bacteria_vr(depth)=(((N_for_sap + abs(N_INSAPf*dt))+UN_sb*dt)*CN_ratio(3))/(U_sb*dt)
+          CUE_bacteria_vr(depth)=(((N_IN + abs(N_INSAPf*dt))+UN_sb*dt)*CN_ratio(3))/(U_sb*dt)
           !N_demand_SAPb =  CUE_bacteria_vr(depth)*U_sb/CN_ratio(3)
           !N_INSAPb = N_demand_SAPb/dt-UN_sb   
-          N_INSAPb=N_for_sap/dt+abs(N_INSAPf)
+          N_INSAPb=N_IN/dt+abs(N_INSAPf)
         end if 
         c3a=c3a+1             
       else
@@ -441,16 +441,14 @@ contains
       end if
       
     elseif ( N_INSAPb < 0. .and. N_INSAPf >= 0. ) then !fungi can use N mineralized by bacteria
-
-      if ( (N_for_sap + abs(N_INSAPb*dt)) < N_INSAPf*dt ) then
+      if ( (N_IN + abs(N_INSAPb*dt)) < N_INSAPf*dt ) then
         if ( U_sf == 0.0 ) then
           N_INSAPf = 0.0
         else 
-          CUE_fungi_vr(depth)=(( (N_for_sap + abs(N_INSAPb*dt))+UN_sf*dt)*CN_ratio(4))/(U_sf*dt)
+          CUE_fungi_vr(depth)=(( (N_IN + abs(N_INSAPb*dt))+UN_sf*dt)*CN_ratio(4))/(U_sf*dt)
           !N_demand_SAPf =  CUE_fungi_vr(depth)*U_sf/CN_ratio(4)
           !N_INSAPf = N_demand_SAPf/dt-UN_sf
-          N_INSAPb=N_for_sap/dt+abs(N_INSAPf)
-          
+          N_INSAPb=N_IN/dt+abs(N_INSAPf)
         end if
          c4a=c4a+1         
       else
@@ -460,7 +458,9 @@ contains
     else 
       print*, "No condition applies (this should not happen); ", C_LITmSAPf ,C_LITsSAPf , C_SOMaSAPf,C_LITmSAPb, C_LITsSAPb, C_SOMaSAPb, depth
       stop
+      
     end if
+    
     !Test to make sure new CUE values are reasonble:
     if ( CUE_bacteria_vr(depth)>0.5 .or. CUE_bacteria_vr(depth)<epsilon(CUE_bacteria_vr) ) then
       print*, "CUE_bacteria; ", CUE_bacteria_vr(depth), depth
@@ -468,33 +468,65 @@ contains
     if ( CUE_fungi_vr(depth)>0.5 .or. CUE_fungi_vr(depth)<epsilon(CUE_fungi_vr) ) then
       print*, "CUE_fungi; ", CUE_fungi_vr(depth), depth
     end if
+    
     !Determine the exchange rates between inorganic N and saprotrophs:
     if ( N_INSAPb < 0. ) then !Mineralized N as NH4 only
       N_exchange_NH4 = N_INSAPb !(value is subtracted from NH4_tmp, so it will become a (positive) source term)
       N_exchange_NO3 = 0.0
     else 
-      N_exchange_NH4 = nh4_frac*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
-      N_exchange_NO3 = (1-nh4_frac)*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
+      N_exchange_NH4 = nh4_sol_frac*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
+      N_exchange_NO3 = (1-nh4_sol_frac)*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
     end if
     
     if ( N_INSAPf < 0. ) then !Mineralized N as NH4 only
       N_exchange_NH4 = N_exchange_NH4 + N_INSAPf                
     !  N_exchange_NO3=N_exchange_NO3+ 0.0
     else 
-      N_exchange_NH4= N_exchange_NH4 + nh4_frac*N_INSAPf!N is immobilized based on NH4 fraction
-      N_exchange_NO3= N_exchange_NO3+(1-nh4_frac)*N_INSAPf!N is immobilized based on NH4 fraction
+      N_exchange_NH4= N_exchange_NH4 + nh4_sol_frac*N_INSAPf!N is immobilized based on NH4 fraction
+      N_exchange_NO3= N_exchange_NO3+(1-nh4_sol_frac)*N_INSAPf!N is immobilized based on NH4 fraction
     end if              
 
     !(3)Update inorganic pools with exchange rates with saprotrophs- (the _final values are shared to mycmimMod and used as the updated values for NH4 and NO3)
-    NH4_final = NH4_tmp - N_exchange_NH4*dt 
+    NH4_final = NH4_sol_tmp + NH4_sorp_old - N_exchange_NH4*dt
     NO3_final = NO3_tmp - N_exchange_NO3*dt
+    call calc_NH4_sol_sorp(NH4_final,water_content,NH4_sorp_old,NH4_sol_tmp,NH4_sorp_new)
+    NH4_sol=NH4_sol_tmp
+    NH4_sorp_old=NH4_sorp_new !Update NH4_sorp value
     NH4_tmp = 0.0 !reset values
     NO3_tmp = 0.0 !reset values
-        
     nullify( C_LITm,C_LITs,C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, C_SAPb,C_SAPf)
     nullify( N_LITm,N_LITs,N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb,N_SAPf,N_NH4,N_NO3)
   end subroutine calculate_fluxes
-
+  
+  subroutine calc_NH4_sol_sorp(NH4_tot,soil_water_frac,NH4_sorp_previous,NH4_sol,NH4_sorp)
+    !IN:
+    real(r8), intent(in)  :: NH4_tot   !g/m3, total NH4, both in soil solution and adsorbed
+    real(r8), intent(in)  :: soil_water_frac   !m3water/m3soil (input from CLM data)
+    real(r8)              :: NH4_sorp_previous  !g/m3
+    !Out:
+    real(r8),intent(out)            :: NH4_sol  !g/m3, NH4 in soil solution
+    real(r8),intent(out)            :: NH4_sorp !g/m3, NH4 sorbed to particles
+    
+    !Local:
+    real(r8)            :: NH4_sorp_eq !g/m3, adsorbed NH4 at equilibrium
+    
+    real(r8), parameter :: BD_soil=1.6e6  !g/m3 (loam) soil from DOI: 10.3390/APP6100269 Table 1
+    real(r8), parameter :: NH4_sorp_max = 0.09*BD_soil/mg_pr_g    !mg NH4 /g soil
+    real(r8), parameter :: KL = 0.4      !L/mg
+    real(r8)            :: KL_prime       !m3/g
+    real(r8), parameter :: K_pseudo = 0.0167*mg_pr_g*60./BD_soil !m3/(g hour)
+  
+    !1) Calculate NH4_sorp_eq 
+    KL_prime = KL*mg_pr_g*m3_pr_L/soil_water_frac 
+    NH4_sorp_eq=(1+KL_prime*NH4_tot+NH4_sorp_max*KL_prime)/(2*KL_prime) - sqrt((1+KL_prime*NH4_tot+NH4_sorp_max*KL_prime)**2-4*KL_prime**2*NH4_sorp_max*NH4_tot)/(2*KL_prime)
+    print*, soil_water_frac, KL_prime,NH4_sorp_eq,NH4_sorp_previous
+    !2) Calculate NH4_sorp after adjusting towards equilibrium for 1 timestep
+    NH4_sorp=NH4_sorp_eq-1/(k_pseudo*dt+1/(NH4_sorp_eq-NH4_sorp_previous))
+    
+    !3) Calculate new NH4_sol by subtracting NH4_sorb from NH4_tot
+    NH4_sol = NH4_tot - NH4_sorp
+  end subroutine calc_NH4_sol_sorp
+  
   subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,D) !This subroutine calculates the vertical transport of carbon through the soil layers.
     !IN 
     real(r8), intent(in)   :: pool_matrix(:,:)
@@ -573,16 +605,16 @@ contains
     totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !gC/m3h 
     C_inLITm   = fMET*totC_LIT_input*(1-f_met_to_som)
     C_inLITs   = ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*(1-f_struct_to_som)
-    C_inSOMp = fMET*totC_LIT_input*f_met_to_som*fPHYS(1) + ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som*fPHYS(2)
-    C_inSOMc = fMET*totC_LIT_input*f_met_to_som*fCHEM(1) + ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som*fCHEM(2)
-    C_inSOMa = fMET*totC_LIT_input*f_met_to_som*fAVAIL(1) + ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som*fAVAIL(2)
+    C_inSOMp = fMET*totC_LIT_input*f_met_to_som!*fPHYS(1) + ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som*fPHYS(2)
+    C_inSOMc = ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som !*fCHEM(2)
+    C_inSOMa = 0.0!fMET*totC_LIT_input*f_met_to_som*fAVAIL(1) + ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som*fAVAIL(2)
         
     totN_LIT_input = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
     N_inLITm    = fMET*totN_LIT_input*(1-f_met_to_som)
-    N_inLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)
-    N_inSOMp = fMET*totN_LIT_input*f_met_to_som*fPHYS(1)+((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som*fPHYS(2)
-    N_inSOMc = fMET*totN_LIT_input*f_met_to_som*fCHEM(1)+((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som*fCHEM(2)
-    N_inSOMa = fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)+((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som*fAVAIL(2)        
+    N_inLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)*(1-f_struct_to_som)
+    N_inSOMp = fMET*totN_LIT_input*f_met_to_som!*fPHYS(1)+((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som*fPHYS(2)
+    N_inSOMc = ((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som!*fCHEM(2)
+    N_inSOMa = 0.0!fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)+((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som*fAVAIL(2)        
     
   end subroutine input_rates
   
@@ -616,4 +648,5 @@ contains
     end if
   end function calc_nh4_frac
   
+
 end module fluxMod

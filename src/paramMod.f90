@@ -11,6 +11,10 @@ integer, parameter :: hr_pr_yr  = 365*24
 integer, parameter :: hr_pr_day = 24
 integer, parameter :: days_in_year = 365
 real(r8), parameter:: abs_zero=273.15 !Kelvin
+real(r8), parameter :: mg_pr_g = 1e3 !mg/g
+real(r8), parameter :: m3_pr_L = 1e-3 !m3/L
+
+real(r8), parameter :: dt = 1
 
 integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
 
@@ -25,7 +29,7 @@ real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter 
 real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
 real(kind=r8)                                :: pscalar 
 real(kind=r8),dimension(MM_eqs)              :: Kmod   
-real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 2.0, 10.0, 3.0,3.0, 2.0/)*0.5 !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 2.0, 10.0, 3.0,3.0, 2.0/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter, dimension(2)        :: KO      =  4                 ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
 real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*1e3=[gC/m3] (convert units in a_k)
 real(kind=r8),dimension(MM_eqs)              :: Vmax                            ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
@@ -58,8 +62,8 @@ real(r8)                                :: desorp ![1/h]From Mimics, used for th
 real(r8)                             :: soil_depth           ![m] 
 real(r8),dimension(25),parameter     :: node_z =  (/0.01,0.04,0.09,0.16,0.26,0.40,0.587,0.80,1.06,1.36,1.70,2.08,2.50,2.99,3.58,4.27,5.06,5.95,6.94,8.03,9.795,13.328,19.483,28.871,41.998/)!(/0.076,0.228, 0.380,0.532, 0.684,0.836,0.988,1.140,1.292,1.444/)!![m] Depth of center in each soil layer. Same as the first layers of default CLM5 with vertical resolution.
 real(r8),dimension(25),parameter     :: delta_z = (/0.02, 0.04, 0.06, 0.08,0.12,0.16,0.20,0.24,0.28,0.32,0.36,0.40,0.44,0.54,0.64,0.74,0.84,0.94,1.04,1.14,2.39,4.676,7.635,11.140,15.115/)!0.152![m] Thickness of each soil of the top layers in default clm5.
-real(r8),parameter                   :: D_carbon = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
-real(r8),parameter                   :: D_nitrogen = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 10e-4/(24*365)
+real(r8),parameter                   :: D_carbon = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 1e-4/(24*365)
+real(r8),parameter                   :: D_nitrogen = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 1e-4/(24*365)
 
 !counts: 
 integer                             :: c1a
@@ -74,6 +78,7 @@ real(r8)                            :: max_Nimmobilized
 real(r8),PARAMETER                  :: k1 = 0.042 !hr-1 (day)
 real(r8),PARAMETER                  :: k2 = 0.0014 !hr-1 (month)
 real(r8),PARAMETER                  :: k3 = 0.00014 !hr-1 (year)
+
 
 real(r8),dimension(:),allocatable    :: r_moist
 
@@ -91,7 +96,7 @@ real(r8),parameter                   :: CUE_0=0.5
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
 
 real(r8), parameter                  :: f_met_to_som=0.3_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-real(r8), parameter                  :: f_struct_to_som=0.3_r8 ! fraction of structural litter flux that goes directly to SOM pools
+real(r8), parameter                  :: f_struct_to_som=0.2_r8 ! fraction of structural litter flux that goes directly to SOM pools
 
 real(r8)                             :: max_mining 
 real(r8)                             :: input_mod 
@@ -148,6 +153,11 @@ integer                                      :: ios = 0 !Changes if something go
 character (len=*),parameter                  :: output_path = './results/'
 
 contains
+  function calc_timestep(step_frac) result(timestep)
+    real(r8), intent(IN) :: step_frac
+    real(r8) :: timestep
+    timestep= 1.0/step_frac !Setting the time step    
+  end function calc_timestep
   
   function calc_Kmod(clay_fraction) result(K_mod)
     !Input:
@@ -164,7 +174,7 @@ contains
   function Km_function(temperature) result(K_m)
     real(r8),dimension(MM_eqs)             :: K_m
     real(r8), intent(in)                   :: temperature
-    K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*1e4=[gC/m3]    
+    K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*1e3=[gC/m3]    
   end function Km_function
 
   function Vmax_function(temperature, moisture) result(V_max)
