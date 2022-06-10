@@ -14,7 +14,7 @@ real(r8), parameter:: abs_zero=273.15 !Kelvin
 real(r8), parameter :: mg_pr_g = 1e3 !mg/g
 real(r8), parameter :: m3_pr_L = 1e-3 !m3/L
 
-real(r8), parameter :: dt = 1
+real(r8), parameter :: dt = 1.
 
 integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
 
@@ -41,7 +41,8 @@ integer, parameter                           :: no_of_myc_pools = 3            !
 integer, parameter                           :: no_of_som_pools = 3            !Physically protected, chemically protected, available carbon
 integer, parameter                           :: pool_types = no_of_litter_pools + no_of_myc_pools + &
                                                 no_of_sap_pools + no_of_som_pools
-integer, parameter                           :: pool_types_N = pool_types + 2 !pool_types + NH4 + NO3
+integer, parameter                           :: pool_types_N = pool_types !organic N types 
+integer, parameter                          :: inorg_N_pools = 3 !NH4_sol, NH4_sorp, NO3 (sol)
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
 real(r8),parameter                      :: fMET =0.6                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision

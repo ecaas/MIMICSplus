@@ -1,6 +1,6 @@
 module testMod
   use shr_kind_mod   , only : r8 => shr_kind_r8
-  use paramMod, only : delta_z,pool_types
+  use paramMod, only : delta_z,pool_types,pool_types_N,inorg_N_pools
   use dispmodule, only: disp
   use initMod, only: nlevels
   implicit none
@@ -77,14 +77,13 @@ contains
     HR_mass_tot = sum(HR_mass_vr)
   end subroutine respired_mass
 
-  subroutine test_mass_conservation(mass_input, mass_out, old, new,nlevdecomp,no_of_pools) !Checking that mass is conserved during a time step. Tested and works
+  subroutine test_mass_conservation_C(mass_input, mass_out, old, new,nlevdecomp) !Checking that mass is conserved during a time step. Tested and works
     !INPUT
-    real(r8),intent(in), dimension(nlevdecomp, no_of_pools) :: old !g/m3
-    real(r8),intent(in), dimension(nlevdecomp, no_of_pools) :: new !g/m3
+    real(r8),intent(in), dimension(nlevdecomp, pool_types) :: old !g/m3
+    real(r8),intent(in), dimension(nlevdecomp, pool_types) :: new !g/m3
     real(r8),intent(in)                                    :: mass_out !g/m2
     real(r8),intent(in)                                    :: mass_input !g/m2
     integer, intent(in)                                    :: nlevdecomp
-    integer, intent(in)                                    :: no_of_pools
 
     !OUTPUT
     
@@ -93,10 +92,11 @@ contains
     real(r8) :: sum_new
     real(r8) :: diff
     real(r8) :: goal
-    real(r8), dimension(nlevdecomp, no_of_pools) :: mass_old, mass_new
+    real(r8), dimension(nlevdecomp, pool_types) :: mass_old
+    real(r8), dimension(nlevdecomp, pool_types) :: mass_new
 
-    call cons_to_mass(old, mass_old,nlevdecomp,no_of_pools)
-    call cons_to_mass(new, mass_new,nlevdecomp,no_of_pools)
+    call cons_to_mass(old, mass_old,nlevdecomp,pool_types)
+    call cons_to_mass(new, mass_new,nlevdecomp,pool_types)
 
     sum_old = sum(mass_old)
     sum_new = sum(mass_new)
@@ -104,16 +104,8 @@ contains
     goal = sum_old + mass_input - mass_out
     diff = sum_new-goal
     
-    if (abs(diff) > 1e-10) then
-      if ( no_of_pools .eq. 12 ) then
-        print*, "Mass NOT conserved for NITROGEN"
-
-        ! call disp("new",new)
-        ! call disp("old",old)
-        
-      else
-        print*, "Mass NOT conserved for CARBON"
-      end if
+    if (abs(diff) > 1e-10) then  
+      print*, "Mass NOT conserved for CARBON"
       print*, '-----------------------------------------------------------'
       print*, '(mass at t+dt) - (mass at t + Input - out): ', diff
       print*, 'sum of mass out of system: ', mass_out
@@ -122,30 +114,74 @@ contains
       print*, 'mass after timestep      : ', sum_new
       print*, '-----------------------------------------------------------'
     end if
-  end subroutine test_mass_conservation
+  end subroutine test_mass_conservation_C
+  
+  subroutine test_mass_conservation_N(mass_input, mass_out, &
+                                      old, old_inorg, &
+                                      new,new_inorg,nlevdecomp) !Checking that mass is conserved during a time step. Tested and works
+    !INPUT
+    real(r8),intent(in), dimension(nlevdecomp, pool_types_N) :: old !g/m3
+    real(r8),intent(in), dimension(nlevdecomp, pool_types_N) :: new !g/m3
+    real(r8),intent(in), dimension(nlevdecomp, inorg_N_pools) :: old_inorg !g/m3
+    real(r8),intent(in), dimension(nlevdecomp, inorg_N_pools) :: new_inorg !g/m3
+    real(r8),intent(in)                                    :: mass_out !g/m2
+    real(r8),intent(in)                                    :: mass_input !g/m2
+    integer, intent(in)                                    :: nlevdecomp
 
-  subroutine total_mass_conservation(sum_input, sum_respiration, old, new,nlevdecomp,no_of_pools) !Checking that mass is conserved over the whole time period. tested and works.
+    !OUTPUT
+    
+    !LOCAL
+    real(r8) :: sum_old
+    real(r8) :: sum_new
+    real(r8) :: diff
+    real(r8) :: goal
+    real(r8), dimension(nlevdecomp, pool_types_N) :: mass_old, mass_new
+    real(r8), dimension(nlevdecomp, inorg_N_pools) :: mass_old_inorg, mass_new_inorg
+
+    call cons_to_mass(old, mass_old,nlevdecomp,pool_types_N)
+    call cons_to_mass(new, mass_new,nlevdecomp,pool_types_N)
+    
+    call cons_to_mass(old_inorg,mass_old_inorg,nlevdecomp,inorg_N_pools)
+    call cons_to_mass(new_inorg,mass_new_inorg,nlevdecomp,inorg_N_pools)
+
+    sum_old = sum(mass_old) + sum(mass_old_inorg)
+    sum_new = sum(mass_new) + sum(mass_new_inorg)
+
+    goal = sum_old + mass_input - mass_out
+    diff = sum_new-goal
+    
+    if (abs(diff) > 1e-10) then
+      print*, "Mass NOT conserved for NITROGEN"
+      print*, '-----------------------------------------------------------'
+      print*, '(mass at t+dt) - (mass at t + Input - out): ', diff
+      print*, 'sum of mass out of system: ', mass_out
+      print*, 'sum of input             : ', mass_input
+      print*, 'mass before timestep     : ', sum_old
+      print*, 'mass after timestep      : ', sum_new
+      print*, '-----------------------------------------------------------'
+    end if
+  end subroutine test_mass_conservation_N
+
+  subroutine total_carbon_conservation(sum_input, sum_respiration, old, new,nlevdecomp) !Checking that mass is conserved over the whole time period. tested and works.
     !INPUT 
     integer , intent(in)                                    :: nlevdecomp
-    integer , intent(in)                                    :: no_of_pools
     real(r8),intent(in)                                     :: sum_respiration
     real(r8),intent(in)                                     :: sum_input    
-    real(r8), intent(in), dimension(nlevdecomp, no_of_pools):: old
-    real(r8), intent(in), dimension(nlevdecomp, no_of_pools):: new
+    real(r8), intent(in), dimension(nlevdecomp, pool_types):: old
+    real(r8), intent(in), dimension(nlevdecomp, pool_types):: new
     
     !OUTPUT
     
     !LOCAL
-    real(r8), dimension(nlevdecomp, no_of_pools):: mass_old 
-    real(r8), dimension(nlevdecomp, no_of_pools):: mass_new
+    real(r8), dimension(nlevdecomp, pool_types):: mass_old 
+    real(r8), dimension(nlevdecomp, pool_types):: mass_new
     real(r8)                                    :: sum_old
     real(r8)                                    :: sum_new 
     real(r8)                                    :: diff
     real(r8)                                    :: goal
     
-
-    call cons_to_mass(old, mass_old,nlevdecomp,no_of_pools)
-    call cons_to_mass(new, mass_new,nlevdecomp,no_of_pools)
+    call cons_to_mass(old, mass_old,nlevdecomp,pool_types)
+    call cons_to_mass(new, mass_new,nlevdecomp,pool_types)
 
     sum_old = sum(mass_old)
     sum_new = sum(mass_new)
@@ -164,32 +200,39 @@ contains
     print*, 'sum of input        : ', sum_input
     print*, 'sum_old             : ', sum_old
     print*, 'sum_new             : ', sum_new
-  end subroutine total_mass_conservation
+  end subroutine total_carbon_conservation
 
-  subroutine total_nitrogen_conservation(sum_input, sum_out, old, new,nlevdecomp,no_of_pools) !Checking that mass is conserved over the whole time period. tested and works.
+  subroutine total_nitrogen_conservation(sum_input, sum_out, &
+                                        old, old_inorg, &
+                                        new,new_inorg, nlevdecomp) !Checking that mass is conserved over the whole time period. tested and works.
     !INPUT 
-    integer , intent(in)                                    :: nlevdecomp
-    integer , intent(in)                                    :: no_of_pools
-    real(r8),intent(in)                                     :: sum_out
-    real(r8),intent(in)                                     :: sum_input    
-    real(r8), intent(in), dimension(nlevdecomp, no_of_pools):: old
-    real(r8), intent(in), dimension(nlevdecomp, no_of_pools):: new
+    integer , intent(in)                                      :: nlevdecomp
+    real(r8),intent(in)                                       :: sum_out
+    real(r8),intent(in)                                       :: sum_input    
+    real(r8), intent(in), dimension(nlevdecomp, pool_types_N) :: old
+    real(r8), intent(in), dimension(nlevdecomp, inorg_N_pools):: old_inorg
+    real(r8), intent(in), dimension(nlevdecomp, pool_types_N) :: new
+    real(r8), intent(in), dimension(nlevdecomp, inorg_N_pools):: new_inorg
     
     !OUTPUT
     
     !LOCAL
-    real(r8), dimension(nlevdecomp, no_of_pools):: mass_old 
-    real(r8), dimension(nlevdecomp, no_of_pools):: mass_new
+    real(r8), dimension(nlevdecomp, pool_types_N):: mass_old 
+    real(r8), dimension(nlevdecomp, pool_types_N):: mass_new
+    real(r8), dimension(nlevdecomp, inorg_N_pools) :: mass_old_inorg, mass_new_inorg
     real(r8)                                    :: sum_old
     real(r8)                                    :: sum_new 
     real(r8)                                    :: diff
     real(r8)                                    :: goal
     
-    call cons_to_mass(old, mass_old,nlevdecomp,no_of_pools)
-    call cons_to_mass(new, mass_new,nlevdecomp,no_of_pools)
+    call cons_to_mass(old, mass_old,nlevdecomp,pool_types_N)
+    call cons_to_mass(new, mass_new,nlevdecomp,pool_types_N)
 
-    sum_old = sum(mass_old)
-    sum_new = sum(mass_new)
+    call cons_to_mass(old_inorg,mass_old_inorg,nlevdecomp,inorg_N_pools)
+    call cons_to_mass(new_inorg,mass_new_inorg,nlevdecomp,inorg_N_pools)
+
+    sum_old = sum(mass_old) + sum(mass_old_inorg)
+    sum_new = sum(mass_new) + sum(mass_new_inorg)
 
     goal = sum_old + sum_input - sum_out
     diff = sum_new-goal

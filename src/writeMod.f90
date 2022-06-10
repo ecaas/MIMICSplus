@@ -12,10 +12,6 @@ module writeMod
   integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid
   character (len=4), dimension(pool_types)     :: variables = &
   (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
-
-  character (len=10), dimension(pool_types):: change_variables = &
-  (/  "changeLITm", "changeLITs", "changeSAPb","changeSAPf", "changeEcM ", "changeErM ",&
-      "changeAM  ", "changeSOMp", "changeSOMa", "changeSOMc" /)
       !
   character (len=*), dimension(*), parameter ::  C_name_fluxes = &
   [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
@@ -61,7 +57,8 @@ module writeMod
         call check(nf90_def_var(ncid, "N_vert_change"//trim(variables(v)), NF90_FLOAT, (/t_dimid, lev_dimid/), varid))
 
       end do
-      call check(nf90_def_var(ncid, "NH4", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "NH4_sol", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "NH4_sorp", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "NO3", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "N_SMIN", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid,"HR_sum", NF90_FLOAT, (/t_dimid /), varid ))
@@ -102,12 +99,13 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_netcdf
 
-    subroutine fill_netcdf(ncid, time, pool_matrix, Npool_matrix, &
+    subroutine fill_netcdf(ncid, time, pool_matrix, Npool_matrix,inorganic_N_matrix, &
       mcdate,HR_sum, HR_flux, HRb,HRf,vert_sum,Nvert_sum, write_hour,month, &
       TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,ROI_EcM,ROI_AM,enz_frac,f_alloc)
       !INPUT:
       integer,intent(in)               :: ncid 
       real(r8), intent(in)             :: pool_matrix(nlevels,pool_types), Npool_matrix(nlevels,pool_types_N)   ! For storing pool concentrations [gC/m3]
+      real(r8), intent(in)             :: inorganic_N_matrix(nlevels,inorg_N_pools)
       real(r8), intent(in)             :: vert_sum(nlevels,pool_types)
       real(r8), intent(in)             :: Nvert_sum(nlevels,pool_types)
       integer, intent(in)              :: mcdate
@@ -187,12 +185,14 @@ module writeMod
         call check(nf90_inq_varid(ncid, "CUE_am", varid))
         call check(nf90_put_var(ncid, varid, CUE_am(j), start = (/timestep, j/)))
         
-        call check(nf90_inq_varid(ncid, "NH4", varid))
-        call check(nf90_put_var(ncid, varid, Npool_matrix(j,11), start = (/timestep, j/)))
+        call check(nf90_inq_varid(ncid, "NH4_sol", varid))
+        call check(nf90_put_var(ncid, varid, inorganic_N_matrix(j,1), start = (/timestep, j/)))
+        call check(nf90_inq_varid(ncid, "NH4_sorp", varid))
+        call check(nf90_put_var(ncid, varid, inorganic_N_matrix(j,2), start = (/timestep, j/)))
         call check(nf90_inq_varid(ncid, "NO3", varid))
-        call check(nf90_put_var(ncid, varid, Npool_matrix(j,12), start = (/timestep, j/)))
+        call check(nf90_put_var(ncid, varid, inorganic_N_matrix(j,3), start = (/timestep, j/)))
 
-        N_SMIN = Npool_matrix(j,11)+Npool_matrix(j,12)
+        N_SMIN = inorganic_N_matrix(j,1)+inorganic_N_matrix(j,2)+inorganic_N_matrix(j,3)
         call check(nf90_inq_varid(ncid, "N_SMIN", varid))
         call check(nf90_put_var(ncid, varid, N_SMIN, start = (/timestep, j/)))        
 
@@ -467,8 +467,9 @@ module writeMod
         call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
       end do
 
+      call check(nf90_def_var(ncid, "N_NH4_sol", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "N_NH4_sorp", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "N_NO3", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
-      call check(nf90_def_var(ncid, "N_NH4", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       
       call check(nf90_def_var(ncid, "year_since_start", NF90_FLOAT, (/t_dimid /), varid))
       call check(nf90_enddef(ncid))
@@ -476,13 +477,14 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_yearly_mean_netcdf
 
-    subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly) !TODO: yearly HR and climate variables (if needed?)
+    subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, Ninorg_pool_yearly) !TODO: yearly HR and climate variables (if needed?)
       !INPUT
       character (len = *),intent(in):: run_name
       integer,intent(in)            :: year
       real(r8), intent(in)          :: Cpool_yearly(nlevels,pool_types)  ! For storing C pool sizes [gC/m3]
       real(r8),intent(in)           :: Npool_yearly(nlevels,pool_types_N)  
-
+      real(r8),intent(in)           :: Ninorg_pool_yearly(nlevels,inorg_N_pools)  
+      
       !LOCAL
       integer :: i,j,varid,ncid
 
@@ -491,12 +493,16 @@ module writeMod
       call check(nf90_put_var(ncid, varid, year , start = (/ year /)))
 
       do j=1,nlevels
-        call check(nf90_inq_varid(ncid, "N_NO3", varid))
-        call check(nf90_put_var(ncid, varid, Npool_yearly(j,11), start = (/year, j/)))
-
-        call check(nf90_inq_varid(ncid, "N_NH4", varid))
-        call check(nf90_put_var(ncid, varid, Npool_yearly(j,12), start = (/year, j/)))
+        call check(nf90_inq_varid(ncid, "N_NH4_sol", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_pool_yearly(j,1), start = (/year, j/)))
         
+        call check(nf90_inq_varid(ncid, "N_NH4_sorp", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_pool_yearly(j,2), start = (/year, j/)))
+        
+        call check(nf90_inq_varid(ncid, "N_NO3", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_pool_yearly(j,3), start = (/year, j/)))
+        
+                
         do i = 1,pool_types
           !C:
           call check(nf90_inq_varid(ncid, trim(variables(i)), varid))

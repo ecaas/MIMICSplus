@@ -8,21 +8,26 @@ module initMod
   integer :: nlevels
   
 contains
-  subroutine initialize(pools_C, pools_N) !This subroutine sets the initial C and N values in the pool matrices (content in each soil pool in every depth level + plant)
+  subroutine initialize(pools_C, pools_N,inorg_N) !This subroutine sets the initial C and N values in the pool matrices (content in each soil pool in every depth level + plant)
     !OUTPUT
-    real(r8), intent(out):: pools_C(:,:), pools_N(:,:)
+    real(r8), intent(out):: pools_C(:,:)
+    real(r8), intent(out):: pools_N(:,:)
+    real(r8), intent(out):: inorg_N(:,:)
 
     !LOCAL
     integer                :: j
     real(r8), dimension(10), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
+    real(r8)               :: NH4_sorp
+    real(r8)               :: NH4_sol 
+    
+    call calc_init_NH4(NH4_tot=10._r8,water_content=0.5_r8,NH4_sorp_eq=NH4_sorp,NH4_sol_eq=NH4_sol)
     
     do j=1,nlevels
-       pools_C(j,:) = (/4000.,4000.,10.,50.,100.,1.,1.,4000.,4000.,4000./)
-       pools_N(j,1:10) = pools_C(j,1:10)/CN_ratio
-     end do
-         
-    pools_N(:,11) = 1.
-    pools_N(:,12) = 1.
+      pools_C(j,:) = (/4000.,4000.,10.,50.,100.,1.,1.,4000.,4000.,4000./)
+      pools_N(j,:) = pools_C(j,:)/CN_ratio
+      inorg_N(j,:)=(/NH4_sol,NH4_sorp,10._r8/)
+    end do
+
   end subroutine initialize
 
   subroutine read_nlayers(clm_history_file) 

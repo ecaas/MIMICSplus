@@ -3,25 +3,33 @@ program main
   use mycmimMod,  only: decomp
   use initMod, only: read_nlayers,nlevels, initialize
   use paramMod, only: full_clock_rate,full_clock_stop,full_clock_start, &
-                      pool_types, pool_types_N, read_some_parameters, &
+                      pool_types, pool_types_N,inorg_N_pools, read_some_parameters, &
                       use_Fmax, use_ROI, use_ENZ, use_Sulman
   implicit none
 
   !character (len=*),parameter :: site = "32087_Dovre" !"31767_Kongsvinger" "32374_Saltdal" "32087_Dovre"
   real(r8), dimension (:,:), allocatable   :: C_matrix_init    ! For storing C pool sizes [gC/m3]
   real(r8), dimension (:,:), allocatable   :: N_matrix_init   ! For storing N pool sizes [gN/m3]
+  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_init   ! For storing N pool sizes [gN/m3]
+  
 
   real(r8), dimension (:,:), allocatable   :: C_matrix_Spunup     ! For storing C pool sizes [gC/m3]
   real(r8), dimension (:,:), allocatable   :: N_matrix_Spunup     ! For storing N pool sizes [gN/m3]
+  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_Spunup     ! For storing N pool sizes [gN/m3]
+  
 
   real(r8), dimension (:,:), allocatable   :: C_matrix_1970    
-  real(r8), dimension (:,:), allocatable   :: N_matrix_1970   
+  real(r8), dimension (:,:), allocatable   :: N_matrix_1970 
+  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_1970   
+    
 
   real(r8), dimension (:,:), allocatable   :: C_matrix_1987    
   real(r8), dimension (:,:), allocatable   :: N_matrix_1987    
+  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_1987    
 
   real(r8), dimension (:,:), allocatable   :: C_matrix_final   
   real(r8), dimension (:,:), allocatable   :: N_matrix_final   
+  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_final   
 
   character (len=200)  :: clm_data_file 
   character (len=200)  :: clm_surface_file
@@ -43,19 +51,22 @@ program main
   print*, use_ROI,use_Sulman,use_ENZ,use_Fmax
     
   !ALLOCATE:
-  allocate(C_matrix_init(nlevels,pool_types),N_matrix_init(nlevels,pool_types_N))
-  allocate(C_matrix_Spunup(nlevels,pool_types),N_matrix_Spunup(nlevels,pool_types_N))
-  allocate(C_matrix_1970(nlevels,pool_types),N_matrix_1970(nlevels,pool_types_N))
-  allocate(C_matrix_1987(nlevels,pool_types),N_matrix_1987(nlevels,pool_types_N))
-  allocate(C_matrix_final(nlevels,pool_types),N_matrix_final(nlevels,pool_types_N))
+  allocate(C_matrix_init(nlevels,pool_types),N_matrix_init(nlevels,pool_types_N),N_inorg_matrix_init(nlevels,inorg_N_pools))
+  allocate(C_matrix_Spunup(nlevels,pool_types),N_matrix_Spunup(nlevels,pool_types_N),N_inorg_matrix_Spunup(nlevels,inorg_N_pools))
+  allocate(C_matrix_1970(nlevels,pool_types),N_matrix_1970(nlevels,pool_types_N),N_inorg_matrix_1970(nlevels,inorg_N_pools))
+  allocate(C_matrix_1987(nlevels,pool_types),N_matrix_1987(nlevels,pool_types_N),N_inorg_matrix_1987(nlevels,inorg_N_pools))
+  allocate(C_matrix_final(nlevels,pool_types),N_matrix_final(nlevels,pool_types_N),N_inorg_matrix_final(nlevels,inorg_N_pools))
 
   
 !   !1: INITIALIZE
-  call initialize(C_matrix_init,N_matrix_init)
+  call initialize(C_matrix_init,N_matrix_init,N_inorg_matrix_init)
   !2: SPINUP
-  call decomp(nsteps=2500*24*365, run_name=trim(trim(site)//"_"//trim(description)//"_"//"Spunup"), step_frac=1, write_hour=200*24+24*365*100,&
-  pool_C_start=C_matrix_init,pool_N_start=N_matrix_init, pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,&
-  start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
+  call decomp(nsteps=500*24*365, &
+              run_name=trim(trim(site)//"_"//trim(description)//"_"//"Spunup"), &
+              step_frac=1, write_hour=24*365,&
+              pool_C_start=C_matrix_init,pool_N_start=N_matrix_init,inorg_N_start=N_inorg_matrix_init,&
+              pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,inorg_N_final=N_inorg_matrix_Spunup,&
+              start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
  ! |
  ! | Use output of last timestep to initialize step 2
  ! V
