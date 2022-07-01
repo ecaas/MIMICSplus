@@ -64,6 +64,8 @@ module writeMod
       call check(nf90_def_var(ncid,"HR_flux", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"HRb", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"HRf", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid,"HRe", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
+      call check(nf90_def_var(ncid,"HRa", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       
       call check(nf90_def_var(ncid,"r_input", NF90_FLOAT, (/t_dimid /), varid ))
       call check(nf90_def_var(ncid,"f_ecm", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
@@ -99,7 +101,7 @@ module writeMod
     end subroutine create_netcdf
 
     subroutine fill_netcdf(ncid, time, pool_matrix, Npool_matrix,inorganic_N_matrix, &
-      mcdate,HR_sum, HR_flux, HRb,HRf,vert_sum,Nvert_sum, write_hour,month, &
+      mcdate,HR_sum, HR_flux, HRb,HRf,HRe,HRa,vert_sum,Nvert_sum, write_hour,month, &
       TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,ROI_EcM,ROI_AM,enz_frac,f_alloc)
       !INPUT:
       integer,intent(in)               :: ncid 
@@ -114,6 +116,7 @@ module writeMod
       real(r8),intent(in)              :: HR_sum
       real(r8),dimension(nlevels,2),intent(in)              :: f_alloc
       real(r8),dimension(nlevels), intent(in)       :: HR_flux,HRb,HRf
+      real(r8),dimension(nlevels), intent(in)       :: HRe,HRa
       real(r8),dimension(nlevels), intent(in)       :: ROI_EcM
       real(r8),dimension(nlevels), intent(in)       :: ROI_AM  
       real(r8),dimension(nlevels), intent(in)       :: enz_frac          
@@ -156,7 +159,13 @@ module writeMod
               
         call check(nf90_inq_varid(ncid, "HRf", varid))
         call check(nf90_put_var(ncid, varid, HRf(j), start = (/timestep, j/))) 
-               
+
+        call check(nf90_inq_varid(ncid, "HRe", varid))
+        call check(nf90_put_var(ncid, varid, HRe(j), start = (/timestep, j/))) 
+        
+        call check(nf90_inq_varid(ncid, "HRa", varid))
+        call check(nf90_put_var(ncid, varid, HRa(j), start = (/timestep, j/))) 
+                       
         call check(nf90_inq_varid(ncid, "ROI_ecm", varid))
         call check(nf90_put_var(ncid, varid, ROI_EcM(j), start = (/timestep, j/)))
 

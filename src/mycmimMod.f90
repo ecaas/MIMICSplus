@@ -115,6 +115,7 @@ contains
       real(r8),dimension(nlevels) :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
       real(r8)                       :: HR_mass_accumulated, HR_mass
       real(r8),dimension(nlevels) :: HRb,HRf !For storing respiration separately for bacteria and fungi
+      real(r8),dimension(nlevels) :: HRe,HRa !For storing respiration separately for mycorrhiza
       real(r8)                       :: pool_matrixC(nlevels,pool_types)     ! For storing C pool sizes [gC/m3]
       real(r8)                       :: change_matrixC(nlevels,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: pool_temporaryC(nlevels,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
@@ -259,6 +260,8 @@ contains
       HR             = 0.0
       HRb            = 0.0
       HRf            = 0.0
+      HRe            = 0.0
+      HRa            = 0.0
       ROI_EcM        = 0.0
       ROI_AM         = 0.0
       f_alloc        = 0.0
@@ -335,7 +338,7 @@ contains
       call create_netcdf(run_name)
       call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))      
       call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN,inorg_N_matrix, &
-                       date, HR_mass_accumulated,HR,HRb,HRf, change_matrixC,change_matrixN,write_hour,current_month, &
+                       date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa, change_matrixC,change_matrixN,write_hour,current_month, &
                       TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc)
             
       desorp= calc_desorp(fCLAY)
@@ -592,9 +595,10 @@ contains
           !Calculate the heterotrophic respiration loss from depth level j in timestep t:
           HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j)) + (C_LITmSAPf &
           + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j)))*dt
-          HRb(j) = ( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j))*dt
-          HRf(j)=(C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j))*dt
-
+          HRb(j) = ( C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb)*(1-CUE_bacteria_vr(j))*dt
+          HRf(j) = ( C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j))*dt
+          HRe(j) = CUE_ecm_vr(j)*C_PlantEcM*dt 
+          HRa(j) = CUE_am_vr(j)*C_PlantAM*dt
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t,j
             print*, "Pools C", pool_matrixC(j,1),pool_matrixC(j,2),pool_matrixC(j,3),pool_matrixC(j,4), pool_matrixC(j,9)
@@ -659,7 +663,7 @@ contains
         if (counter == write_hour*step_frac) then
           counter = 0        
           call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,inorg_N_matrix,&
-           date, HR_mass_accumulated,HR,HRb,HRf,vertC,vertN, write_hour,current_month, &
+           date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa,vertC,vertN, write_hour,current_month, &
            TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc)
           change_sum = 0.0
         end if!writing
