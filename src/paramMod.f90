@@ -53,8 +53,6 @@ real(r8), parameter :: K_MO      = 0.003_r8/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal d
 real(r8),parameter                      :: fMET =0.6                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
 real(r8), dimension(no_of_sap_pools)    :: k_sapsom  ![1/h] (tau in MIMICS)
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
-real(r8)                                :: f_EcM! !fraction of present vegetation associated with EcM
-real(r8),parameter                     :: pctN_for_sap=0.9 !NB: VERY ASSUMED Only this percentage of remaining inorganic N is avalable to SAPS
 
 real(kind=r8)                          :: fCLAY                          ![-] fraction of clay in soil
 real(kind=r8),dimension(3)             :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
@@ -70,10 +68,6 @@ real(r8),dimension(25),parameter     :: delta_z = (/0.02, 0.04, 0.06, 0.08,0.12,
 real(r8),parameter                   :: D_carbon = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 1e-4/(24*365)
 real(r8),parameter                   :: D_nitrogen = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 1e-4/(24*365)
 
-real(r8)                            :: max_Nimmobilized
-real(r8),PARAMETER                  :: k1 = 0.042 !hr-1 (day)
-real(r8),PARAMETER                  :: k2 = 0.0014 !hr-1 (month)
-real(r8),PARAMETER                  :: k3 = 0.00014 !hr-1 (year)
 !Modifiers
 real(r8),dimension(:),allocatable    :: r_moist !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
 real(r8)                             :: max_mining 
@@ -106,10 +100,6 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
                                                                                           !LITm: MIMICS-CN manuscript
                                                                                           !LITs, ErM, AM: Guesses!
 
-
-!Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
-real(r8), parameter                          :: P = 44.247 !normalization of moisture function
-real(r8)                                     :: gas_diffusion
 
 real(r8),dimension(:),allocatable  :: ndep_prof
 real(r8),dimension(:),allocatable  :: leaf_prof
@@ -274,18 +264,6 @@ contains
     r_moist = max(0.05, r_moist)
   end subroutine moisture_func
   
-  function calc_Fmax(k,nh4) result(Fmax)
-    !In:
-    real(r8),intent(IN) :: k !loss rate [hr-1]
-    real(r8),INTENT(IN) :: nh4 !nh4 consentration [gN/m3]
-    !Out:
-    real(r8)            :: Fmax !Maximum flux from NH4 to SAP in cases with too limited N (SAP immobilization)
-    if ( nh4 < epsilon(nh4) ) then
-      Fmax = 0.0
-    else 
-      Fmax = k*nh4 
-    end if
-  end function calc_Fmax 
   subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ,use_Fmax)
     !! Read some parmeters,  Here we use a namelist 
     !! but if you were to change the storage format (TOML,or home-made), 

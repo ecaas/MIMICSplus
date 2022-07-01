@@ -313,12 +313,10 @@ contains
       
       if ( .not. use_ROI ) then !use static PFT determined fractionation between EcM and AM C input
         call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
-        f_EcM = calc_EcMfrac(PFT_distribution)
-        f_alloc(:,1) = f_EcM
-        f_alloc(:,2) = 1-f_EcM   
-      else
-        f_EcM = 999_r8
+        f_alloc(:,1) = calc_EcMfrac(PFT_distribution)
+        f_alloc(:,2) = 1-calc_EcMfrac(PFT_distribution)
       end if
+      
       if (f_alloc(1,1)==1.0 ) then !To avoid writing errors when AM = 0
         pool_matrixC(:,7)=0.0
         pool_matrixN(:,7)=0.0
@@ -672,10 +670,6 @@ contains
 
         !Write end values to terminal
         if (t == nsteps) then
-          call disp("pool_matrixC gC/m3 ",pool_matrixC)
-          call disp("pool_matrixN gN/m3 ",pool_matrixN)          
-          call disp("Inorganic N gN/m3 ",inorg_N_matrix)          
-          call disp("C:N : ",pool_matrixC/pool_matrixN)
           pool_C_final  = pool_matrixC
           pool_N_final  = pool_matrixN    
           inorg_N_final = inorg_N_matrix              
@@ -712,25 +706,32 @@ contains
       if ( Spinup_run ) then
         call check(nf90_close(Spinupncid))
       end if
-      print*, "AMOUNT OF N DISCARDED: ", save_N
-      print*, "AMOUNT OF C DISCARDED: ", save_C
-      
-      print*, "Immobilization, not enough N:",c1a
-      print*, "Immobilization enough N: ",c1b
-      print*, "Mineralization: ",c2
-      print*, "Bacteria needs, fungi mineralize, not enough N: ",c3a
-      print*, "Bacteria needs, fungi mineralize, enough N: ",c3b
-      print*, "Fungi needs, bacteria mineralize, not enough N: ",c4a
-      print*, "Fungi needs, bacteria mineralize, enough N: ",c4b
+      call print_summary(save_N, save_C,c1a,c1b,c2,c3a,c3b,c4a,c4b,pool_C_final,pool_N_final,inorg_N_final)
       !deallocation
       deallocate(ndep_prof,leaf_prof,froot_prof,r_moist)
-      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr,f_enzprod)
-      
+      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr,f_enzprod)    
       !For timing
       call system_clock(count=clock_stop)      ! Stop Timer
       print*, "Total time for decomp subroutine in minutes: ", (real(clock_stop-clock_start)/real(clock_rate))/60
   end subroutine decomp
 
-
-
+  subroutine print_summary(discarded_N, discarded_C,imm_a,imm_b,min,f_min_a,f_min_b,b_min_a,b_min_b,matrixC,matrixN,matrixInorg)
+    real(r8), intent(in) :: discarded_N, discarded_C
+    integer, intent(in) :: imm_a,imm_b,min,f_min_a,f_min_b,b_min_a,b_min_b
+    real(r8),dimension(:,:) :: matrixC,matrixN,matrixInorg
+    call disp("pool_matrixC gC/m3 ",matrixC)
+    call disp("pool_matrixN gN/m3 ",matrixN)          
+    call disp("Inorganic N gN/m3 ",matrixInorg)          
+    !call disp("C:N : ",pool_matrixC/pool_matrixN)
+    print*, "AMOUNT OF N DISCARDED: ", discarded_N
+    print*, "AMOUNT OF C DISCARDED: ", discarded_C
+    
+    print*, "Immobilization, not enough N:",imm_a
+    print*, "Immobilization enough N: ",imm_b
+    print*, "Mineralization: ",min
+    print*, "Bacteria needs, fungi mineralize, not enough N: ",f_min_a
+    print*, "Bacteria needs, fungi mineralize, enough N: ",f_min_b
+    print*, "Fungi needs, bacteria mineralize, not enough N: ",b_min_a
+    print*, "Fungi needs, bacteria mineralize, enough N: ",b_min_b
+  end subroutine print_summary
 end module mycmimMod
