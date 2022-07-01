@@ -104,7 +104,9 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
 real(r8),dimension(:),allocatable  :: ndep_prof
 real(r8),dimension(:),allocatable  :: leaf_prof
 real(r8),dimension(:),allocatable  :: froot_prof
+real(r8) :: save_N,save_C
 
+!For timing purposes:
 integer(r8)     :: clock_rate,clock_start,clock_stop
 integer(r8)     :: full_clock_rate,full_clock_start,full_clock_stop
 !Fluxes etc:
@@ -194,6 +196,18 @@ contains
     end if
   end function ROI_function 
   
+  function calc_EcMfrac(PFT_dist) result(EcM_frac)
+    real(r8)                             :: EcM_frac
+    real(r8),dimension(15)               :: PFT_dist
+    real(r8),dimension(15),parameter     :: EcM_fraction=(/1.,1.,1.,1.,0.,0.,0.,0.5,1.,1.,1.,1.,1.,0.,0./)
+    integer                              :: i
+    EcM_frac = 0.0
+    do i = 1, 15, 1
+      EcM_frac = EcM_frac + PFT_dist(i)*EcM_fraction(i)
+    end do
+    EcM_frac = EcM_frac/100.
+  end function calc_EcMfrac
+  
   function r_input(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
     !input
     real(r8) :: C_input
@@ -230,18 +244,6 @@ contains
 
     turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*moist_modifier, 2.4e-4*exp(0.1_r8*met_frac)*moist_modifier]
   end function calc_sap_turnover_rate
-
-  function calc_EcMfrac(PFT_dist) result(EcM_frac)
-    real(r8)                             :: EcM_frac
-    real(r8),dimension(15)               :: PFT_dist
-    real(r8),dimension(15),parameter     :: EcM_fraction=(/1.,1.,1.,1.,0.,0.,0.,0.5,1.,1.,1.,1.,1.,0.,0./)
-    integer                              :: i
-    EcM_frac = 0.0
-    do i = 1, 15, 1
-        EcM_frac = EcM_frac + PFT_dist(i)*EcM_fraction(i)
-    end do
-    EcM_frac = EcM_frac/100.
-  end function calc_EcMfrac
   
   subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist) !NOTE: Should maybe be placed somewhere else?
     real(r8), intent(out), dimension(nlevels) :: r_moist

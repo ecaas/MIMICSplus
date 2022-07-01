@@ -189,13 +189,12 @@ contains
       real(r8)                                 :: h2o_liq_tot
       real(r8)                              :: H2OSOI
       
-      real(r8) :: save_N,save_C
       integer                        :: j,i,t              !for iterations
           
       integer :: ncid
       integer :: writencid
       integer :: spinupncid
-      
+            
       call system_clock(count_rate=clock_rate) !Find the time rate
       call system_clock(count=clock_start)     !Start Timer  
       
@@ -325,19 +324,16 @@ contains
         pool_C_start_for_mass_cons=pool_matrixC
         pool_N_start_for_mass_cons=pool_matrixN
       end if
+      
       if ( Spinup_run ) then
+        call create_yearly_mean_netcdf(run_name)  !open and prepare files to store results. Store initial values
         max_mining = read_maxC(spinupncid,input_steps)
       else
         max_mining = read_maxC(ncid,input_steps)        
       end if
-            
-      !open and prepare files to store results. Store initial values
-      if ( Spinup_run ) then
-        call create_yearly_mean_netcdf(run_name)  
-      end if
+                  
       call create_netcdf(run_name)
-      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))
-      
+      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))      
       call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN,inorg_N_matrix, &
                        date, HR_mass_accumulated,HR,HRb,HRf, change_matrixC,change_matrixN,write_hour,current_month, &
                       TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc)

@@ -1,5 +1,7 @@
 module fluxMod
   use paramMod
+  use shr_kind_mod   , only : r8 => shr_kind_r8
+  
   use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
   use initMod, only: nlevels
   implicit none
