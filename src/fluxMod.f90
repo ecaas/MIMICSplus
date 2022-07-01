@@ -5,7 +5,7 @@ module fluxMod
   implicit none
   PRIVATE
   real(r8) :: NH4_sol_final, NH4_sorp_final,NO3_final
-  public :: calc_nitrification,calc_Leaching,set_N_dep,calc_desorp,forward_MMK_flux,input_rates,calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final,NH4_sorp_final, NO3_final
+  public :: calc_nitrification,calc_Leaching,set_N_dep,forward_MMK_flux,input_rates,calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final,NH4_sorp_final, NO3_final
 contains 
   
   function calc_nitrification(nh4,t_scalar,w_scalar,soil_temp) result(f_nit)
@@ -74,12 +74,6 @@ contains
     Leach = N_NO3*drain/h2o_tot
   end function calc_Leaching
 
-  function calc_desorp(clay_fraction) result(d)
-    real(r8)             :: d
-    real(r8), intent(in) :: clay_fraction
-    d = 1.5e-5*exp(-1.5*(clay_fraction))
-  end function calc_desorp
-  
   function forward_MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
     !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
     !NOTE: On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.

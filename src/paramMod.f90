@@ -177,6 +177,12 @@ contains
     V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
   end function Vmax_function
   
+  function calc_desorp(clay_fraction) result(d)
+    real(r8)             :: d
+    real(r8), intent(in) :: clay_fraction
+    d = 1.5e-5*exp(-1.5*(clay_fraction))
+  end function calc_desorp
+  
   function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) ! Based on Sulman et al 2019
     !INPUT
     real(r8),intent(in) :: N_aquired
