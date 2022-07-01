@@ -20,7 +20,7 @@ contains
     real(r8)               :: NH4_sorp
     real(r8)               :: NH4_sol 
     
-    call calc_init_NH4(NH4_tot=10._r8,water_content=0.5_r8,NH4_sorp_eq=NH4_sorp,NH4_sol_eq=NH4_sol)
+    call calc_init_NH4(tot=10._r8,water_content=0.5_r8,sorp_eq=NH4_sorp,sol_eq=NH4_sol)
     
     do j=1,nlevels
       pools_C(j,:) = (/4000.,4000.,10.,50.,100.,1.,1.,4000.,4000.,4000./)
@@ -54,14 +54,14 @@ contains
     end if
   end subroutine check
 
-  subroutine calc_init_NH4(NH4_tot,water_content,NH4_sorp_eq,NH4_sol_eq)
+  subroutine calc_init_NH4(tot,water_content,sorp_eq,sol_eq)
     !IN:
-    real(r8), intent(in)  :: NH4_tot   !g/m3, total NH4, both in soil solution and adsorbed
+    real(r8), intent(in)  :: tot   !g/m3, total NH4, both in soil solution and adsorbed
     real(r8), intent(in)  :: water_content   !m3water/m3soil (input from CLM data)
     
     !Out:
-    real(r8),intent(out)            :: NH4_sol_eq  !g/m3, NH4 in soil solution at eq
-    real(r8),intent(out)            :: NH4_sorp_eq !g/m3, NH4 sorbed to particles at eq
+    real(r8),intent(out)            :: sol_eq  !g/m3, NH4 in soil solution at eq
+    real(r8),intent(out)            :: sorp_eq !g/m3, NH4 sorbed to particles at eq
     
     
     
@@ -71,9 +71,9 @@ contains
     real(r8), parameter :: NH4_sorp_max = 0.09*BD_soil/mg_pr_g    !mg NH4 /g soil
     real(r8), parameter :: KL = 0.4      !L/mg
     real(r8)            :: KL_prime       !m3/g
-    !1) Calculate NH4_sorp_eq 
+    !1) Calculate sorp_eq 
     KL_prime = KL*mg_pr_g*m3_pr_L/water_content 
-    NH4_sorp_eq=(1+KL_prime*NH4_tot+NH4_sorp_max*KL_prime)/(2*KL_prime) - sqrt((1+KL_prime*NH4_tot+NH4_sorp_max*KL_prime)**2-4*KL_prime**2*NH4_sorp_max*NH4_tot)/(2*KL_prime)
-    NH4_sol_eq=NH4_tot - NH4_sorp_eq
+    sorp_eq=(1+KL_prime*tot+NH4_sorp_max*KL_prime)/(2*KL_prime) - sqrt((1+KL_prime*tot+NH4_sorp_max*KL_prime)**2-4*KL_prime**2*NH4_sorp_max*tot)/(2*KL_prime)
+    sol_eq=tot - sorp_eq
   end subroutine calc_init_NH4
 end module initMod

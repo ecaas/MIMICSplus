@@ -5,8 +5,9 @@ module fluxMod
   implicit none
   PRIVATE
   real(r8) :: NH4_sol_final, NH4_sorp_final,NO3_final
-  public :: calc_nitrification,calc_Leaching,set_N_dep,calc_desorp,MMK_flux,input_rates,calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final,NH4_sorp_final, NO3_final
+  public :: calc_nitrification,calc_Leaching,set_N_dep,calc_desorp,forward_MMK_flux,input_rates,calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final,NH4_sorp_final, NO3_final
 contains 
+  
   function calc_nitrification(nh4,t_scalar,w_scalar,soil_temp) result(f_nit)
     real(r8) :: f_nit
     !IN:
@@ -67,9 +68,9 @@ contains
   
   function calc_Leaching(drain,h2o_tot, N_NO3) result(Leach)
     real(r8)           :: Leach       !gN/m3 h
-    real(r8)           :: drain       !mmH20/h = kgH20/m2 h
-    real(r8)           :: h2o_tot     !kgH20/m2
-    real(r8)           :: N_NO3 !gN/m3
+    real(r8),intent(in)           :: drain       !mmH20/h = kgH20/m2 h
+    real(r8),intent(in)           :: h2o_tot     !kgH20/m2
+    real(r8),intent(in)           :: N_NO3       !gN/m3
     Leach = N_NO3*drain/h2o_tot
   end function calc_Leaching
 
@@ -79,7 +80,7 @@ contains
     d = 1.5e-5*exp(-1.5*(clay_fraction))
   end function calc_desorp
   
-  function MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
+  function forward_MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
     !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
     !NOTE: On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
     real(r8):: flux ![gC/(m3 hr)]
@@ -88,8 +89,8 @@ contains
     integer, intent (in) :: MMK_nr
     !TODO: this works, but should not depend on Vmax & Km from mycmim mod
     flux = C_SAP*Vmax(MMK_nr)*C_SUBSTRATE/(Km(MMK_nr)+C_SUBSTRATE)
-  end function MMK_flux
-  
+  end function forward_MMK_flux
+
   function reverse_MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
      !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
      !NOTE: On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
@@ -103,6 +104,7 @@ contains
 
   subroutine mining_rates_Sulman(C_EcM,C_substrate,N_substrate,moisture_function,T,mining_mod, D_Cmine,D_Nmine) !Sulman et al 2019 eq 34-35 + max_mining modifier
     !NOTE: T dependence (Arrhenius) seems a bit weird, makes flux very low...
+    !NOTE: V_max(T) in article, but not sure how this temperature dependence is?
     !INPUT
     real(r8),intent(in) :: C_EcM
     real(r8),intent(in) :: C_substrate
@@ -116,7 +118,6 @@ contains
     real(r8),intent(out):: D_Nmine
     
     !LOCAL
-    !NOTE: V_max(T) in article, but not sure how this temperature dependence is?
     real(r8),parameter :: V_max = 0.3/hr_pr_yr !Sulman 2019 supplement page 7, Assumed SOMp,SOMc ~ slow SOM
     real(r8),parameter :: K_m = 0.015 
     real(r8),parameter :: E_a = 54000 !J/mol
@@ -144,13 +145,8 @@ contains
       D_Nmine=0.0_r8
     end if
   end subroutine mining_rates_Baskaran
-  
-  subroutine myc_to_plant(layer_nr,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM,CUE_AM,enzyme_prod)
-    !INPUT
-    integer,intent(in)  :: layer_nr 
-    real(r8),intent(in) :: C_PlantEcM
-    real(r8),intent(in) :: C_PlantAM
-    
+
+  subroutine myc_to_plant(NAMPlant,NEcMPlant,CUE_EcM,CUE_AM,enzyme_prod)
     
     !INOUT: 
     real(r8), intent(inout) :: CUE_EcM
@@ -158,49 +154,47 @@ contains
     real(r8), intent(inout) :: enzyme_prod
     
     !OUTPUT
-    real(r8),intent(out)  ::  N_AMPlant
-    real(r8), intent(out) ::  N_EcMPlant
-    real(r8), intent(out) ::  N_ErMPlant
+    real(r8),intent(out)  ::  NAMPlant
+    real(r8), intent(out) ::  NEcMPlant
     
     !LOCAL
     real(r8) ::     AM_N_demand
     real(r8) ::     AM_N_uptake
     real(r8) ::     EcM_N_demand
     real(r8) ::     EcM_N_uptake
-    !----------------------------------------------------------------------------------------------------------------------------------
+
+
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
     AM_N_demand = CUE_AM*C_PlantAM/CN_ratio(7)
     AM_N_uptake = N_INAM     
     if ( AM_N_uptake >= AM_N_demand ) then   
-      N_AMPlant = AM_N_uptake - AM_N_demand
+      NAMPlant = AM_N_uptake - AM_N_demand
     else
-      N_AMPlant = (1-f_growth)*AM_N_uptake
+      NAMPlant = (1-f_growth)*AM_N_uptake
       CUE_AM = f_growth*AM_N_uptake*CN_ratio(7)/(C_PlantAM)
     end if
-    if ( N_AMPlant .ne. 0 ) then      
-      if ( abs(N_AMPlant) < 1e-18 ) then
-        N_AMPlant=0.0
-      end if
+    if ( abs(NAMPlant) < 1e-16 ) then
+      save_N=save_N+NAMPlant
+      NAMPlant=0.0
     end if
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
     EcM_N_demand = (CUE_EcM*(1-enzyme_prod)*C_PlantEcM+C_SOMcEcM+C_SOMpEcM)/CN_ratio(5)
     EcM_N_uptake = N_INEcM + N_SOMpEcM + N_SOMcEcM 
     if ( EcM_N_uptake >= EcM_N_demand ) then   
-        N_EcMPlant=EcM_N_uptake-EcM_N_demand      
+        NEcMPlant=EcM_N_uptake-EcM_N_demand      
     else
-        N_EcMPlant = (1-f_growth)*EcM_N_uptake
+        NEcMPlant = (1-f_growth)*EcM_N_uptake
         if ( use_ENZ ) then
           enzyme_prod = 1 - (f_growth*EcM_N_uptake*CN_ratio(5)-C_SOMpEcM-C_SOMcEcM)/(CUE_EcM*C_PlantEcM)
         else
-          CUE_EcM = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-f_enzprod(layer_nr))*C_PlantEcM)
+          CUE_EcM = (f_growth*EcM_N_uptake*CN_ratio(5)-(C_SOMcEcM+C_SOMpEcM))/((1-enzyme_prod)*C_PlantEcM)
         end if
-      end if
-    if ( N_EcMPlant .ne. 0 ) then          
-      if ( abs(N_EcMPlant) < 1e-18 ) then
-        N_EcMPlant=0.0
-      end if
-    end if 
-    N_ErMPlant = 0.0
+    end if
+    if ( abs(NEcMPlant) < 1e-16 ) then
+      save_N=save_N+NEcMPlant
+      
+      NEcMPlant=0.0
+    end if
   end subroutine myc_to_plant 
   
   subroutine calculate_fluxes(depth,Temp_Celsius,water_content,C_pool_matrix,N_pool_matrix,N_inorg_matrix,Deposition_rate, Leaching_rate, nitrification,dt) !This subroutine calculates the fluxes in and out of the SOM pools.
@@ -230,26 +224,26 @@ contains
     real(r8)  :: N_exchange_NO3,N_exchange_NH4
     
     !Creating these pointers improve readability of the flux equations.
-    real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_ErM,C_AM, &
-    C_SAPb, C_SAPf, N_LITm, N_LITs, N_SOMp,N_SOMa,N_SOMc,N_EcM,N_ErM,N_AM, N_SAPb, N_SAPf, &
+    real(r8), pointer :: C_LITm, C_LITs, C_SOMp,C_SOMa,C_SOMc,C_EcM,C_AM, &
+    C_SAPb, C_SAPf, N_LITm, N_LITs, N_SOMp,N_SOMa,N_SOMc,N_EcM,N_AM, N_SAPb, N_SAPf, &
     N_NH4_sol,N_NH4_sorp,N_NO3
     C_LITm => C_pool_matrix(depth, 1)
     C_LITs => C_pool_matrix(depth, 2)
     C_SAPb => C_pool_matrix(depth, 3)
     C_SAPf => C_pool_matrix(depth, 4)
-    C_ErM =>  C_pool_matrix(depth, 6)
+    
     C_EcM =>  C_pool_matrix(depth, 5)
     C_AM =>   C_pool_matrix(depth, 7)
     C_SOMp => C_pool_matrix(depth, 8)
     C_SOMa => C_pool_matrix(depth, 9)
     C_SOMc => C_pool_matrix(depth, 10)
-
+    
     N_LITm => N_pool_matrix(depth, 1)
     N_LITs => N_pool_matrix(depth, 2)
     N_SAPb => N_pool_matrix(depth, 3)
     N_SAPf => N_pool_matrix(depth, 4)
     N_EcM =>  N_pool_matrix(depth, 5)
-    N_ErM =>  N_pool_matrix(depth, 6)
+    
     N_AM =>   N_pool_matrix(depth, 7)
     N_SOMp => N_pool_matrix(depth, 8)
     N_SOMa => N_pool_matrix(depth, 9)
@@ -264,44 +258,40 @@ contains
     !------------------CARBON FLUXES----------------------------:
     !Decomposition of LIT and SOMa by SAP:
     !On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
-    C_LITmSAPb=MMK_flux(C_SAPb,C_LITm,1)
-    C_LITsSAPb=MMK_flux(C_SAPb,C_LITs,2)
-    C_SOMaSAPb=MMK_flux(C_SAPb,C_SOMa,3)
-    C_LITmSAPf=MMK_flux(C_SAPf,C_LITm,4)
-    C_LITsSAPf=MMK_flux(C_SAPf,C_LITs,5)
-    C_SOMaSAPf=MMK_flux(C_SAPf,C_SOMa,6)
-
+    C_LITmSAPb=forward_MMK_flux(C_SAPb,C_LITm,1)
+    C_LITsSAPb=forward_MMK_flux(C_SAPb,C_LITs,2)
+    C_SOMaSAPb=forward_MMK_flux(C_SAPb,C_SOMa,3)
+    C_LITmSAPf=forward_MMK_flux(C_SAPf,C_LITm,4)
+    C_LITsSAPf=forward_MMK_flux(C_SAPf,C_LITs,5)
+    C_SOMaSAPf=forward_MMK_flux(C_SAPf,C_SOMa,6)
+    
     !Dead mycorrhizal biomass enters the SOM pools:  gC/m3h
     C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp
     C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(2)!soma
     C_EcMSOMc=C_EcM*k_mycsom(1)*fEcMSOM(3)!somc
-
-    C_ErMSOMp=0.0!C_ErM*k_mycsom(2)*fErMSOM(1)
-    C_ErMSOMa=0.0!C_ErM*k_mycsom(2)*fErMSOM(2)
-    C_ErMSOMc=0.0!C_ErM*k_mycsom(2)*fErMSOM(3)
-
+    
     C_AMSOMp=C_AM*k_mycsom(3)*fAMSOM(1)
     C_AMSOMa=C_AM*k_mycsom(3)*fAMSOM(2)
     C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(3)
-
+    
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
     C_SAPbSOMp=C_SAPb*k_sapsom(1)*fPHYS(1)   !gC/m3h
     C_SAPbSOMa=C_SAPb*k_sapsom(1)*fAVAIL(1)
     C_SAPbSOMc=C_SAPb*k_sapsom(1)*fCHEM(1)
-
+    
     C_SAPfSOMp=C_SAPf*k_sapsom(2)*fPHYS(2)
     C_SAPfSOMa=C_SAPf*k_sapsom(2)*fAVAIL(2)
     C_SAPfSOMc=C_SAPf*k_sapsom(2)*fCHEM(2)
-
+    
     !Desorbtion controls transport from physically protected to available SOM
     C_SOMpSOMa=C_SOMp*desorp
-
+    
     !Oxidation from SOMc to SOMa
     !From equations for decomposing structural litter in mimics,eq. A10
     !KO modifies Km which is used in the litter->SAP equations.
     C_SOMcSOMa    = ( C_SAPb * Vmax(2) * C_SOMc / (KO(1)*Km(2) + C_SOMc)) + &
-                   (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
-
+    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
+    
     !Ectomycorrhizal mining options:
     if ( use_Sulman ) then
       call mining_rates_Sulman(C_EcM,C_SOMc,N_SOMc,r_moist(depth),Temp_Kelvin,input_mod, minedSOMc,N_SOMcEcM)
@@ -310,13 +300,13 @@ contains
       call mining_rates_Baskaran(C_EcM,C_SOMp,N_SOMp,input_mod,minedSOMp,N_SOMpEcM) 
       call mining_rates_Baskaran(C_EcM,C_SOMc,N_SOMc,input_mod,minedSOMc,N_SOMcEcM)               
     end if
-                  
+    
     C_SOMpEcM = minedSOMp*f_use
     C_EcMdecompSOMp = (1_r8-f_use)*minedSOMp   ![gC/m3h]
-
+    
     C_SOMcEcM = minedSOMc*f_use
     C_EcMdecompSOMc = (1_r8-f_use)*minedSOMc   ![gC/m3h]
-
+    
     
     !-----------------------------------NITROGEN FLUXES----------------------------:
     !Decomposition of LIT and SOMa by SAP
@@ -330,9 +320,7 @@ contains
     N_EcMSOMp = calc_parallel_Nrates(C_EcMSOMp,N_EcM,C_EcM)
     N_EcMSOMa = calc_parallel_Nrates(C_EcMSOMa,N_EcM,C_EcM)
     N_EcMSOMc = calc_parallel_Nrates(C_EcMSOMc,N_EcM,C_EcM)
-    N_ErMSOMp = 0.0!C_ErMSOMp*(N_ErM/C_ErM)
-    N_ErMSOMa = 0.0!C_ErMSOMa*(N_ErM/C_ErM)
-    N_ErMSOMc = 0.0!C_ErMSOMc*(N_ErM/C_ErM)
+    
     N_AMSOMp = calc_parallel_Nrates(C_AMSOMp,N_AM,C_AM)
     N_AMSOMa = calc_parallel_Nrates(C_AMSOMa,N_AM,C_AM)
     N_AMSOMc = calc_parallel_Nrates(C_AMSOMc,N_AM,C_AM)
@@ -523,9 +511,8 @@ contains
     else !Desorption
       NH4_sorp=(k_pseudo*dt*NH4_sorp_eq + 1 + NH4_sorp_eq/(NH4_sorp_previous-NH4_sorp_eq))/(1/(NH4_sorp_previous-NH4_sorp_eq) + k_pseudo*dt)
     end if
-
   end subroutine calc_NH4_sol_sorp
-  
+
   subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,D) !This subroutine calculates the vertical transport of carbon through the soil layers.
     !IN 
     real(r8), intent(in)   :: pool_matrix(:,:)
@@ -550,11 +537,11 @@ contains
       do pool =1, max_pool(1)
         !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
         if (depth == 1) then
-          upper_diffusion_flux= 0.0
+          upper_diffusion_flux= 0._r8
           lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
         elseif (depth==max_depth(1)) then
           upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
-          lower_diffusion_flux= 0.0
+          lower_diffusion_flux= 0._r8
         else
           upper_diffusion_flux=-D*(pool_matrix(depth,pool)-pool_matrix(depth-1,pool))/(node_z(depth)-node_z(depth-1))
           lower_diffusion_flux=-D*(pool_matrix(depth+1,pool)-pool_matrix(depth,pool))/(node_z(depth+1)-node_z(depth))
