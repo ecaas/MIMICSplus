@@ -58,6 +58,7 @@ module writeMod
       end do
       call check(nf90_def_var(ncid, "NH4_sol", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "NH4_sorp", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "NH4_sorp_eq", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "NO3", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "N_SMIN", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid,"HR_sum", NF90_FLOAT, (/t_dimid /), varid ))
@@ -102,7 +103,7 @@ module writeMod
 
     subroutine fill_netcdf(ncid, time, pool_matrix, Npool_matrix,inorganic_N_matrix, &
       mcdate,HR_sum, HR_flux, HRb,HRf,HRe,HRa,vert_sum,Nvert_sum, write_hour,month, &
-      TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,ROI_EcM,ROI_AM,enz_frac,f_alloc)
+      TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,ROI_EcM,ROI_AM,enz_frac,f_alloc, NH4_eq)
       !INPUT:
       integer,intent(in)               :: ncid 
       real(r8), intent(in)             :: pool_matrix(nlevels,pool_types), Npool_matrix(nlevels,pool_types_N)   ! For storing pool concentrations [gC/m3]
@@ -122,6 +123,8 @@ module writeMod
       real(r8),dimension(nlevels), intent(in)       :: enz_frac          
       real(r8),dimension(nlevels), intent(in)       :: TSOIL, MOIST  
       real(r8),dimension(nlevels), intent(in)       :: CUE_bacteria,CUE_fungi, CUE_ecm,CUE_am
+      real(r8),dimension(nlevels), intent(in)       :: NH4_eq
+      
           
       !OUTPUT:
       
@@ -192,6 +195,9 @@ module writeMod
         
         call check(nf90_inq_varid(ncid, "CUE_am", varid))
         call check(nf90_put_var(ncid, varid, CUE_am(j), start = (/timestep, j/)))
+
+        call check(nf90_inq_varid(ncid, "NH4_sorp_eq", varid))
+        call check(nf90_put_var(ncid, varid, NH4_eq(j), start = (/timestep, j/)))
         
         call check(nf90_inq_varid(ncid, "NH4_sol", varid))
         call check(nf90_put_var(ncid, varid, inorganic_N_matrix(j,1), start = (/timestep, j/)))
@@ -347,10 +353,6 @@ module writeMod
       call check(nf90_put_var(ncid, varid, C_EcMdecompSOMp, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "C_EcMdecoSOMc", varid))
       call check(nf90_put_var(ncid, varid, C_EcMdecompSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SOMcEcM", varid))
-      call check(nf90_put_var(ncid, varid, C_SOMcEcM, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SOMpEcM", varid))
-      call check(nf90_put_var(ncid, varid, C_SOMpEcM, start = (/ timestep, depth_level /)))
       call check(nf90_inq_varid(ncid, "C_EcMenz_prod", varid))
       call check(nf90_put_var(ncid, varid, C_EcMenz_prod, start = (/ timestep, depth_level /)))
     end subroutine write_Cfluxes

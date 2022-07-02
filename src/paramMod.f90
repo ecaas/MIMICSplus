@@ -89,7 +89,6 @@ real(r8), parameter                  :: f_met_to_som   = 0.3_r8 ! fraction of me
 real(r8), parameter                  :: f_struct_to_som= 0.2_r8 ! fraction of structural litter flux that goes directly to SOM pools
 real(r8),dimension(:),allocatable    :: f_enzprod 
 real(r8),parameter                   :: f_enzprod_0    = 0.1_r8
-real(r8), parameter                  :: f_use          = 0.1_r8 !Fraction of C released during mining that is taken up by EcM
 real(r8), parameter                  :: f_growth       = 0.5_r8 !Fraction of mycorrhizal N uptake that needs to stay within the fungi (not given to plant) 
                                                           !New CUE are calculated based on this. NB: VERY ASSUMED!!
 
@@ -122,8 +121,8 @@ real(r8) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_AMSOMp, &
             C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp, &
             C_EcMdecompSOMc,Leaching, Deposition,nitrif_rate, &
             N_demand_SAPf,N_demand_SAPb,N_INSAPb,N_INSAPf,C_EcMdecompSOMa,N_PlantSOMp, &
-            C_SOMcEcM,C_SOMpEcM,C_EcMenz_prod, N_PlantLITs, N_PlantLITm,  N_PlantSOMa,N_PlantSOMc
- 
+            C_EcMenz_prod, N_PlantLITs, N_PlantLITm,  N_PlantSOMa,N_PlantSOMc
+real(r8),dimension(:),allocatable    :: NH4_sorp_eq_vr
  !counts: 
  integer                             :: c1a
  integer                             :: c1b
@@ -230,25 +229,32 @@ contains
     f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))
   end function calc_sap_to_som_fractions
   
-  function calc_myc_mortality() result(myc_mortality)
-    !NOTE: Is it better to call it turnover rate? Is there a difference?
-    real(r8), dimension(no_of_myc_pools) :: myc_mortality
-    myc_mortality=(/1.14_r8,1.14_r8,1.14_r8/)*1e-4  ![1/h]  1/yr  
-  end function calc_myc_mortality
-
   function calc_sap_turnover_rate(met_frac,moist_modifier) result(turnover_rate)
     real(r8),INTENT(IN) :: met_frac
     real(r8),INTENT(IN) :: moist_modifier
     
     real(r8),dimension(no_of_sap_pools) :: turnover_rate
-
+    
     turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*moist_modifier, 2.4e-4*exp(0.1_r8*met_frac)*moist_modifier]
   end function calc_sap_turnover_rate
   
-  subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist) !NOTE: Should maybe be placed somewhere else?
-    real(r8), intent(out), dimension(nlevels) :: r_moist
-    real(r8), intent(in), dimension(nlevels)  :: theta_l, theta_sat, theta_f
-    real(r8), dimension(nlevels)  :: theta_frzn, theta_liq, air_filled_porosity
+  function calc_myc_mortality() result(myc_mortality)
+    !NOTE: Is it better to call it turnover rate? Is there a difference?
+    real(r8), dimension(no_of_myc_pools) :: myc_mortality
+    myc_mortality=(/1.14_r8,1.14_r8,1.14_r8/)*1e-4  ![1/h]  1/yr  
+  end function calc_myc_mortality
+  
+  subroutine moisture_func(theta_l,theta_sat, theta_f,moist_mod) 
+    !IN:
+    real(r8), intent(in), dimension(nlevels)  :: theta_l
+    real(r8), intent(in), dimension(nlevels)  :: theta_sat
+    real(r8), intent(in), dimension(nlevels)  :: theta_f
+    !OUT:
+    real(r8), intent(out), dimension(nlevels) :: moist_mod
+    !LOCAL:
+    real(r8), dimension(nlevels)  :: theta_frzn
+    real(r8), dimension(nlevels)  :: theta_liq
+    real(r8), dimension(nlevels)  :: air_filled_porosity
     !FROM mimics_cycle.f90 in testbed:
     ! ! Read in soil moisture data as in CORPSE
     !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
@@ -262,8 +268,8 @@ contains
     theta_liq  = min(1.0, theta_l/theta_sat)     ! fraction of liquid water-filled pore space (0.0 - 1.0)
     theta_frzn = min(1.0, theta_f/theta_sat)     ! fraction of frozen water-filled pore space (0.0 - 1.0)
     air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
-    r_moist = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
-    r_moist = max(0.05, r_moist)
+    moist_mod = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
+    moist_mod = max(0.05, r_moist)
   end subroutine moisture_func
   
   subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ,use_Fmax)
@@ -306,9 +312,7 @@ contains
         !! write here what to do if reading failed"
         return
     end if
-end subroutine read_some_parameters
-
-!! Namelist helpers
+  end subroutine read_some_parameters
 
 subroutine open_inputfile(file_path, file_unit, iostat)
     !! Check whether file exists, with consitent error message
