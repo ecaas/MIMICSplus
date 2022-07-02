@@ -503,9 +503,9 @@ contains
     if ( NH4_sorp_eq==NH4_sorp_previous ) then !Already at equilibrium
       NH4_sorp = NH4_sorp_previous
     elseif (NH4_sorp_eq > NH4_sorp_previous ) then !Adsorption
-      NH4_sorp=(k_pseudo*dt*NH4_sorp_eq - 1 + NH4_sorp_eq/(NH4_sorp_eq-NH4_sorp_previous))/(1/(NH4_sorp_eq-NH4_sorp_previous) + k_pseudo*dt)
+      NH4_sorp = NH4_sorp_eq - 1_r8/(1._r8/(NH4_sorp_eq-NH4_sorp_previous) + k_pseudo*dt)
     else !Desorption
-      NH4_sorp=(k_pseudo*dt*NH4_sorp_eq + 1 + NH4_sorp_eq/(NH4_sorp_previous-NH4_sorp_eq))/(1/(NH4_sorp_previous-NH4_sorp_eq) + k_pseudo*dt)
+      NH4_sorp = NH4_sorp_eq + 1_r8/(1._r8/(NH4_sorp_previous-NH4_sorp_eq) + k_pseudo*dt)
     end if
   end subroutine calc_NH4_sol_sorp
 
