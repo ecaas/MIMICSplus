@@ -25,9 +25,8 @@ integer, parameter                           :: pool_types = no_of_litter_pools 
 integer, parameter                           :: pool_types_N = pool_types !organic N types 
 integer, parameter                           :: inorg_N_pools = 3 !NH4_sol, NH4_sorp, NO3 (sol)
 
-real(r8), parameter :: dt = 1.
+real(r8), public :: dt
 logical,public :: use_ROI, use_Sulman, use_ENZ, use_Fmax
-
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
 integer, parameter                           :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters
 real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = (/0.017, 0.027, 0.017, 0.017, 0.027, 0.017/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
@@ -137,11 +136,6 @@ integer                                      :: ios = 0 !Changes if something go
 character (len=*),parameter                  :: output_path = './results/'
 
 contains
-  function calc_timestep(step_frac) result(timestep)
-    real(r8), intent(IN) :: step_frac
-    real(r8) :: timestep
-    timestep= 1.0/step_frac !Setting the time step    
-  end function calc_timestep
   
   function calc_Kmod(clay_fraction) result(K_mod)
     !Input:
@@ -272,7 +266,7 @@ contains
     moist_mod = max(0.05, r_moist)
   end subroutine moisture_func
   
-  subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ,use_Fmax)
+  subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ,use_Fmax, timestep)
     !! Read some parmeters,  Here we use a namelist 
     !! but if you were to change the storage format (TOML,or home-made), 
     !! this signature would not change
@@ -282,6 +276,7 @@ contains
     logical, intent(out) :: use_Sulman
     logical, intent(out) :: use_ENZ
     logical, intent(out) :: use_Fmax
+    real(r8), intent(out) :: timestep
     
     !integer, intent(out) :: type_
     integer                        :: file_unit, iostat
@@ -291,11 +286,13 @@ contains
         use_ROI , &
         use_Sulman, &
         use_ENZ, &
-        use_Fmax
+        use_Fmax, &
+        timestep
     use_ROI = .False.
     use_Sulman = .False.
     use_ENZ =  .False.
     use_Fmax =  .False.
+    timestep = 1
     ! Namelist definition===============================
 
     call open_inputfile(file_path, file_unit, iostat)

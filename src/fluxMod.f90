@@ -590,20 +590,6 @@ contains
     end if
   end function calc_parallel_Nrates
 
-  function calc_nh4_frac(NH4,NO3) result(nh4_frac)!Calculate how much of the inorganic N that is in NH4 form
-    real(r8), intent(in) :: NH4
-    real(r8), intent(in) :: NO3
-    
-    !out:
-    real(r8) :: nh4_frac
-        
-    if (NH4+NO3 == 0._r8) Then 
-      nh4_frac = 0.5_8
-    else
-      nh4_frac = NH4/(NH4+NO3)
-    end if
-  end function calc_nh4_frac
-
   subroutine update_inorganic_N(NO3,NH4_sol, &
     Ninorg_avail, ratio)
     real(r8), intent(in) :: NO3

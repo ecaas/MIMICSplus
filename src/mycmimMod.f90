@@ -56,15 +56,13 @@ contains
   
   subroutine decomp(nsteps,   &
                     run_name, &
-                    step_frac, write_hour,&
+                    write_hour,&
                     pool_C_start,pool_N_start,inorg_N_start, &
                     pool_C_final,pool_N_final,inorg_N_final,  &
                     start_year,stop_year,clm_input_path,clm_surf_path) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
       !INPUT
       integer,intent(in)                        :: nsteps               ! number of time steps to iterate over
       character (len=*) ,intent(in)             :: run_name             ! used for naming outputfiles
-      integer,intent(in)                        :: step_frac            ! determines the size of the time step
-    !  integer,intent(in)                        :: nlevels           ! number of vertical layers
       integer,intent(in)                        :: write_hour           !How often output is written to file
       real(r8),intent(in)                       :: pool_C_start(nlevels,pool_types)     ! For store and output final C pool sizes 
       real(r8),intent(in)                       :: pool_N_start(nlevels,pool_types_N)   ! For storing and output final N pool sizes [gN/m3] 
@@ -142,7 +140,6 @@ contains
       real(r8)                       :: C_CWD_litter(nlevels)
       real(r8)                       :: N_CWD_litter(nlevels)
 
-      !real(r8)                       :: dt                            ! size of time step
       real(r8)                       :: time                          ! t*dt
       real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss
       real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion
@@ -197,8 +194,6 @@ contains
             
       call system_clock(count_rate=clock_rate) !Find the time rate
       call system_clock(count=clock_start)     !Start Timer  
-      
-      !dt = calc_timestep(step_frac)
       
       if (nlevels>1) then 
         soil_depth=sum(delta_z(1:nlevels))
@@ -371,7 +366,7 @@ contains
 
          
         !------------Update forcing and environmental data at the right timesteps-----------
-        if (month_counter == days_in_month(current_month)*hr_pr_day*step_frac+1) then
+        if (month_counter == days_in_month(current_month)*hr_pr_day/dt+1) then
             month_counter = 1       
                  
             if (current_month == 12) then
@@ -401,7 +396,7 @@ contains
             end if                             
         end if 
         
-        if (day_counter == hr_pr_day*step_frac+1) then
+        if (day_counter == hr_pr_day/dt+1) then
           day_counter = 1   
           current_day = current_day +1                      
           if ( current_day == 366 ) then
@@ -475,7 +470,7 @@ contains
           
           C_PlantEcM = f_alloc(j,1)*C_MYCinput*froot_prof(j)
           C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j)          
-          if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file            
+          if (counter == write_hour/dt .or. t==1) then !Write fluxes from calculate_fluxes to file            
             call fluxes_netcdf(writencid,int(time), write_hour, j)
           end if !write fluxes
           
@@ -628,7 +623,7 @@ contains
         sum_consNinorg  = sum_consNinorg  + inorg_N_matrix
         sum_consC       = sum_consC       + pool_matrixC
 
-        if (ycounter == 365*24*step_frac) then
+        if (ycounter == 365*24/dt) then
           ycounter = 0
           write_y =write_y+1 !For writing to annual mean file
           
@@ -651,7 +646,7 @@ contains
           sum_consC =0
           sum_consNinorg=0
         end if
-        if (counter == write_hour*step_frac) then
+        if (counter == write_hour/dt) then
           counter = 0        
           call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,inorg_N_matrix,&
            date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa,vertC,vertN, write_hour,current_month, &

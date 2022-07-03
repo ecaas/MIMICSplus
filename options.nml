@@ -3,5 +3,6 @@
     use_Sulman = .False.
     use_ENZ = .False.
     use_Fmax = .True.
+    timestep = 1
 / 
 
