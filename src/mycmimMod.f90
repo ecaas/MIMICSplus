@@ -156,7 +156,7 @@ contains
       real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
       real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
       real(r8),allocatable           :: vert_inorgN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
-      
+      real(r8) ::  Nlign_ratio, f_met_fraction
       !Counters
       integer                        :: ycounter, year,write_y
       integer                        :: counter            !used for determining when to output results
@@ -325,14 +325,12 @@ contains
         pool_C_start_for_mass_cons=pool_matrixC
         pool_N_start_for_mass_cons=pool_matrixN
       end if
-      
       if ( Spinup_run ) then
         call create_yearly_mean_netcdf(run_name)  !open and prepare files to store results. Store initial values
         max_mining = read_maxC(spinupncid,input_steps)
       else
         max_mining = read_maxC(ncid,input_steps)        
       end if
-                  
       call create_netcdf(run_name)
       call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))      
       call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN,inorg_N_matrix, &
@@ -345,12 +343,10 @@ contains
       Kmod  = calc_Kmod(fCLAY)
       k_mycsom  = calc_myc_mortality()  
       
-      ! Fracions of SAP that goes to different SOM pools
-      f_sapsom = calc_sap_to_som_fractions(fCLAY,fMET)
-      fPHYS = f_sapsom(1,:)
-      fCHEM = f_sapsom(2,:)
-      fAVAIL  = f_sapsom(3,:)
-
+      call f_met(C_leaf_litter,C_root_litter,C_CWD_litter, Nlign_ratio, fMET)
+      
+      
+      
       !print initial values to terminal      
       call disp("InitC", pool_matrixC)
       call disp("InitN", pool_matrixN)
@@ -363,7 +359,6 @@ contains
         ycounter = ycounter + 1            !Counts hours in a year 
         month_counter = month_counter + 1 !Counts hours in a month
         day_counter = day_counter + 1     !Counts hours in a day
-
          
         !------------Update forcing and environmental data at the right timesteps-----------
         if (month_counter == days_in_month(current_month)*hr_pr_day/dt+1) then
@@ -374,7 +369,6 @@ contains
             else
               current_month = current_month + 1 
             end if   
-   
             if (input_steps==12) then  
               call read_clm_model_input(ncid,current_month, &
                                 N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
@@ -382,6 +376,7 @@ contains
                                 W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
               max_mining = read_maxC(ncid,input_steps)
+              call f_met(C_leaf_litter,C_root_litter,C_CWD_litter, Nlign_ratio, fMET)
             end if     
             
             if (input_steps==240) then
@@ -393,6 +388,8 @@ contains
                                 W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
               max_mining = read_maxC(spinupncid,input_steps)
+              call f_met(C_leaf_litter,C_root_litter,C_CWD_litter, Nlign_ratio, fMET)
+              
             end if                             
         end if 
         
@@ -410,15 +407,26 @@ contains
             W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)        
             max_mining = read_maxC(ncid,input_steps)                
+            call f_met(C_leaf_litter,C_root_litter,C_CWD_litter, Nlign_ratio, fMET)
           end if        
         end if         
         !-----------------------------------------------------------------------------------
-        
+
+
+
         input_mod = r_input(C_MYCinput,max_mining) !calculate factor that scales mycorrhizal activity based on C payment from plant
         if ( abs(input_mod) > 1.0 ) then
           print*, input_mod, time !for checking
         end if
+        
+        ! Fracions of SAP that goes to different SOM pools
+        f_sapsom = calc_sap_to_som_fractions(fCLAY,fMET)
+        fPHYS = f_sapsom(1,:)
+        fCHEM = f_sapsom(2,:)
+        fAVAIL  = f_sapsom(3,:)
                 
+        ! call disp("W_SCALAR: ", W_SCALAR)
+        ! call disp("r_moist: ", r_moist)
         do j = 1, nlevels !For each depth level (for the no vertical transport case, nlevels = 1, so loop is only done once):
           
           H2OSOI=SOILLIQ(j)+SOILICE(j) !Used for sorp/desorp calculations
@@ -428,7 +436,7 @@ contains
           Vmax    = Vmax_function(TSOIL(j),r_moist(j)) !  ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
 
           ![1/h] Microbial turnover rate (SAP to SOM)
-          k_sapsom = calc_sap_turnover_rate(fMET,r_moist(j)) 
+          k_sapsom = calc_sap_turnover_rate(fMET,r_moist(j), TSOIL(j)) 
           
           CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
@@ -445,9 +453,9 @@ contains
                                       C_PlantSOMp,C_PlantSOMa,C_PlantSOMc, &
                                       N_PlantSOMp,N_PlantSOMa,N_PlantSOMc)
                                       
-          Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j)
-          Leaching    = calc_Leaching(drain,h2o_liq_tot,inorg_N_matrix(j,3))
-          nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton in timestep
+          Leaching    = calc_Leaching(drain,h2o_liq_tot,inorg_N_matrix(j,3)) !N32
+          Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
+          nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton in timestep !N35
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,TSOIL(j),H2OSOI, pool_matrixC, pool_matrixN,inorg_N_matrix,Deposition, Leaching, nitrif_rate)
           inorg_Ntemporary_matrix(j,1)=NH4_sol_final
@@ -457,8 +465,8 @@ contains
             ROI_EcM(j) = ROI_function(N_INEcM+N_SOMpEcM+N_SOMcEcM,pool_matrixC(j,5),k_mycsom(1))
             ROI_AM(j) = ROI_function(N_INAM, pool_matrixC(j,7),k_mycsom(3))
             if ( C_MYCinput .NE. 0.0  ) then !To avoid NaN when both ROI is zero
-              if ( ROI_EcM(j) +ROI_AM(j) ==0.0 ) then !Too little myc in layer to contribute
-                f_alloc(j,:)=0.0 !Value does not really matter bc. C_MYCinput is zero
+              if ( ROI_EcM(j) +ROI_AM(j) == 0.0 ) then !Too little myc in layer to contribute
+                f_alloc(j,:)=0.0 
               else
                 f_alloc(j,1) = ROI_EcM(j)/(ROI_EcM(j)+ROI_AM(j))
                 f_alloc(j,2) = ROI_AM(j)/(ROI_EcM(j)+ROI_AM(j))
@@ -468,30 +476,31 @@ contains
             end if
           end if
           
-          C_PlantEcM = f_alloc(j,1)*C_MYCinput*froot_prof(j)
-          C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j)          
+          C_PlantEcM = f_alloc(j,1)*C_MYCinput*froot_prof(j) !C29
+          C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j) !C30         
           if (counter == write_hour/dt .or. t==1) then !Write fluxes from calculate_fluxes to file            
             call fluxes_netcdf(writencid,int(time), write_hour, j)
           end if !write fluxes
           
-          call myc_to_plant(N_AMPlant,N_EcMPlant,CUE_EcM_vr(j),CUE_AM_vr(j),f_enzprod(j))
+          call myc_to_plant(CUE_EcM_vr(j),CUE_AM_vr(j),f_enzprod(j),N_AMPlant,N_EcMPlant) !N30,N31
           
+          C_EcMenz_prod=CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j) !C28
 
           do i = 1,pool_types !loop over all the pool types, i, in depth level j 
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
 
             if (i==1) then !LITm
-              N_Gain = N_PlantLITm
-              N_Loss = N_LITmSAPb + N_LITmSAPf
               C_Gain = C_PlantLITm
               C_Loss = C_LITmSAPb + C_LITmSAPf
+              N_Gain = N_PlantLITm
+              N_Loss = N_LITmSAPb + N_LITmSAPf
               
             elseif (i==2) then !LITs
-              N_Gain = N_PlantLITs
-              N_Loss = N_LITsSAPb + N_LITsSAPf
               C_Gain = C_PlantLITs
               C_Loss = C_LITsSAPb + C_LITsSAPf
+              N_Gain = N_PlantLITs
+              N_Loss = N_LITsSAPb + N_LITsSAPf
 
             elseif (i==3) then !SAPb 
               C_Gain = CUE_bacteria_vr(j)*(C_LITmSAPb + C_LITsSAPb &
@@ -518,13 +527,12 @@ contains
               end if
 
             elseif (i==5) then !EcM
-              C_EcMenz_prod=CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
               
               C_Gain = CUE_ecm_vr(j)*C_PlantEcM
               C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + C_EcMenz_prod
               N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
-              
+
             elseif (i==6) then !ErM
               C_Gain = 0.0
               C_Loss = 0.0
@@ -542,6 +550,8 @@ contains
               C_Loss = C_SOMpSOMa+C_EcMdecompSOMp 
               N_Gain =  N_SAPbSOMp + N_SAPfSOMp + N_EcMSOMp + N_AMSOMp+N_PlantSOMp
               N_Loss = N_SOMpSOMa + N_SOMpEcM
+              ! print*, "SOMp", C_SAPbSOMp, C_SAPfSOMp, C_EcMSOMp, C_AMSOMp, C_PlantSOMp
+              ! print*, "losses; ", C_SOMpSOMa,C_EcMdecompSOMp,j
 
             elseif (i==9) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc + &
@@ -556,7 +566,7 @@ contains
               C_Loss = C_SOMcSOMa+C_EcMdecompSOMc
               N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_AMSOMc+N_PlantSOMc
               N_Loss = N_SOMcSOMa + N_SOMcEcM
-              
+
             else
               print*, 'Too many pool types expected, pool_types = ',pool_types, 'i: ', i
             end if !determine total gains and losses
@@ -594,7 +604,7 @@ contains
           end if
           
           !Summarize in and out print timestep to check mass balance
-          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+CUE_ecm_vr(j)*C_PlantEcM+CUE_am_vr(j)*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
+          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+CUE_ecm_vr(j)*C_PlantEcM+CUE_am_vr(j)*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2 !NOTE: Because of the varying mycorrhizal CUE, input may vary slightly between simulations with different nutrient availability. 
           sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+N_PlantSOMc+N_PlantSOMp+N_PlantSOMa+Deposition)*dt*delta_z(j) !g/m2
           sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_AMPlant+N_INPlant+Leaching)*dt*delta_z(j)
 
@@ -628,7 +638,9 @@ contains
           write_y =write_y+1 !For writing to annual mean file
           
           if ( Spinup_run ) then
-             call annual_mean(sum_consC,sum_consN,sum_consNinorg,write_y , run_name) !calculates the annual mean and write the result to file
+            
+            !call print_summary(save_N, save_C,c1a,c1b,c2,c3a,c3b,c4a,c4b,pool_matrixC,pool_matrixN,inorg_N_matrix)
+            call annual_mean(sum_consC,sum_consN,sum_consNinorg,write_y , run_name) !calculates the annual mean and write the result to file
           end if
           if (year == stop_year) then
             year = start_year         
@@ -706,9 +718,9 @@ contains
     real(r8), intent(in) :: discarded_N, discarded_C
     integer, intent(in) :: imm_a,imm_b,min,f_min_a,f_min_b,b_min_a,b_min_b
     real(r8),dimension(:,:) :: matrixC,matrixN,matrixInorg
-    call disp("pool_matrixC gC/m3 ",matrixC)
-    call disp("pool_matrixN gN/m3 ",matrixN)          
-    call disp("Inorganic N gN/m3 ",matrixInorg)          
+    call disp("pool_matrixC gC/m3 ",matrixC, 'F12.5')
+    call disp("pool_matrixN gN/m3 ",matrixN, 'F12.5')          
+    call disp("Inorganic N gN/m3 ",matrixInorg, 'F9.6')          
     !call disp("C:N : ",pool_matrixC/pool_matrixN)
     print*, "AMOUNT OF N DISCARDED: ", discarded_N
     print*, "AMOUNT OF C DISCARDED: ", discarded_C

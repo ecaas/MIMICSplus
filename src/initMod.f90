@@ -23,7 +23,7 @@ contains
     call calc_init_NH4(tot=10._r8,water_content=0.5_r8,sorp_eq=NH4_sorp,sol_eq=NH4_sol)
     
     do j=1,nlevels
-      pools_C(j,:) = (/4000.,4000.,10.,50.,100.,1.,1.,4000.,4000.,4000./)
+      pools_C(j,:) = (/100.,100.,50.,50.,50.,0.,50.,200.,200.,500./)
       pools_N(j,:) = pools_C(j,:)/CN_ratio
       inorg_N(j,:)=(/NH4_sol,NH4_sorp,10._r8/)
     end do

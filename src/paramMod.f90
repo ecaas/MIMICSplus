@@ -2,6 +2,7 @@ module paramMod
 use shr_kind_mod   , only : r8 => shr_kind_r8
 use initMod, only : nlevels
 use, intrinsic :: iso_fortran_env, only: stderr => error_unit
+use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
 
 implicit none
 
@@ -26,13 +27,13 @@ integer, parameter                           :: pool_types_N = pool_types !organ
 integer, parameter                           :: inorg_N_pools = 3 !NH4_sol, NH4_sorp, NO3 (sol)
 
 real(r8), public :: dt
-logical,public :: use_ROI, use_Sulman, use_ENZ, use_Fmax
+logical,public :: use_ROI, use_Sulman, use_ENZ
 !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
 integer, parameter                           :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters
-real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = (/0.017, 0.027, 0.017, 0.017, 0.027, 0.017/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),dimension(MM_eqs),parameter    :: Vslope  = (/0.063, 0.063, 0.063, 0.063, 0.063, 0.063/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),dimension(MM_eqs),parameter    :: Kint    = 3.19      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = 0.034 !(/0.017, 0.027, 0.017, 0.017, 0.027, 0.017/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs),parameter    :: Vslope  = 0.055!(/0.063, 0.063, 0.063, 0.063, 0.063, 0.063/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs),parameter    :: Kint    = 2.88 !3.19      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.85 !5.47      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (1000g/mg*cm3/m3 * 10 mg/cm3 from german et al 2012)
 real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
 real(kind=r8),dimension(MM_eqs)              :: Kmod    ! see function calc_Kmod
@@ -49,7 +50,7 @@ real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal u
 real(r8), parameter :: K_MO      = 0.003_r8/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
-real(r8),parameter                      :: fMET =0.6                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
+real(r8)                      :: fMET                        ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
 real(r8), dimension(no_of_sap_pools)    :: k_sapsom  ![1/h] (tau in MIMICS)
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
 
@@ -57,13 +58,15 @@ real(kind=r8)                          :: fCLAY                          ![-] fr
 real(kind=r8),dimension(3)             :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
 real(r8),parameter                     :: k_plant = 5E-7
 
-real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
-real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
+real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.2,0.4/) !somp,somc,soma. Fraction of flux from EcM to different SOM pools NOTE: assumed
+real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.4,0.3/) !somp, somc,soma
 
 !Depth & vertical transport
 real(r8)                             :: soil_depth           ![m] 
-real(r8),dimension(25),parameter     :: node_z =  (/0.01,0.04,0.09,0.16,0.26,0.40,0.587,0.80,1.06,1.36,1.70,2.08,2.50,2.99,3.58,4.27,5.06,5.95,6.94,8.03,9.795,13.328,19.483,28.871,41.998/)!(/0.076,0.228, 0.380,0.532, 0.684,0.836,0.988,1.140,1.292,1.444/)!![m] Depth of center in each soil layer. Same as the first layers of default CLM5 with vertical resolution.
-real(r8),dimension(25),parameter     :: delta_z = (/0.02, 0.04, 0.06, 0.08,0.12,0.16,0.20,0.24,0.28,0.32,0.36,0.40,0.44,0.54,0.64,0.74,0.84,0.94,1.04,1.14,2.39,4.676,7.635,11.140,15.115/)!0.152![m] Thickness of each soil of the top layers in default clm5.
+real(r8),dimension(25),parameter     :: node_z =  (/0.01,0.04,0.09,0.16,0.26,0.40,0.587,0.80,1.06,1.36,1.70,2.08, &
+                                                  2.50,2.99,3.58,4.27,5.06,5.95,6.94,8.03,9.795,13.328,19.483,28.871,41.998/)!(/0.076,0.228, 0.380,0.532, 0.684,0.836,0.988,1.140,1.292,1.444/)!![m] Depth of center in each soil layer. Same as the first layers of default CLM5 with vertical resolution.
+real(r8),dimension(25),parameter     :: delta_z = (/0.02, 0.04, 0.06, 0.08,0.12,0.16,0.20,0.24,0.28,0.32,0.36,0.40, &
+                                                  0.44,0.54,0.64,0.74,0.84,0.94,1.04,1.14,2.39,4.676,7.635,11.140,15.115/)!0.152![m] Thickness of each soil of the top layers in default clm5.
 real(r8),parameter                   :: D_carbon = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 1e-4/(24*365)
 real(r8),parameter                   :: D_nitrogen = 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 1e-4/(24*365)
 
@@ -84,8 +87,8 @@ real(r8),parameter                   :: CUE_myc_0=0.25_r8 !Baskaran
 real(r8),parameter                   :: NUE=0.7_r8
 
 !Fractions
-real(r8), parameter                  :: f_met_to_som   = 0.3_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-real(r8), parameter                  :: f_struct_to_som= 0.2_r8 ! fraction of structural litter flux that goes directly to SOM pools
+real(r8), parameter                  :: f_met_to_som   = 0.1_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
+real(r8), parameter                  :: f_struct_to_som= 0.05_r8 ! fraction of structural litter flux that goes directly to SOM pools
 real(r8),dimension(:),allocatable    :: f_enzprod 
 real(r8),parameter                   :: f_enzprod_0    = 0.1_r8
 real(r8), parameter                  :: f_growth       = 0.5_r8 !Fraction of mycorrhizal N uptake that needs to stay within the fungi (not given to plant) 
@@ -133,7 +136,7 @@ real(r8),dimension(:),allocatable    :: NH4_sorp_eq_vr
  
 !For writing to file:
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
-character (len=*),parameter                  :: output_path = './results/'
+character (len=*),parameter                  :: output_path = './results/test/'
 
 contains
   
@@ -223,13 +226,18 @@ contains
     f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))
   end function calc_sap_to_som_fractions
   
-  function calc_sap_turnover_rate(met_frac,moist_modifier) result(turnover_rate)
+  function calc_sap_turnover_rate(met_frac,moist_modifier, temp) result(turnover_rate)
     real(r8),INTENT(IN) :: met_frac
     real(r8),INTENT(IN) :: moist_modifier
+    real(r8),INTENT(IN) :: temp
     
     real(r8),dimension(no_of_sap_pools) :: turnover_rate
     
-    turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*moist_modifier, 2.4e-4*exp(0.1_r8*met_frac)*moist_modifier]
+  !  if ( temp < 0 ) then
+  !    turnover_rate=0.0
+  !  else
+      turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*moist_modifier, 2.4e-4*exp(0.1_r8*met_frac)*moist_modifier]
+    !end if
   end function calc_sap_turnover_rate
   
   function calc_myc_mortality() result(myc_mortality)
@@ -261,12 +269,14 @@ contains
     !    fW = max(0.05, fW)
     theta_liq  = min(1.0, theta_l/theta_sat)     ! fraction of liquid water-filled pore space (0.0 - 1.0)
     theta_frzn = min(1.0, theta_f/theta_sat)     ! fraction of frozen water-filled pore space (0.0 - 1.0)
+
     air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
     moist_mod = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
+
     moist_mod = max(0.05, r_moist)
   end subroutine moisture_func
   
-  subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ,use_Fmax, timestep)
+  subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ, timestep)
     !! Read some parmeters,  Here we use a namelist 
     !! but if you were to change the storage format (TOML,or home-made), 
     !! this signature would not change
@@ -275,7 +285,6 @@ contains
     logical, intent(out) :: use_ROI
     logical, intent(out) :: use_Sulman
     logical, intent(out) :: use_ENZ
-    logical, intent(out) :: use_Fmax
     real(r8), intent(out) :: timestep
     
     !integer, intent(out) :: type_
@@ -286,12 +295,10 @@ contains
         use_ROI , &
         use_Sulman, &
         use_ENZ, &
-        use_Fmax, &
         timestep
     use_ROI = .False.
     use_Sulman = .False.
     use_ENZ =  .False.
-    use_Fmax =  .False.
     timestep = 1
     ! Namelist definition===============================
 
@@ -342,5 +349,46 @@ subroutine close_inputfile(file_path, file_unit, iostat)
     end if
     close (file_unit)   
 end subroutine close_inputfile
+
+subroutine f_met(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lignNratio,fmet)
+
+  !In: 
+  real(r8), intent(in) :: leaf_to_lit
+  real(r8), intent(in) :: froot_to_lit
+  real(r8), intent(in) :: cwd_to_lit_vr(:)
+
+  !out:
+  real(r8), intent(out) :: lignNratio
+  real(r8), intent(out) :: fmet
+
+  !local
+  real(r8), parameter :: p1 = 0.75
+  real(r8), parameter :: p2 = 0.85
+  real(r8), parameter :: p3 = 0.013
+  real(r8), parameter :: p4 = 40.
+  real(r8), parameter :: fr_flig = 0.25
+  real(r8), parameter :: lf_flig = 0.25
+  real(r8), parameter :: cwd_flig = 0.24
+  real(r8), parameter :: frootcn = 42.
+  real(r8), parameter :: cwdcn = 481.
+  real(r8), parameter :: lflitcn = 50 !NOTE: Change with PFT!
+
+  real(r8) :: cwd_to_lit
+  real(r8) :: lignNleaf
+  real(r8) :: lignNfroot
+  real(r8) :: lignNcwd
+
+  cwd_to_lit = sum(cwd_to_lit_vr*delta_z(1:nlevels))
+
+  lignNleaf  = lf_flig*lflitcn*leaf_to_lit
+  lignNfroot = fr_flig*frootcn*froot_to_lit
+  lignNcwd   = cwd_flig*cwdcn*cwd_to_lit
+
+  lignNratio = (lignNleaf + lignNfroot + lignNcwd) / &
+              max(1e-3, leaf_to_lit+froot_to_lit+cwd_to_lit)
+
+  fmet = p1*(p2-p3*min(p4,lignNratio))
+
+end subroutine f_met
 
 end module paramMod

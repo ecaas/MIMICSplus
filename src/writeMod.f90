@@ -7,24 +7,25 @@ module writeMod
   implicit none
   private
   public :: check, create_netcdf,fill_netcdf,store_parameters,fluxes_netcdf,create_yearly_mean_netcdf,fill_yearly_netcdf
-  
-  
+    
   integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid
   character (len=4), dimension(pool_types)     :: variables = &
   (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
-      !
+
   character (len=*), dimension(*), parameter ::  C_name_fluxes = &
-  [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
-    "EcMSOMp ", "EcMSOMa ","EcMSOMc ",&
-  "AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
-    ,"PlantLITs","PlantEcM","PlantAM","PlantSOMc  ","PlantSOMp  ","PlantSOMa  ", &
-    "EcMdecoSOMp","EcMdecoSOMc","EcMenz_prod","SOMcEcM","SOMpEcM"]
+  [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", &
+  "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
+  "EcMSOMp ", "EcMSOMa ","EcMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ", &
+  "SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm", "PlantLITs", &
+  "PlantEcM","PlantAM","PlantSOMc  ","PlantSOMp  ","PlantSOMa  ", &
+  "EcMdecoSOMp","EcMdecoSOMc","EcMenz_prod"]
   character (len=*), dimension(*), parameter ::  N_name_fluxes = &
-  [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc" &
-    ,"EcMSOMp ", "EcMSOMa ","EcMSOMc ",&
-  "AMSOMp  ","AMSOMa  ","AMSOMc  ","SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm" &
-    ,"PlantLITs","PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","AMPlant", "Deposition", "Leaching", "INEcM","INAM", &
-    "SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
+  [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", &
+  "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
+  "EcMSOMp ", "EcMSOMa ","EcMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ", &
+  "SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm", "PlantLITs", &
+  "PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","AMPlant", "Deposition",&
+  "Leaching", "INEcM","INAM","SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
 
   contains
 
@@ -96,6 +97,7 @@ module writeMod
       call check(nf90_def_var(ncid, "mcdate", NF90_INT,(/t_dimid/), varid))
       call check(nf90_def_var(ncid, "time", NF90_INT, (/t_dimid /), varid))
       call check(nf90_def_var(ncid, "month", NF90_INT, (/t_dimid /), varid))
+      call check(nf90_def_var(ncid, "f_met", NF90_FLOAT,(/t_dimid /),varid))
       call check(nf90_enddef(ncid))
 
       call check( nf90_close(ncid) )
@@ -130,7 +132,7 @@ module writeMod
       
       !LOCAL:
       integer                          :: i , j !for looping
-      integer                          :: varid, timestep,vertid 
+      integer                          :: varid, timestep 
       real(r8)                         :: N_SMIN
 
 
@@ -139,7 +141,9 @@ module writeMod
       call check(nf90_inq_varid(ncid, "time", varid))
       call check(nf90_put_var(ncid, varid, time, start = (/ timestep /)))
       call check(nf90_inq_varid(ncid, "mcdate", varid))
-      call check(nf90_put_var(ncid, varid, mcdate, start = (/ timestep /)))      
+      call check(nf90_put_var(ncid, varid, mcdate, start = (/ timestep /)))    
+      call check(nf90_inq_varid(ncid, "f_met", varid))
+      call check(nf90_put_var(ncid, varid, fmet, start = (/ timestep /)))    
       call check(nf90_inq_varid(ncid, "month", varid))
       call check(nf90_put_var(ncid, varid, month, start = (/ timestep /)))
       call check(nf90_inq_varid(ncid, "HR_sum", varid))
@@ -148,88 +152,69 @@ module writeMod
       call check(nf90_put_var(ncid, varid, input_mod, start = (/ timestep /)))
       
       do j=1,nlevels
-        call check(nf90_inq_varid(ncid, "Temp",varid))
-        call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/timestep,j/)))
-
-        call check(nf90_inq_varid(ncid, "Moisture",varid))
-        call check(nf90_put_var(ncid, varid, MOIST(j), start = (/timestep,j/)))
-
-        call check(nf90_inq_varid(ncid, "HR_flux", varid))
-        call check(nf90_put_var(ncid, varid, HR_flux(j), start = (/timestep, j/)))
         
-        call check(nf90_inq_varid(ncid, "HRb", varid))
-        call check(nf90_put_var(ncid, varid, HRb(j), start = (/timestep, j/)))  
+
+        call check_and_write(ncid, "Temp",TSOIL(j), timestep,j)
+
+        call check_and_write(ncid, "Moisture", MOIST(j),timestep,j)
+
+        call check_and_write(ncid, "HR_flux", HR_flux(j), timestep,j)
+        
+        call check_and_write(ncid, "HRb", HRb(j),timestep,j)
               
-        call check(nf90_inq_varid(ncid, "HRf", varid))
-        call check(nf90_put_var(ncid, varid, HRf(j), start = (/timestep, j/))) 
+        call check_and_write(ncid, "HRf", HRf(j),timestep,j)
 
-        call check(nf90_inq_varid(ncid, "HRe", varid))
-        call check(nf90_put_var(ncid, varid, HRe(j), start = (/timestep, j/))) 
+        call check_and_write(ncid, "HRe", HRe(j),timestep,j)
         
-        call check(nf90_inq_varid(ncid, "HRa", varid))
-        call check(nf90_put_var(ncid, varid, HRa(j), start = (/timestep, j/))) 
+        call check_and_write(ncid, "HRa",  HRa(j), timestep,j)
                        
-        call check(nf90_inq_varid(ncid, "ROI_ecm", varid))
-        call check(nf90_put_var(ncid, varid, ROI_EcM(j), start = (/timestep, j/)))
+        call check_and_write(ncid, "ROI_ecm", ROI_EcM(j),timestep,j)
 
-        call check(nf90_inq_varid(ncid, "ROI_am", varid))
-        call check(nf90_put_var(ncid, varid, ROI_AM(j), start = (/timestep, j/)))
+        call check_and_write(ncid, "ROI_am",ROI_AM(j),  timestep,j)
         
-        call check(nf90_inq_varid(ncid, "enz_frac", varid))
-        call check(nf90_put_var(ncid, varid, enz_frac(j), start = (/timestep, j/)))    
+        call check_and_write(ncid, "enz_frac",enz_frac(j),  timestep,j)
         
-        call check(nf90_inq_varid(ncid, "f_ecm", varid))
-        call check(nf90_put_var(ncid, varid, f_alloc(j,1), start = (/timestep, j/)))
+        call check_and_write(ncid, "f_ecm",f_alloc(j,1),  timestep,j)
                 
-        call check(nf90_inq_varid(ncid, "f_am", varid))
-        call check(nf90_put_var(ncid, varid, f_alloc(j,2), start = (/timestep, j/)))
+        call check_and_write(ncid, "f_am", f_alloc(j,2),timestep,j)
     
-        call check(nf90_inq_varid(ncid, "CUEb", varid))
-        call check(nf90_put_var(ncid, varid, CUE_bacteria(j), start = (/timestep, j/)))
+        call check_and_write(ncid, "CUEb", CUE_bacteria(j), timestep,j)
         
-        call check(nf90_inq_varid(ncid, "CUEf", varid))
-        call check(nf90_put_var(ncid, varid, CUE_fungi(j), start = (/timestep, j/)))
+        call check_and_write(ncid, "CUEf",CUE_fungi(j), timestep,j)
         
-        call check(nf90_inq_varid(ncid, "CUE_ecm", varid))
-        call check(nf90_put_var(ncid, varid, CUE_ecm(j), start = (/timestep, j/)))
+        call check_and_write(ncid, "CUE_ecm",CUE_ecm(j),  timestep,j)
         
-        call check(nf90_inq_varid(ncid, "CUE_am", varid))
-        call check(nf90_put_var(ncid, varid, CUE_am(j), start = (/timestep, j/)))
+        call check_and_write(ncid, "CUE_am",  CUE_am(j),timestep,j)
 
-        call check(nf90_inq_varid(ncid, "NH4_sorp_eq", varid))
-        call check(nf90_put_var(ncid, varid, NH4_eq(j), start = (/timestep, j/)))
+        call check_and_write(ncid, "NH4_sorp_eq", NH4_eq(j), timestep,j)
         
-        call check(nf90_inq_varid(ncid, "NH4_sol", varid))
-        call check(nf90_put_var(ncid, varid, inorganic_N_matrix(j,1), start = (/timestep, j/)))
-        call check(nf90_inq_varid(ncid, "NH4_sorp", varid))
-        call check(nf90_put_var(ncid, varid, inorganic_N_matrix(j,2), start = (/timestep, j/)))
-        call check(nf90_inq_varid(ncid, "NO3", varid))
-        call check(nf90_put_var(ncid, varid, inorganic_N_matrix(j,3), start = (/timestep, j/)))
+        call check_and_write(ncid, "NH4_sol", inorganic_N_matrix(j,1),timestep,j)
+        call check_and_write(ncid, "NH4_sorp",inorganic_N_matrix(j,2),  timestep,j)
+        call check_and_write(ncid, "NO3",  inorganic_N_matrix(j,3),timestep,j)
 
         N_SMIN = inorganic_N_matrix(j,1)+inorganic_N_matrix(j,2)+inorganic_N_matrix(j,3)
-        call check(nf90_inq_varid(ncid, "N_SMIN", varid))
-        call check(nf90_put_var(ncid, varid, N_SMIN, start = (/timestep, j/)))        
+        call check_and_write(ncid, "N_SMIN",N_SMIN, timestep,j)
 
         do i = 1,pool_types
           !C:
-          call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
-          call check(nf90_put_var(ncid, varid, pool_matrix(j,i), start = (/ timestep, j /)))
+          call check_and_write(ncid,trim(variables(i)),pool_matrix(j,i),timestep,j)
+
           !N:
-          call check(nf90_inq_varid(ncid, "N_"//trim(variables(i)), varid))
-          call check(nf90_put_var(ncid, varid, Npool_matrix(j,i), start = (/ timestep, j /)))
+          call check_and_write(ncid,"N_"//trim(variables(i)),Npool_matrix(j,i),timestep,j)
+
 
           !C change:
-          call check(nf90_inq_varid(ncid, "vert_change"//trim(variables(i)), vertid))
-          call check(nf90_put_var(ncid, vertid, vert_sum(j,i), start = (/timestep,j/)))
+          call check_and_write(ncid, "vert_change"//trim(variables(i)),vert_sum(j,i),timestep,j)
+
           !N change:
-          call check(nf90_inq_varid(ncid, "N_vert_change"//trim(variables(i)), vertid))
-          call check(nf90_put_var(ncid, vertid, Nvert_sum(j,i), start = (/timestep,j/)))
+          call check_and_write(ncid, "N_vert_change"//trim(variables(i)),Nvert_sum(j,i),timestep,j)
+
         end do !pool_types
       end do ! levels
     end subroutine fill_netcdf
 
    subroutine store_parameters(ncid)
-     integer :: clayID, desorpID, fmetID, k_sapsomID, depthID, fphysID, fchemID, favailID
+     integer :: clayID, desorpID, k_sapsomID, depthID, fphysID, fchemID, favailID
      integer,intent(in):: ncid
 
      call check(nf90_def_var(ncid, "f_clay", NF90_FLOAT, clayID))
@@ -239,7 +224,6 @@ module writeMod
      call check(nf90_def_var(ncid, "f_avail", NF90_FLOAT,fracid,favailID))
      call check(nf90_def_var(ncid, "f_chem", NF90_FLOAT,fracid,fchemID))
      call check(nf90_def_var(ncid, "depth", NF90_FLOAT,depthID))
-     call check(nf90_def_var(ncid, "f_met", NF90_FLOAT,fmetID))
      
 
      call check(nf90_enddef(ncid))
@@ -250,7 +234,6 @@ module writeMod
      call check(nf90_put_var(ncid, fchemID, fCHEM))
      call check(nf90_put_var(ncid, favailID, fAVAIL))
      call check(nf90_put_var(ncid, depthID, soil_depth))
-     call check(nf90_put_var(ncid, fmetID, fMET))
      call check(nf90_put_var(ncid, k_sapsomID, k_sapsom))
    end subroutine store_parameters
 
@@ -292,151 +275,135 @@ module writeMod
       integer, intent(in) :: timestep
       integer, intent(in) :: depth_level
 
-      !Local:
-      integer :: varid
 
-      call check(nf90_inq_varid(ncid, "C_PlantLITm", varid))
-      call check(nf90_put_var(ncid, varid, C_PlantLITm, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_PlantLITs", varid))
-      call check(nf90_put_var(ncid, varid, C_PlantLITs, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_PlantEcM", varid))
-      call check(nf90_put_var(ncid, varid, C_PlantEcM, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_PlantAM", varid))
-      call check(nf90_put_var(ncid, varid, C_PlantAM, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_PlantSOMc", varid))
-      call check(nf90_put_var(ncid, varid, C_PlantSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_PlantSOMp", varid))
-      call check(nf90_put_var(ncid, varid, C_PlantSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_PlantSOMa", varid))
-      call check(nf90_put_var(ncid, varid, C_PlantSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_LITmSAPb", varid))
-      call check(nf90_put_var(ncid, varid, C_LITmSAPb, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_LITsSAPb", varid))
-      call check(nf90_put_var(ncid, varid, C_LITsSAPb, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_LITmSAPf", varid))
-      call check(nf90_put_var(ncid, varid, C_LITmSAPf, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_LITsSAPf", varid))
-      call check(nf90_put_var(ncid, varid, C_LITsSAPf, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SOMpSOMa", varid))
-      call check(nf90_put_var(ncid, varid, C_SOMpSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SOMcSOMa", varid))
-      call check(nf90_put_var(ncid, varid, C_SOMcSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SAPbSOMa", varid))
-      call check(nf90_put_var(ncid, varid, C_SAPbSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SAPfSOMa", varid))
-      call check(nf90_put_var(ncid, varid, C_SAPfSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_EcMSOMa", varid))
-      call check(nf90_put_var(ncid, varid, C_EcMSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_EcMSOMc", varid))
-      call check(nf90_put_var(ncid, varid, C_EcMSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_EcMSOMp", varid))
-      call check(nf90_put_var(ncid, varid, C_EcMSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_AMSOMp", varid))
-      call check(nf90_put_var(ncid, varid, C_AMSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_AMSOMa", varid))
-      call check(nf90_put_var(ncid, varid, C_AMSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_AMSOMc", varid))
-      call check(nf90_put_var(ncid, varid, C_AMSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SOMaSAPb", varid))
-      call check(nf90_put_var(ncid, varid, C_SOMaSAPb, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SOMaSAPf", varid))
-      call check(nf90_put_var(ncid, varid, C_SOMaSAPf, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SAPbSOMp", varid))
-      call check(nf90_put_var(ncid, varid, C_SAPbSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SAPfSOMp", varid))
-      call check(nf90_put_var(ncid, varid, C_SAPfSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SAPbSOMc", varid))
-      call check(nf90_put_var(ncid, varid, C_SAPbSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_SAPfSOMc", varid))
-      call check(nf90_put_var(ncid, varid, C_SAPfSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_EcMdecoSOMp", varid))
-      call check(nf90_put_var(ncid, varid, C_EcMdecompSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_EcMdecoSOMc", varid))
-      call check(nf90_put_var(ncid, varid, C_EcMdecompSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "C_EcMenz_prod", varid))
-      call check(nf90_put_var(ncid, varid, C_EcMenz_prod, start = (/ timestep, depth_level /)))
+      call check_and_write(ncid, "C_PlantLITm", C_PlantLITm,timestep,depth_level)
+      call check_and_write(ncid, "C_PlantLITs",C_PlantLITs ,timestep,depth_level)
+      call check_and_write(ncid, "C_PlantEcM", C_PlantEcM,timestep,depth_level)
+      call check_and_write(ncid, "C_PlantAM", C_PlantAM,timestep,depth_level)
+      call check_and_write(ncid, "C_PlantSOMc", C_PlantSOMc,timestep,depth_level)
+      call check_and_write(ncid, "C_PlantSOMp",C_PlantSOMp ,timestep,depth_level)
+      call check_and_write(ncid, "C_PlantSOMa", C_PlantSOMa,timestep,depth_level)
+      call check_and_write(ncid, "C_LITmSAPb",C_LITmSAPb ,timestep,depth_level)
+      call check_and_write(ncid, "C_LITsSAPb",C_LITsSAPb ,timestep,depth_level)
+      call check_and_write(ncid, "C_LITmSAPf", C_LITmSAPf,timestep,depth_level)
+      call check_and_write(ncid, "C_LITsSAPf", C_LITsSAPf,timestep,depth_level)
+      call check_and_write(ncid, "C_SOMpSOMa", C_SOMpSOMa,timestep,depth_level)
+      call check_and_write(ncid, "C_SOMcSOMa", C_SOMcSOMa,timestep,depth_level)
+      call check_and_write(ncid, "C_SAPbSOMa", C_SAPbSOMa,timestep,depth_level)
+      call check_and_write(ncid, "C_SAPfSOMa", C_SAPfSOMa,timestep,depth_level)
+      call check_and_write(ncid, "C_EcMSOMa",C_EcMSOMa ,timestep,depth_level)
+      call check_and_write(ncid, "C_EcMSOMc",C_EcMSOMc ,timestep,depth_level)
+      call check_and_write(ncid, "C_EcMSOMp", C_EcMSOMp,timestep,depth_level)
+      call check_and_write(ncid, "C_AMSOMp", C_AMSOMp,timestep,depth_level)
+      call check_and_write(ncid, "C_AMSOMa", C_AMSOMa,timestep,depth_level)
+      call check_and_write(ncid, "C_AMSOMc", C_AMSOMc,timestep,depth_level)
+      call check_and_write(ncid, "C_SOMaSAPb",C_SOMaSAPb ,timestep,depth_level)
+      call check_and_write(ncid, "C_SOMaSAPf", C_SOMaSAPf,timestep,depth_level)
+      call check_and_write(ncid, "C_SAPbSOMp",C_SAPbSOMp,timestep,depth_level)
+      call check_and_write(ncid, "C_SAPfSOMp", C_SAPfSOMp,timestep,depth_level)
+      call check_and_write(ncid, "C_SAPbSOMc",C_SAPbSOMc ,timestep,depth_level)
+      call check_and_write(ncid, "C_SAPfSOMc", C_SAPfSOMc,timestep,depth_level)
+      call check_and_write(ncid, "C_EcMdecoSOMp",C_EcMdecompSOMp ,timestep,depth_level)
+      call check_and_write(ncid, "C_EcMdecoSOMc",C_EcMdecompSOMc ,timestep,depth_level)
+      call check_and_write(ncid, "C_EcMenz_prod",C_EcMenz_prod ,timestep,depth_level)
     end subroutine write_Cfluxes
+    
+    subroutine check_and_write(ncid,name_of_var,var,time,depth)
+      integer, intent(in)      :: ncid
+      character(len=*),intent(in) :: name_of_var
+      real(r8), intent(in)     :: var
+      integer, intent(in)      :: time
+      integer, intent(in)      :: depth
+      
+      !Local:
+      integer  :: varid 
+      real(r8) :: used_var      
+
+      if ( var < 1e-30 ) then
+        used_var = 0._r8 
+      else
+        used_var = var
+      end if
+      
+      call check(nf90_inq_varid(ncid, name_of_var, varid))
+      call check(nf90_put_var(ncid, varid, used_var, start = (/ time, depth /)))
+      
+    end subroutine check_and_write
     
     subroutine write_Nfluxes(ncid,timestep,depth_level)
       integer, intent(in) :: ncid
       integer, intent(in) :: timestep
       integer, intent(in) :: depth_level
-      !Local:
-      integer :: varid
-      call check(nf90_inq_varid(ncid, "N_LITmSAPb", varid))
-      call check(nf90_put_var(ncid, varid, N_LITmSAPb, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_LITsSAPb", varid))
-      call check(nf90_put_var(ncid, varid, N_LITsSAPb, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_LITmSAPf", varid))
-      call check(nf90_put_var(ncid, varid, N_LITmSAPf, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_LITsSAPf", varid))
-      call check(nf90_put_var(ncid, varid, N_LITsSAPf, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SOMpSOMa", varid))
-      call check(nf90_put_var(ncid, varid, N_SOMpSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SOMcSOMa", varid))
-      call check(nf90_put_var(ncid, varid, N_SOMcSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SAPbSOMa", varid))
-      call check(nf90_put_var(ncid, varid, N_SAPbSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SAPfSOMa", varid))
-      call check(nf90_put_var(ncid, varid, N_SAPfSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_EcMSOMa", varid))
-      call check(nf90_put_var(ncid, varid, N_EcMSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_EcMSOMc", varid))
-      call check(nf90_put_var(ncid, varid, N_EcMSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_EcMSOMp", varid))
-      call check(nf90_put_var(ncid, varid, N_EcMSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_AMSOMa", varid))
-      call check(nf90_put_var(ncid, varid, N_AMSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_AMSOMc", varid))
-      call check(nf90_put_var(ncid, varid, N_AMSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_AMSOMp", varid))
-      call check(nf90_put_var(ncid, varid, N_AMSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SOMaSAPb", varid))
-      call check(nf90_put_var(ncid, varid, N_SOMaSAPb, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SOMaSAPf", varid))
-      call check(nf90_put_var(ncid, varid, N_SOMaSAPf, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SAPbSOMp", varid))
-      call check(nf90_put_var(ncid, varid, N_SAPbSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SAPfSOMp", varid))
-      call check(nf90_put_var(ncid, varid, N_SAPfSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SAPbSOMc", varid))
-      call check(nf90_put_var(ncid, varid, N_SAPbSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SAPfSOMc", varid))
-      call check(nf90_put_var(ncid, varid, N_SAPfSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_INSAPf", varid))
-      call check(nf90_put_var(ncid, varid, N_INSAPf, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_INSAPb", varid))
-      call check(nf90_put_var(ncid, varid, N_INSAPb, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_INAM", varid))
-      call check(nf90_put_var(ncid, varid, N_INAM, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_INEcM", varid))
-      call check(nf90_put_var(ncid, varid, N_INEcM, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_Deposition", varid))
-      call check(nf90_put_var(ncid, varid, Deposition, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_Leaching", varid))
-      call check(nf90_put_var(ncid, varid, Leaching, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_PlantLITm", varid))
-      call check(nf90_put_var(ncid, varid, N_PlantLITm, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_PlantLITs", varid))
-      call check(nf90_put_var(ncid, varid, N_PlantLITs, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_PlantSOMp", varid))
-      call check(nf90_put_var(ncid, varid, N_PlantSOMp, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_PlantSOMa", varid))
-      call check(nf90_put_var(ncid, varid, N_PlantSOMa, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_PlantSOMc", varid))
-      call check(nf90_put_var(ncid, varid, N_PlantSOMc, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_EcMPlant", varid))
-      call check(nf90_put_var(ncid, varid, N_EcMPlant, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_AMPlant", varid))
-      call check(nf90_put_var(ncid, varid, N_AMPlant, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_InPlant", varid))
-      call check(nf90_put_var(ncid, varid, N_InPlant, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SOMpEcM", varid))
-      call check(nf90_put_var(ncid, varid, N_SOMpEcM, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_SOMcEcM", varid))
-      call check(nf90_put_var(ncid, varid, N_SOMcEcM, start = (/ timestep, depth_level /)))
-      call check(nf90_inq_varid(ncid, "N_nitrif_rate", varid))
-      call check(nf90_put_var(ncid, varid, nitrif_rate, start = (/ timestep, depth_level /)))
+
+      call check_and_write(ncid, "N_LITmSAPb", N_LITmSAPb,timestep,depth_level)
+      call check_and_write(ncid, "N_LITsSAPb", N_LITsSAPb, timestep,depth_level)
+      call check_and_write(ncid, "N_LITmSAPf", N_LITmSAPf, timestep,depth_level)
+      call check_and_write(ncid, "N_LITsSAPf", N_LITsSAPf ,timestep,depth_level)
+      call check_and_write(ncid, "N_SOMpSOMa", N_SOMpSOMa ,timestep,depth_level)
+      call check_and_write(ncid, "N_SOMcSOMa", N_SOMcSOMa ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_SAPbSOMa", N_SAPbSOMa,timestep,depth_level)
+
+      call check_and_write(ncid, "N_SAPfSOMa",N_SAPfSOMa ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_EcMSOMa", N_EcMSOMa,timestep,depth_level)
+
+      call check_and_write(ncid, "N_EcMSOMc",N_EcMSOMc ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_EcMSOMp", N_EcMSOMp,timestep,depth_level)
+
+      call check_and_write(ncid, "N_AMSOMa", N_AMSOMa,timestep,depth_level)
+
+      call check_and_write(ncid, "N_AMSOMc", N_AMSOMc,timestep,depth_level)
+
+      call check_and_write(ncid, "N_AMSOMp", N_AMSOMp,timestep,depth_level)
+
+      call check_and_write(ncid, "N_SOMaSAPb",N_SOMaSAPb ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_SOMaSAPf", N_SOMaSAPf,timestep,depth_level)
+
+      call check_and_write(ncid, "N_SAPbSOMp", N_SAPbSOMp,timestep,depth_level)
+
+      call check_and_write(ncid, "N_SAPfSOMp", N_SAPfSOMp,timestep,depth_level)
+
+      call check_and_write(ncid, "N_SAPbSOMc", N_SAPbSOMc,timestep,depth_level)
+
+      call check_and_write(ncid, "N_SAPfSOMc",N_SAPfSOMc ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_INSAPf", N_INSAPf,timestep,depth_level)
+
+      call check_and_write(ncid, "N_INSAPb",N_INSAPb ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_INAM", N_INAM,timestep,depth_level)
+
+      call check_and_write(ncid, "N_INEcM", N_INEcM,timestep,depth_level)
+
+      call check_and_write(ncid, "N_Deposition",Deposition ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_Leaching",Leaching ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_PlantLITm",N_PlantLITm ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_PlantLITs", N_PlantLITs,timestep,depth_level)
+
+      call check_and_write(ncid, "N_PlantSOMp",N_PlantSOMp ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_PlantSOMa", N_PlantSOMa,timestep,depth_level)
+
+      call check_and_write(ncid, "N_PlantSOMc",N_PlantSOMc ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_EcMPlant", N_EcMPlant,timestep,depth_level)
+
+      call check_and_write(ncid, "N_AMPlant", N_AMPlant,timestep,depth_level)
+
+      call check_and_write(ncid, "N_InPlant",N_InPlant ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_SOMpEcM", N_SOMpEcM,timestep,depth_level)
+
+      call check_and_write(ncid, "N_SOMcEcM",N_SOMcEcM ,timestep,depth_level)
+
+      call check_and_write(ncid, "N_nitrif_rate", nitrif_rate,timestep,depth_level)
+
     end subroutine write_Nfluxes
 
     subroutine create_yearly_mean_netcdf(run_name)
@@ -476,6 +443,7 @@ module writeMod
       
       !LOCAL
       integer :: i,j,varid,ncid
+      real(r8) :: value
 
       call check(nf90_open(output_path//trim(run_name)//"_yearly_mean.nc", nf90_write, ncid))
       call check(nf90_inq_varid(ncid, "year_since_start", varid))
@@ -493,9 +461,14 @@ module writeMod
         
                 
         do i = 1,pool_types
+          if ( Cpool_yearly(j,i) < epsilon(Cpool_yearly) ) then
+            value = 0.0_r8
+          else
+            value = Cpool_yearly(j,i)
+          end if
           !C:
           call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
-          call check(nf90_put_var(ncid, varid, Cpool_yearly(j,i), start = (/ year, j /)))
+          call check(nf90_put_var(ncid, varid, value, start = (/ year, j /)))
           !N:
           call check(nf90_inq_varid(ncid, "N_"//trim(variables(i)), varid))
           call check(nf90_put_var(ncid, varid, Npool_yearly(j,i), start = (/ year, j /)))

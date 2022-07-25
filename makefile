@@ -35,6 +35,9 @@ $(PROG): $(OBJ)
 	-L$(LIB) -lnetcdff -lnetcdf -lmfhdf -ldf -lhdf5_hl -lhdf5 -lrt -lpthread -lz -ldl -lm -lcurl \
 	-o $(PROG)
 
+$(BUILD_DIR)/dispmodule.o: $(SRC_DIRS)/dispmodule.f90
+	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/dispmodule.f90 -o $@
+
 $(BUILD_DIR)/mycmimMod.o: $(SRC_DIRS)/mycmimMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o $(BUILD_DIR)/fluxMod.o $(BUILD_DIR)/initMod.o $(BUILD_DIR)/writeMod.o \
 $(BUILD_DIR)/testMod.o $(BUILD_DIR)/readMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/mycmimMod.f90 -o $@
@@ -54,14 +57,11 @@ $(BUILD_DIR)/writeMod.o: $(SRC_DIRS)/writeMod.f90 $(BUILD_DIR)/paramMod.o $(BUIL
 $(BUILD_DIR)/main.o: $(SRC_DIRS)/main.f90 $(BUILD_DIR)/mycmimMod.o $(BUILD_DIR)/initMod.o
 	 $(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/main.f90 -o $@
 
-$(BUILD_DIR)/paramMod.o: $(SRC_DIRS)/paramMod.f90 $(BUILD_DIR)/shr_kind_mod.o $(BUILD_DIR)/initMod.o
+$(BUILD_DIR)/paramMod.o: $(SRC_DIRS)/paramMod.f90 $(BUILD_DIR)/shr_kind_mod.o $(BUILD_DIR)/initMod.o $(BUILD_DIR)/dispmodule.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/paramMod.f90 -o $@
 
 $(BUILD_DIR)/readMod.o: $(SRC_DIRS)/readMod.f90 $(BUILD_DIR)/dispmodule.o $(BUILD_DIR)/shr_kind_mod.o $(BUILD_DIR)/initMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/readMod.f90 -o $@
-
-$(BUILD_DIR)/dispmodule.o: $(SRC_DIRS)/dispmodule.f90
-	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/dispmodule.f90 -o $@
 
 $(BUILD_DIR)/shr_kind_mod.o: $(SRC_DIRS)/shr_kind_mod.f90
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/shr_kind_mod.f90 -o $@

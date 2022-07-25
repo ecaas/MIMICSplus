@@ -142,7 +142,7 @@ contains
     end if
   end subroutine mining_rates_Baskaran
 
-  subroutine myc_to_plant(NAMPlant,NEcMPlant,CUE_EcM,CUE_AM,enzyme_prod)
+  subroutine myc_to_plant(CUE_EcM,CUE_AM,enzyme_prod,NAMPlant,NEcMPlant)
     
     !INOUT: 
     real(r8), intent(inout) :: CUE_EcM
@@ -252,81 +252,81 @@ contains
     !------------------CARBON FLUXES----------------------------:
     !Decomposition of LIT and SOMa by SAP:
     !On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
-    C_LITmSAPb=forward_MMK_flux(C_SAPb,C_LITm,1)
-    C_LITsSAPb=forward_MMK_flux(C_SAPb,C_LITs,2)
-    C_SOMaSAPb=forward_MMK_flux(C_SAPb,C_SOMa,3)
-    C_LITmSAPf=forward_MMK_flux(C_SAPf,C_LITm,4)
-    C_LITsSAPf=forward_MMK_flux(C_SAPf,C_LITs,5)
-    C_SOMaSAPf=forward_MMK_flux(C_SAPf,C_SOMa,6)
-    
-    !Dead mycorrhizal biomass enters the SOM pools:  gC/m3h
-    C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp
-    C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(2)!soma
-    C_EcMSOMc=C_EcM*k_mycsom(1)*fEcMSOM(3)!somc
-    
-    C_AMSOMp=C_AM*k_mycsom(3)*fAMSOM(1)
-    C_AMSOMa=C_AM*k_mycsom(3)*fAMSOM(2)
-    C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(3)
-    
-    !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
-    C_SAPbSOMp=C_SAPb*k_sapsom(1)*fPHYS(1)   !gC/m3h
-    C_SAPbSOMa=C_SAPb*k_sapsom(1)*fAVAIL(1)
-    C_SAPbSOMc=C_SAPb*k_sapsom(1)*fCHEM(1)
-    
-    C_SAPfSOMp=C_SAPf*k_sapsom(2)*fPHYS(2)
-    C_SAPfSOMa=C_SAPf*k_sapsom(2)*fAVAIL(2)
-    C_SAPfSOMc=C_SAPf*k_sapsom(2)*fCHEM(2)
-    
-    !Desorbtion controls transport from physically protected to available SOM
-    C_SOMpSOMa=C_SOMp*desorp
+    C_LITmSAPb=forward_MMK_flux(C_SAPb,C_LITm,1) !C6
+    C_LITsSAPb=forward_MMK_flux(C_SAPb,C_LITs,2) !C7
+    C_SOMaSAPb=forward_MMK_flux(C_SAPb,C_SOMa,3) !C8
+    C_LITmSAPf=forward_MMK_flux(C_SAPf,C_LITm,4) !C9
+    C_LITsSAPf=forward_MMK_flux(C_SAPf,C_LITs,5) !C10
+    C_SOMaSAPf=forward_MMK_flux(C_SAPf,C_SOMa,6) !C11
     
     !Oxidation from SOMc to SOMa
     !From equations for decomposing structural litter in mimics,eq. A10
     !KO modifies Km which is used in the litter->SAP equations.
     C_SOMcSOMa    = ( C_SAPb * Vmax(2) * C_SOMc / (KO(1)*Km(2) + C_SOMc)) + &
-    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc))
+    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc)) !C12
     
+    !Desorbtion controls transport from physically protected to available SOM
+    C_SOMpSOMa=C_SOMp*desorp !C13
+    
+    !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
+    C_SAPbSOMp=C_SAPb*k_sapsom(1)*fPHYS(1)   !gC/m3h !C14
+    C_SAPbSOMc=C_SAPb*k_sapsom(1)*fCHEM(1) !C15
+    C_SAPbSOMa=C_SAPb*k_sapsom(1)*fAVAIL(1)!C16
+    
+    C_SAPfSOMp=C_SAPf*k_sapsom(2)*fPHYS(2) !C17 
+    C_SAPfSOMc=C_SAPf*k_sapsom(2)*fCHEM(2) !C18
+    C_SAPfSOMa=C_SAPf*k_sapsom(2)*fAVAIL(2)!C19
+    
+    !Dead mycorrhizal biomass enters the SOM pools:  gC/m3h
+    C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp !C20
+    C_EcMSOMc=C_EcM*k_mycsom(1)*fEcMSOM(2)!somc !C21
+    C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(3)!soma !C22
+    
+    C_AMSOMp=C_AM*k_mycsom(3)*fAMSOM(1) !C23
+    C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(2) !C24
+    C_AMSOMa=C_AM*k_mycsom(3)*fAMSOM(3) !C25
+
     !Ectomycorrhizal mining options:
     if ( use_Sulman ) then
       call mining_rates_Sulman(C_EcM,C_SOMc,N_SOMc,r_moist(depth),Temp_Kelvin,input_mod, minedSOMc,N_SOMcEcM)
       call mining_rates_Sulman(C_EcM,C_SOMp,N_SOMp,r_moist(depth),Temp_Kelvin, input_mod, minedSOMp,N_SOMpEcM)
     else
-      call mining_rates_Baskaran(C_EcM,C_SOMp,N_SOMp,input_mod,minedSOMp,N_SOMpEcM) 
-      call mining_rates_Baskaran(C_EcM,C_SOMc,N_SOMc,input_mod,minedSOMc,N_SOMcEcM)               
+      call mining_rates_Baskaran(C_EcM,C_SOMp,N_SOMp,input_mod,minedSOMp,N_SOMpEcM) !N26
+      call mining_rates_Baskaran(C_EcM,C_SOMc,N_SOMc,input_mod,minedSOMc,N_SOMcEcM) !N27              
     end if
     
-    C_EcMdecompSOMp = minedSOMp   ![gC/m3h]
+    C_EcMdecompSOMp = minedSOMp   ![gC/m3h] !C26 !NOTE Can drop minedSOMx and define C_EcMdecompSOMx directly
+    C_EcMdecompSOMc = minedSOMc   ![gC/m3h] !C27
     
-    C_EcMdecompSOMc = minedSOMc   ![gC/m3h]
-    
-    
+  
     !-----------------------------------NITROGEN FLUXES----------------------------:
     !Decomposition of LIT and SOMa by SAP
-    N_LITmSAPb = calc_parallel_Nrates(C_LITmSAPb,N_LITm,C_LITm)
-    N_LITsSAPb = calc_parallel_Nrates(C_LITsSAPb,N_LITs,C_LITs)
-    N_LITmSAPf = calc_parallel_Nrates(C_LITmSAPf,N_LITm,C_LITm)
-    N_LITsSAPf = calc_parallel_Nrates(C_LITsSAPf,N_LITs,C_LITs)
-    N_SOMaSAPb = calc_parallel_Nrates(C_SOMaSAPb,N_SOMa,C_SOMa)
-    N_SOMaSAPf = calc_parallel_Nrates(C_SOMaSAPf,N_SOMa,C_SOMa)
-    !Dead mycorrhizal biomass enters SOM pools
-    N_EcMSOMp = calc_parallel_Nrates(C_EcMSOMp,N_EcM,C_EcM)
-    N_EcMSOMa = calc_parallel_Nrates(C_EcMSOMa,N_EcM,C_EcM)
-    N_EcMSOMc = calc_parallel_Nrates(C_EcMSOMc,N_EcM,C_EcM)
-    
-    N_AMSOMp = calc_parallel_Nrates(C_AMSOMp,N_AM,C_AM)
-    N_AMSOMa = calc_parallel_Nrates(C_AMSOMa,N_AM,C_AM)
-    N_AMSOMc = calc_parallel_Nrates(C_AMSOMc,N_AM,C_AM)
-    !Dead saphrotroph biomass enters SOM pools
-    N_SAPbSOMp = calc_parallel_Nrates(C_SAPbSOMp,N_SAPb,C_SAPb)
-    N_SAPbSOMa = calc_parallel_Nrates(C_SAPbSOMa,N_SAPb,C_SAPb)
-    N_SAPbSOMc = calc_parallel_Nrates(C_SAPbSOMc,N_SAPb,C_SAPb)
-    N_SAPfSOMp = calc_parallel_Nrates(C_SAPfSOMp,N_SAPf,C_SAPf)
-    N_SAPfSOMa = calc_parallel_Nrates(C_SAPfSOMa,N_SAPf,C_SAPf)
-    N_SAPfSOMc = calc_parallel_Nrates(C_SAPfSOMc,N_SAPf,C_SAPf)
-    !Desorption of SOMp to SOMa
-    N_SOMpSOMa = calc_parallel_Nrates(C_SOMpSOMa,N_SOMp,C_SOMp)
+    N_LITmSAPb = calc_parallel_Nrates(C_LITmSAPb,N_LITm,C_LITm) !N6
+    N_LITsSAPb = calc_parallel_Nrates(C_LITsSAPb,N_LITs,C_LITs) !N7
+    N_SOMaSAPb = calc_parallel_Nrates(C_SOMaSAPb,N_SOMa,C_SOMa) !N8
+    N_LITmSAPf = calc_parallel_Nrates(C_LITmSAPf,N_LITm,C_LITm) !N9
+    N_LITsSAPf = calc_parallel_Nrates(C_LITsSAPf,N_LITs,C_LITs) !N10
+    N_SOMaSAPf = calc_parallel_Nrates(C_SOMaSAPf,N_SOMa,C_SOMa) !N11
     !Transport from SOMc to SOMa:
-    N_SOMcSOMa = calc_parallel_Nrates(C_SOMcSOMa,N_SOMc,C_SOMc)
+    N_SOMcSOMa = calc_parallel_Nrates(C_SOMcSOMa,N_SOMc,C_SOMc) !N12
+    !Desorption of SOMp to SOMa
+    N_SOMpSOMa = calc_parallel_Nrates(C_SOMpSOMa,N_SOMp,C_SOMp) !N13
+    !Dead saphrotroph biomass enters SOM pools
+    N_SAPbSOMp = calc_parallel_Nrates(C_SAPbSOMp,N_SAPb,C_SAPb) !N14
+    N_SAPbSOMc = calc_parallel_Nrates(C_SAPbSOMc,N_SAPb,C_SAPb) !N15
+    N_SAPbSOMa = calc_parallel_Nrates(C_SAPbSOMa,N_SAPb,C_SAPb) !N16
+    N_SAPfSOMp = calc_parallel_Nrates(C_SAPfSOMp,N_SAPf,C_SAPf) !N17
+    N_SAPfSOMc = calc_parallel_Nrates(C_SAPfSOMc,N_SAPf,C_SAPf) !N18
+    N_SAPfSOMa = calc_parallel_Nrates(C_SAPfSOMa,N_SAPf,C_SAPf) !N19
+    
+    !Dead mycorrhizal biomass enters SOM pools
+    N_EcMSOMp = calc_parallel_Nrates(C_EcMSOMp,N_EcM,C_EcM) !N20
+    N_EcMSOMa = calc_parallel_Nrates(C_EcMSOMa,N_EcM,C_EcM) !N21
+    N_EcMSOMc = calc_parallel_Nrates(C_EcMSOMc,N_EcM,C_EcM) !N22
+    
+    N_AMSOMp = calc_parallel_Nrates(C_AMSOMp,N_AM,C_AM) !N23
+    N_AMSOMa = calc_parallel_Nrates(C_AMSOMa,N_AM,C_AM) !N24
+    N_AMSOMc = calc_parallel_Nrates(C_AMSOMc,N_AM,C_AM) !N25
     !*****************************************************************************
     !(1)Update inorganic pools to account for Leaching, deposition,  nitrification rate and gain from decomposition (1-NUE):
     NH4_sol_tmp = N_NH4_sol + (1-NUE)*(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf+N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)*dt + (Deposition_rate - nitrification)*dt
@@ -334,14 +334,14 @@ contains
     call update_inorganic_N(NO3_tmp,NH4_sol_tmp,N_IN,nh4_sol_frac)
        
     !Inorganic N taken up directly by plant roots:
-    N_InPlant = calc_plant_uptake(N_IN)
+    N_InPlant = calc_plant_uptake(N_IN) !N34
     
     NH4_sol_tmp = NH4_sol_tmp - nh4_sol_frac*N_InPlant*dt
     NO3_tmp = max(NO3_tmp - (1-nh4_sol_frac)*N_InPlant*dt,0._r8)
     call update_inorganic_N(NO3_tmp,NH4_sol_tmp,N_IN,nh4_sol_frac)
           
-    N_INEcM  = calc_myc_uptake(N_IN,C_EcM)
-    N_INAM   = calc_myc_uptake(N_IN,C_AM)
+    N_INEcM  = calc_myc_uptake(N_IN,C_EcM) !N28
+    N_INAM   = calc_myc_uptake(N_IN,C_AM) !N29
     
     !(2)Update inorganic pools to account for uptake by plans and mycorrhizal fungi
     NH4_sol_tmp = NH4_sol_tmp - nh4_sol_frac*(N_INEcM+N_INAM)*dt
@@ -362,7 +362,7 @@ contains
     N_INSAPb = N_demand_SAPb-UN_sb
     N_INSAPf = N_demand_SAPf-UN_sf
     
-    !Determine exchange of N between inorganic pool and saprotrophs, N_INSAPb and N_INSAPf:
+    !Determine exchange of N between inorganic pool and saprotrophs, N_INSAPb and N_INSAPf: !N36, !N37 is determined here.
     if ( N_INSAPb >= 0. .and. N_INSAPf >= 0. ) then !immobilization
       if ( N_IN < (N_INSAPb + N_INSAPf)*dt) then !Not enough mineral N to meet demand
         
@@ -416,7 +416,7 @@ contains
       NO3_tmp = NO3_tmp - (1-nh4_sol_frac)*(N_INSAPb + N_INSAPf)
       NH4_sol_tmp = NH4_sol_tmp - nh4_sol_frac*(N_INSAPb + N_INSAPf)
       call update_inorganic_N(NO3_tmp,NH4_sol_tmp,N_IN,nh4_sol_frac)
-            
+      
     elseif ( N_INSAPb < 0. .and. N_INSAPf >= 0. ) then !fungi can use N mineralized by bacteria
       if ( (N_IN+ abs(N_INSAPb)*dt) < N_INSAPf*dt ) then
         if ( U_sf == 0._r8) then
@@ -447,7 +447,7 @@ contains
     call calc_NH4_sol_sorp(NH4_tot,water_content,N_NH4_sorp,NH4_sorp_eq_vr(depth),NH4_sorp_final)
     NH4_sol_final = max(NH4_sol_tmp - (NH4_sorp_final-N_NH4_sorp),0._r8)
     NO3_final = max(NO3_tmp,0._r8)  
-
+    
     N_IN = 0._r8 !reset values
     NH4_sol_tmp = 0._r8 !reset values
     NO3_tmp = 0._r8 !reset values
@@ -465,7 +465,7 @@ contains
     real(r8),intent(out)            :: NH4_sorp_eq !g/m3, adsorbed NH4 at equilibrium
     
     real(r8), parameter :: BD_soil=1.6e6  !g/m3 (loam) soil from DOI: 10.3390/APP6100269 Table 1
-    real(r8), parameter :: NH4_sorp_max = 10 !0.09*BD_soil/mg_pr_g    !mg NH4 /g soil
+    real(r8), parameter :: NH4_sorp_max = 0.09*BD_soil/mg_pr_g    !mg NH4 /g soil
     real(r8), parameter :: KL = 0.4      !L/mg
     real(r8)            :: KL_prime       !m3/g
     real(r8), parameter :: K_pseudo = 0.0167*mg_pr_g*60./BD_soil !m3/(g hour)
@@ -473,7 +473,7 @@ contains
     !1) Calculate NH4_sorp_eq 
     KL_prime = KL*mg_pr_g*m3_pr_L/soil_water_frac 
     NH4_sorp_eq=(1+KL_prime*NH4_tot+NH4_sorp_max*KL_prime)/(2*KL_prime) - sqrt((1+KL_prime*NH4_tot+NH4_sorp_max*KL_prime)**2-4*KL_prime**2*NH4_sorp_max*NH4_tot)/(2*KL_prime)
-  
+    
     !2) Calculate NH4_sorp after adjusting towards equilibrium for 1 timestep
     if ( NH4_sorp_eq==NH4_sorp_previous ) then !Already at equilibrium
       NH4_sorp = NH4_sorp_previous
@@ -558,19 +558,22 @@ contains
     real(r8)           :: totC_LIT_input
     real(r8)           :: totN_LIT_input
 
-    totC_LIT_input= FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !gC/m3h 
-    C_inLITm   = fMET*totC_LIT_input*(1-f_met_to_som)
-    C_inLITs   = ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*(1-f_struct_to_som)
-    C_inSOMp = fMET*totC_LIT_input*f_met_to_som!*fPHYS(1) + ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som*fPHYS(2)
-    C_inSOMc = ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som !*fCHEM(2)
-    C_inSOMa = 0.0!fMET*totC_LIT_input*f_met_to_som*fAVAIL(1) + ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som*fAVAIL(2)
-        
+    totC_LIT_input = FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !gC/m3h !NOTE: These do not include CWD
     totN_LIT_input = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
-    N_inLITm    = fMET*totN_LIT_input*(1-f_met_to_som)
-    N_inLITs    = (1-fMET)*totN_LIT_input + N_CWD(layer_nr)*(1-f_struct_to_som)
-    N_inSOMp = fMET*totN_LIT_input*f_met_to_som!*fPHYS(1)+((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som*fPHYS(2)
-    N_inSOMc = ((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som!*fCHEM(2)
-    N_inSOMa = 0.0!fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)+((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som*fAVAIL(2)        
+    
+    C_inLITm = fMET*totC_LIT_input*(1-f_met_to_som) !C1
+    N_inLITm = fMET*totN_LIT_input*(1-f_met_to_som) !N1
+    
+    C_inLITs = ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*(1-f_struct_to_som) !C2
+    N_inLITs = ((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*(1-f_struct_to_som) !N2
+    
+    C_inSOMp = fMET*totC_LIT_input*f_met_to_som 
+    C_inSOMc = fMET*totC_LIT_input*f_struct_to_som
+    C_inSOMa = 0.0!fMET*totC_LIT_input*f_met_to_som*fAVAIL(1) 
+    
+    N_inSOMp = fMET*totN_LIT_input*f_met_to_som
+    N_inSOMc = fMET*totN_LIT_input*f_struct_to_som
+    N_inSOMa = 0.0!fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)     
     
   end subroutine input_rates
   
@@ -583,7 +586,7 @@ contains
     !out
     real(r8) :: N_rate
      
-    if ( C_pool < epsilon(C_pool) ) then
+    if ( C_pool <= epsilon(C_pool) ) then
       N_rate=0.0
     else
       N_rate=C_rate*(N_pool/C_pool)
@@ -622,7 +625,6 @@ contains
     real(r8), INTENT(IN) :: C_MYC
     !OUT 
     real(r8) :: N_INMYC
-    
     N_INMYC = V_max_myc*N_inorganic*(C_MYC/(C_MYC + Km_myc/soil_depth))*input_mod
     !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
 
