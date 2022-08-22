@@ -6,9 +6,10 @@ module writeMod
   use initMod, only: nlevels
   implicit none
   private
-  public :: check, create_netcdf,fill_netcdf,store_parameters,fluxes_netcdf,create_yearly_mean_netcdf,fill_yearly_netcdf
+  public :: check, create_netcdf,fill_netcdf,store_parameters,fluxes_netcdf, &
+            create_yearly_mean_netcdf,fill_yearly_netcdf,fill_monthly_netcdf,create_monthly_mean_netcdf
     
-  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid
+  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid, varid
   character (len=4), dimension(pool_types)     :: variables = &
   (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
 
@@ -433,6 +434,37 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_yearly_mean_netcdf
 
+    subroutine create_monthly_mean_netcdf(run_name)
+      character (len = *), intent(in):: run_name
+      integer :: ncid, varid
+      integer, parameter :: gridcell = 1, column = 1
+      integer :: v
+      call check(nf90_create(output_path//trim(run_name)//"_monthly_mean.nc",NF90_NETCDF4,ncid))
+
+      call check(nf90_def_dim(ncid, "time", nf90_unlimited, t_dimid))
+      call check(nf90_def_dim(ncid, "gridcell", gridcell, grid_dimid))
+      call check(nf90_def_dim(ncid, "column", column, col_dimid))
+      call check(nf90_def_dim(ncid, "levsoi", nlevels, lev_dimid))
+
+      do v = 1, size(variables)
+        call check(nf90_def_var(ncid, trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
+      end do
+
+      call check(nf90_def_var(ncid, "N_NH4_sol", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "N_NH4_sorp", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "N_NO3", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      
+      call check(nf90_def_var(ncid, "months_since_start", NF90_FLOAT, (/t_dimid /), varid))
+      call check(nf90_enddef(ncid))
+      call check(nf90_def_var(ncid, "year_since_start", NF90_FLOAT, (/t_dimid /), varid))
+      call check(nf90_enddef(ncid))
+      call check(nf90_def_var(ncid, "month_in_year", NF90_FLOAT, (/t_dimid /), varid))
+      call check(nf90_enddef(ncid))
+
+      call check( nf90_close(ncid) )
+    end subroutine create_monthly_mean_netcdf
+
     subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, Ninorg_pool_yearly) !TODO: yearly HR and climate variables (if needed?)
       !INPUT
       character (len = *),intent(in):: run_name
@@ -477,5 +509,55 @@ module writeMod
       end do ! levels
       call check(nf90_close(ncid))
     end subroutine fill_yearly_netcdf
+
+    subroutine fill_monthly_netcdf(run_name, year,month,months_since_start, Cpool_monthly, Npool_monthly, Ninorg_pool_monthly) !TODO: monthly HR and climate variables (if needed?)
+      !INPUT
+      character (len = *),intent(in):: run_name
+      integer,intent(in)            :: year
+      integer,intent(in)            :: month      
+      integer,intent(in)            :: months_since_start            
+      real(r8), intent(in)          :: Cpool_monthly(nlevels,pool_types)  ! For storing C pool sizes [gC/m3]
+      real(r8),intent(in)           :: Npool_monthly(nlevels,pool_types_N)  
+      real(r8),intent(in)           :: Ninorg_pool_monthly(nlevels,inorg_N_pools)  
+      
+      !LOCAL
+      integer :: i,j,varid,ncid
+      real(r8) :: value
+      
+      call check(nf90_open(output_path//trim(run_name)//"_monthly_mean.nc", nf90_write, ncid))
+      call check(nf90_inq_varid(ncid, "months_since_start", varid))
+      call check(nf90_put_var(ncid, varid, months_since_start , start = (/ months_since_start /)))
+      call check(nf90_inq_varid(ncid, "month_in_year", varid))
+      call check(nf90_put_var(ncid, varid, month , start = (/ months_since_start /)))
+      call check(nf90_inq_varid(ncid, "year_since_start", varid))
+      call check(nf90_put_var(ncid, varid, year , start = (/ months_since_start /)))
+      do j=1,nlevels
+        call check(nf90_inq_varid(ncid, "N_NH4_sol", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_pool_monthly(j,1), start = (/months_since_start, j/)))
+        
+        call check(nf90_inq_varid(ncid, "N_NH4_sorp", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_pool_monthly(j,2), start = (/months_since_start, j/)))
+        
+        call check(nf90_inq_varid(ncid, "N_NO3", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_pool_monthly(j,3), start = (/months_since_start, j/)))
+        
+                
+        do i = 1,pool_types
+          if ( Cpool_monthly(j,i) < epsilon(Cpool_monthly) ) then
+            value = 0.0_r8
+          else
+            value = Cpool_monthly(j,i)
+          end if
+          !C:
+          call check(nf90_inq_varid(ncid, trim(variables(i)), varid))
+          call check(nf90_put_var(ncid, varid, value, start = (/ months_since_start, j /)))
+          !N:
+          call check(nf90_inq_varid(ncid, "N_"//trim(variables(i)), varid))
+          call check(nf90_put_var(ncid, varid, Npool_monthly(j,i), start = (/ months_since_start, j /)))
+
+        end do !pool_types
+      end do ! levels
+      call check(nf90_close(ncid))
+    end subroutine fill_monthly_netcdf
     
 end module writeMod

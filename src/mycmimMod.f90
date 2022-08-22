@@ -20,8 +20,8 @@ module mycmimMod
                         read_WATSAT_and_profiles,read_PFTs
   use fluxMod,    only: calc_nitrification,calc_Leaching,set_N_dep,forward_MMK_flux,input_rates,&
                         calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final, NH4_sorp_final,NO3_final
-  use writeMod,   only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf, &
-                        fill_yearly_netcdf,fluxes_netcdf,store_parameters,check
+  use writeMod,   only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf,create_monthly_mean_netcdf, &
+                        fill_yearly_netcdf,fill_monthly_netcdf, fluxes_netcdf,store_parameters,check
   use testMod,    only: respired_mass, test_mass_conservation_C,test_mass_conservation_N, &
                         total_carbon_conservation,total_nitrogen_conservation
   use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
@@ -53,7 +53,31 @@ contains
     
     call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,yearly_meanNinorg)
   end subroutine annual_mean
-  
+
+  subroutine monthly_mean(monthly_sumC,monthly_sumN,monthly_sumNinorg, month,total_months,year, run_name)
+    !Input 
+    REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: monthly_sumC
+    REAL(r8), DIMENSION(nlevels,pool_types_N), intent(in):: monthly_sumN
+    REAL(r8), DIMENSION(nlevels,inorg_N_pools), intent(in):: monthly_sumNinorg
+    
+    integer,  intent(in) :: month
+    integer,  intent(in) :: total_months
+    
+    integer,  intent(in) :: year
+    
+    CHARACTER (len = *), intent(in):: run_name
+    !Local
+    REAL(r8), DIMENSION(nlevels,pool_types) :: monthly_meanC
+    REAL(r8), DIMENSION(nlevels,pool_types_N) :: monthly_meanN
+    REAL(r8), DIMENSION(nlevels,inorg_N_pools) :: monthly_meanNinorg
+    integer, parameter                         :: hr_in_month = 24*days_in_month(month)
+    
+    monthly_meanC=monthly_sumC/hr_in_month
+    monthly_meanN=monthly_sumN/hr_in_month
+    monthly_meanNinorg=monthly_sumNinorg/hr_in_month
+    call fill_monthly_netcdf(run_name, year,month,total_months, monthly_meanC,monthly_meanN,monthly_meanNinorg)
+  end subroutine monthly_mean
+
   subroutine decomp(nsteps,   &
                     run_name, &
                     write_hour,&
@@ -131,6 +155,9 @@ contains
       real(r8)                       :: sum_consN(nlevels, pool_types_N) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consNinorg(nlevels, inorg_N_pools) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevels, pool_types) !g/m3 for calculating annual mean
+      real(r8)                       :: monthly_sum_consN(nlevels, pool_types_N) !g/m3 for calculating monthly mean
+      real(r8)                       :: monthly_sum_consNinorg(nlevels, inorg_N_pools) !g/m3 for calculating monthly mean
+      real(r8)                       :: monthly_sum_consC(nlevels, pool_types) !g/m3 for calculating monthly mean
       real(r8)                       :: N_DEPinput
       real(r8)                       :: C_MYCinput
       real(r8)                       :: C_leaf_litter
@@ -165,6 +192,7 @@ contains
       integer                        :: spinup_counter
       integer                        :: current_month
       integer                        :: current_day
+      integer                        :: total_months
       
       logical                        :: Spinup_run
       integer,parameter              ::t_init=1
@@ -253,6 +281,10 @@ contains
       sum_consN      = 0
       sum_consNinorg = 0
       sum_consC      = 0
+      monthly_sum_consN      = 0
+      monthly_sum_consNinorg = 0
+      monthly_sum_consC      = 0
+      total_months   = 0
       change_matrixC = 0.0
       change_matrixN = 0.0
       HR             = 0.0
@@ -327,6 +359,8 @@ contains
       end if
       if ( Spinup_run ) then
         call create_yearly_mean_netcdf(run_name)  !open and prepare files to store results. Store initial values
+        call create_monthly_mean_netcdf(run_name)  !open and prepare files to store results. Store initial values
+        
         max_mining = read_maxC(spinupncid,input_steps)
       else
         max_mining = read_maxC(ncid,input_steps)        
@@ -633,13 +667,24 @@ contains
         sum_consNinorg  = sum_consNinorg  + inorg_N_matrix
         sum_consC       = sum_consC       + pool_matrixC
 
+        monthly_sum_consN       = monthly_sum_consN       + pool_matrixN
+        monthly_sum_consNinorg  = monthly_sum_consNinorg  + inorg_N_matrix
+        monthly_sum_consC       = monthly_sum_consC       + pool_matrixC
+        
+        if ( month_counter == days_in_month(current_month)*hr_pr_day/dt .and. Spinup_run) then
+        
+          total_months = total_months + 1
+          call monthly_mean(monthly_sum_consC,monthly_sum_consN,monthly_sum_consNinorg,current_month,total_months,write_y,run_name)
+          monthly_sum_consN =0
+          monthly_sum_consC =0
+          monthly_sum_consNinorg=0
+        end if
+
         if (ycounter == 365*24/dt) then
           ycounter = 0
           write_y =write_y+1 !For writing to annual mean file
           
-          if ( Spinup_run ) then
-            
-            !call print_summary(save_N, save_C,c1a,c1b,c2,c3a,c3b,c4a,c4b,pool_matrixC,pool_matrixN,inorg_N_matrix)
+          if ( Spinup_run ) then 
             call annual_mean(sum_consC,sum_consN,sum_consNinorg,write_y , run_name) !calculates the annual mean and write the result to file
           end if
           if (year == stop_year) then
