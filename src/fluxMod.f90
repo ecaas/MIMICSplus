@@ -568,11 +568,11 @@ contains
     N_inLITs = ((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*(1-f_struct_to_som) !N2
     
     C_inSOMp = fMET*totC_LIT_input*f_met_to_som 
-    C_inSOMc = fMET*totC_LIT_input*f_struct_to_som
+    C_inSOMc = ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som
     C_inSOMa = 0.0!fMET*totC_LIT_input*f_met_to_som*fAVAIL(1) 
     
     N_inSOMp = fMET*totN_LIT_input*f_met_to_som
-    N_inSOMc = fMET*totN_LIT_input*f_struct_to_som
+    N_inSOMc = ((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som
     N_inSOMa = 0.0!fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)     
     
   end subroutine input_rates
