@@ -16,14 +16,14 @@ contains
 
     !LOCAL
     integer                :: j
-    real(r8), dimension(10), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
+    real(r8), dimension(9), parameter   :: CN_ratio = (/15,15,5,8,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
     real(r8)               :: NH4_sorp
     real(r8)               :: NH4_sol 
     
     call calc_init_NH4(tot=10._r8,water_content=0.5_r8,sorp_eq=NH4_sorp,sol_eq=NH4_sol)
     
     do j=1,nlevels
-      pools_C(j,:) = (/100.,100.,50.,50.,50.,0.,50.,200.,200.,500./)
+      pools_C(j,:) = (/100.,100.,50.,50.,50.,50.,200.,200.,500./)
       pools_N(j,:) = pools_C(j,:)/CN_ratio
       inorg_N(j,:)=(/NH4_sol,NH4_sorp,10._r8/)
     end do

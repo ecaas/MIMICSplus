@@ -161,13 +161,13 @@ contains
 
 
     !All N the Mycorrhiza dont need for its own, it gives to the plant:
-    AM_N_demand = CUE_AM*C_PlantAM/CN_ratio(7)
+    AM_N_demand = CUE_AM*C_PlantAM/CN_ratio(6)
     AM_N_uptake = N_INAM     
     if ( AM_N_uptake >= AM_N_demand ) then   
       NAMPlant = AM_N_uptake - AM_N_demand
     else
       NAMPlant = (1-f_growth)*AM_N_uptake
-      CUE_AM = f_growth*AM_N_uptake*CN_ratio(7)/(C_PlantAM)
+      CUE_AM = f_growth*AM_N_uptake*CN_ratio(6)/(C_PlantAM)
     end if
     if ( abs(NAMPlant) < 1e-16 ) then
       save_N=save_N+NAMPlant
@@ -227,10 +227,10 @@ contains
     C_SAPf => C_pool_matrix(depth, 4)
     
     C_EcM =>  C_pool_matrix(depth, 5)
-    C_AM =>   C_pool_matrix(depth, 7)
-    C_SOMp => C_pool_matrix(depth, 8)
-    C_SOMa => C_pool_matrix(depth, 9)
-    C_SOMc => C_pool_matrix(depth, 10)
+    C_AM =>   C_pool_matrix(depth, 6)
+    C_SOMp => C_pool_matrix(depth, 7)
+    C_SOMa => C_pool_matrix(depth, 8)
+    C_SOMc => C_pool_matrix(depth, 9)
     
     N_LITm => N_pool_matrix(depth, 1)
     N_LITs => N_pool_matrix(depth, 2)
@@ -238,10 +238,10 @@ contains
     N_SAPf => N_pool_matrix(depth, 4)
     N_EcM =>  N_pool_matrix(depth, 5)
     
-    N_AM =>   N_pool_matrix(depth, 7)
-    N_SOMp => N_pool_matrix(depth, 8)
-    N_SOMa => N_pool_matrix(depth, 9)
-    N_SOMc => N_pool_matrix(depth, 10)
+    N_AM =>   N_pool_matrix(depth, 6)
+    N_SOMp => N_pool_matrix(depth, 7)
+    N_SOMa => N_pool_matrix(depth, 8)
+    N_SOMc => N_pool_matrix(depth, 9)
     
     N_NH4_sol => N_inorg_matrix(depth, 1)
     N_NH4_sorp => N_inorg_matrix(depth, 2)

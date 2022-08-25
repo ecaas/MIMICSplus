@@ -11,7 +11,7 @@ module writeMod
     
   integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid, varid
   character (len=4), dimension(pool_types)     :: variables = &
-  (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "ErM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
+  (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
 
   character (len=*), dimension(*), parameter ::  C_name_fluxes = &
   [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", &

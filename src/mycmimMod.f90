@@ -490,19 +490,21 @@ contains
           Leaching    = calc_Leaching(drain,h2o_liq_tot,inorg_N_matrix(j,3)) !N32
           Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
           nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton in timestep !N35
+          
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
           call calculate_fluxes(j,TSOIL(j),H2OSOI, pool_matrixC, pool_matrixN,inorg_N_matrix,Deposition, Leaching, nitrif_rate)
           inorg_Ntemporary_matrix(j,1)=NH4_sol_final
           inorg_Ntemporary_matrix(j,2)=NH4_sorp_final          
           inorg_Ntemporary_matrix(j,3)=NO3_final
+          
           if ( use_ROI ) then
             ROI_EcM(j) = ROI_function(N_INEcM+N_SOMpEcM+N_SOMcEcM,pool_matrixC(j,5),k_mycsom(1))
-            ROI_AM(j) = ROI_function(N_INAM, pool_matrixC(j,7),k_mycsom(3))
+            ROI_AM(j) = ROI_function(N_INAM, pool_matrixC(j,6),k_mycsom(2))
             if ( C_MYCinput .NE. 0.0  ) then !To avoid NaN when both ROI is zero
               if ( ROI_EcM(j) +ROI_AM(j) == 0.0 ) then !Too little myc in layer to contribute
                 f_alloc(j,:)=0.0 
               else
-                f_alloc(j,1) = ROI_EcM(j)/(ROI_EcM(j)+ROI_AM(j))
+                f_alloc(j,1) = ROI_EcM(j)/(ROI_EcM(j)+ROI_AM(j)) !Eq. (4), Sulman et al. 2019 (DOI: 10.1029/2018GB005973)
                 f_alloc(j,2) = ROI_AM(j)/(ROI_EcM(j)+ROI_AM(j))
               end if
             else
@@ -567,27 +569,25 @@ contains
               N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
 
-            elseif (i==6) then !ErM
-              C_Gain = 0.0
-              C_Loss = 0.0
-              N_Gain = 0.0
-              N_Loss = 0.0
+            ! elseif (i==6) then !ErM
+            !   C_Gain = 0.0
+            !   C_Loss = 0.0
+            !   N_Gain = 0.0
+            !   N_Loss = 0.0
 
-            elseif (i==7) then !AM
+          elseif (i==6) then !AM
               C_Gain = CUE_am_vr(j)*C_PlantAM
               C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc
               N_Gain = N_INAM 
               N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
 
-            elseif (i==8) then !SOMp
+            elseif (i==7) then !SOMp
               C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_AMSOMp+ C_PlantSOMp
               C_Loss = C_SOMpSOMa+C_EcMdecompSOMp 
               N_Gain =  N_SAPbSOMp + N_SAPfSOMp + N_EcMSOMp + N_AMSOMp+N_PlantSOMp
               N_Loss = N_SOMpSOMa + N_SOMpEcM
-              ! print*, "SOMp", C_SAPbSOMp, C_SAPfSOMp, C_EcMSOMp, C_AMSOMp, C_PlantSOMp
-              ! print*, "losses; ", C_SOMpSOMa,C_EcMdecompSOMp,j
 
-            elseif (i==9) then !SOMa
+            elseif (i==8) then !SOMa
                C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc + &
                C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
                C_Loss = C_SOMaSAPb + C_SOMaSAPf 
@@ -595,7 +595,7 @@ contains
                N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa +N_PlantSOMa
                N_Loss = N_SOMaSAPb + N_SOMaSAPf
                
-            elseif (i==10) then !SOMc
+            elseif (i==9) then !SOMc
               C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_AMSOMc+C_PlantSOMc
               C_Loss = C_SOMcSOMa+C_EcMdecompSOMc
               N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_AMSOMc+N_PlantSOMc
@@ -631,7 +631,7 @@ contains
           HRa(j) = CUE_am_vr(j)*C_PlantAM*dt
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t,j
-            print*, "Pools C", pool_matrixC(j,1),pool_matrixC(j,2),pool_matrixC(j,3),pool_matrixC(j,4), pool_matrixC(j,9)
+            print*, "Pools C", pool_matrixC(j,1),pool_matrixC(j,2),pool_matrixC(j,3),pool_matrixC(j,4), pool_matrixC(j,8)
             print*, "pools N", inorg_N_matrix(j,1), inorg_N_matrix(j,3), N_INSAPb, N_INSAPf
             print*, "Fluxes", C_LITmSAPb,C_LITsSAPb,C_SOMaSAPb,C_LITmSAPf,C_LITsSAPf,C_SOMaSAPf
             stop !for checking

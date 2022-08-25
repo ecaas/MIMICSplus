@@ -19,7 +19,7 @@ integer,  parameter, dimension(12)           :: days_in_month =(/31,28,31,30,31,
 !Pools: NOTE: This needs to be updated if pools are added to/removed from the system.
 integer, parameter                           :: no_of_litter_pools = 2         !Metabolic and structural
 integer, parameter                           :: no_of_sap_pools = 2            !SAP bacteria and SAP fungi
-integer, parameter                           :: no_of_myc_pools = 3            !Mycorrhiza: Ecto, ericoid & arbuscular
+integer, parameter                           :: no_of_myc_pools = 2            !Mycorrhiza: Ecto & arbuscular
 integer, parameter                           :: no_of_som_pools = 3            !Physically protected, chemically protected, available carbon
 integer, parameter                           :: pool_types = no_of_litter_pools + no_of_myc_pools + &
                                                 no_of_sap_pools + no_of_som_pools
@@ -94,7 +94,7 @@ real(r8),parameter                   :: f_enzprod_0    = 0.1_r8
 real(r8), parameter                  :: f_growth       = 0.5_r8 !Fraction of mycorrhizal N uptake that needs to stay within the fungi (not given to plant) 
                                                           !New CUE are calculated based on this. NB: VERY ASSUMED!!
 
-real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
+real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,11,8,11/) !Fungi/bacteria: Tang, Riley, Maggi 2019 as in Mouginot et al. 2014
                                                                                           !NOTE: Wallander/Rousk may have data more suited for Boreal/Arctic conditions
                                                                                           !EcM: From Baskaran et al as in Wallander et al 2004
                                                                                           !SOM: From CLM documentation, table 21.3 (Mendeley version)
@@ -240,10 +240,11 @@ contains
     !end if
   end function calc_sap_turnover_rate
   
-  function calc_myc_mortality() result(myc_mortality)
-    !NOTE: Is it better to call it turnover rate? Is there a difference?
+  function calc_myc_mortality(rprof) result(myc_mortality)
+    !NOTE: Is it better to call it turnover rate? Is there a difference?    
+    real(r8),INTENT(IN) :: rprof  
     real(r8), dimension(no_of_myc_pools) :: myc_mortality
-    myc_mortality=(/1.14_r8,1.14_r8,1.14_r8/)*1e-4  ![1/h]  1/yr  
+    myc_mortality=(/1.14_r8,1.14_r8/)*1e-4*sqrt(rprof)  ![1/h]  1/yr  
   end function calc_myc_mortality
   
   subroutine moisture_func(theta_l,theta_sat, theta_f,moist_mod) 
