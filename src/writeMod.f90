@@ -154,9 +154,9 @@ module writeMod
       
       do j=1,nlevels
         
-
-        call check_and_write(ncid, "Temp",TSOIL(j), timestep,j)
-
+        call check(nf90_inq_varid(ncid, "Temp", varid))
+        call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/ timestep, j /)))
+        
         call check_and_write(ncid, "Moisture", MOIST(j),timestep,j)
 
         call check_and_write(ncid, "HR_flux", HR_flux(j), timestep,j)
@@ -205,11 +205,13 @@ module writeMod
 
 
           !C change:
-          call check_and_write(ncid, "vert_change"//trim(variables(i)),vert_sum(j,i),timestep,j)
-
-          !N change:
-          call check_and_write(ncid, "N_vert_change"//trim(variables(i)),Nvert_sum(j,i),timestep,j)
-
+          call check(nf90_inq_varid(ncid,"vert_change"//trim(variables(i)), varid))
+          call check(nf90_put_var(ncid, varid, vert_sum(j,i), start = (/ timestep, j /)))    
+          
+          !N change:        
+          call check(nf90_inq_varid(ncid,"N_vert_change"//trim(variables(i)), varid))
+          call check(nf90_put_var(ncid, varid, Nvert_sum(j,i), start = (/ timestep, j /)))      
+          
         end do !pool_types
       end do ! levels
     end subroutine fill_netcdf
@@ -309,7 +311,7 @@ module writeMod
       call check_and_write(ncid, "C_EcMenz_prod",C_EcMenz_prod ,timestep,depth_level)
     end subroutine write_Cfluxes
     
-    subroutine check_and_write(ncid,name_of_var,var,time,depth)
+    subroutine check_and_write(ncid,name_of_var,var,time,depth) !NB; do not use on values that can be negative!
       integer, intent(in)      :: ncid
       character(len=*),intent(in) :: name_of_var
       real(r8), intent(in)     :: var
@@ -371,10 +373,12 @@ module writeMod
 
       call check_and_write(ncid, "N_SAPfSOMc",N_SAPfSOMc ,timestep,depth_level)
 
-      call check_and_write(ncid, "N_INSAPf", N_INSAPf,timestep,depth_level)
-
-      call check_and_write(ncid, "N_INSAPb",N_INSAPb ,timestep,depth_level)
-
+      call check(nf90_inq_varid(ncid, "N_INSAPf", varid))
+      call check(nf90_put_var(ncid, varid, N_INSAPf, start = (/ timestep, depth_level /)))
+      
+      call check(nf90_inq_varid(ncid, "N_INSAPb", varid))
+      call check(nf90_put_var(ncid, varid, N_INSAPb, start = (/ timestep, depth_level /)))      
+      
       call check_and_write(ncid, "N_INAM", N_INAM,timestep,depth_level)
 
       call check_and_write(ncid, "N_INEcM", N_INEcM,timestep,depth_level)
