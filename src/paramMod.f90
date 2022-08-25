@@ -55,12 +55,12 @@ real(r8), dimension(no_of_sap_pools)    :: k_sapsom  ![1/h] (tau in MIMICS)
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
 
 real(kind=r8)                          :: fCLAY                          ![-] fraction of clay in soil
-real(kind=r8),dimension(3)             :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
+real(kind=r8),dimension(no_of_myc_pools)             :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
 real(r8),parameter                     :: k_plant = 5E-7
 
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.2,0.4/) !somp,somc,soma. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.4,0.3/) !somp, somc,soma
-
+real(r8), parameter                  :: beta = 1_r8
 !Depth & vertical transport
 real(r8)                             :: soil_depth           ![m] 
 real(r8),dimension(25),parameter     :: node_z =  (/0.01,0.04,0.09,0.16,0.26,0.40,0.587,0.80,1.06,1.36,1.70,2.08, &
@@ -226,18 +226,19 @@ contains
     f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))
   end function calc_sap_to_som_fractions
   
-  function calc_sap_turnover_rate(met_frac,moist_modifier, temp) result(turnover_rate)
+  function calc_sap_turnover_rate(met_frac,moist_modifier, temp,rprof) result(turnover_rate)
     real(r8),INTENT(IN) :: met_frac
     real(r8),INTENT(IN) :: moist_modifier
     real(r8),INTENT(IN) :: temp
+    real(r8),INTENT(IN) :: rprof
     
     real(r8),dimension(no_of_sap_pools) :: turnover_rate
     
-  !  if ( temp < 0 ) then
-  !    turnover_rate=0.0
-  !  else
-      turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*moist_modifier, 2.4e-4*exp(0.1_r8*met_frac)*moist_modifier]
-    !end if
+    if ( temp < 0 ) then
+      turnover_rate=0.0
+    else
+      turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*sqrt(rprof), 2.4e-4*exp(0.1_r8*met_frac)*sqrt(rprof)]
+    end if
   end function calc_sap_turnover_rate
   
   function calc_myc_mortality(rprof) result(myc_mortality)

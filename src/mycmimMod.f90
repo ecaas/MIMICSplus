@@ -375,7 +375,6 @@ contains
             
       desorp= calc_desorp(fCLAY)
       Kmod  = calc_Kmod(fCLAY)
-      k_mycsom  = calc_myc_mortality()  
       
       call f_met(C_leaf_litter,C_root_litter,C_CWD_litter, Nlign_ratio, fMET)
       
@@ -470,7 +469,8 @@ contains
           Vmax    = Vmax_function(TSOIL(j),r_moist(j)) !  ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
 
           ![1/h] Microbial turnover rate (SAP to SOM)
-          k_sapsom = calc_sap_turnover_rate(fMET,r_moist(j), TSOIL(j)) 
+          k_sapsom  = calc_sap_turnover_rate(fMET,r_moist(j), TSOIL(j), froot_prof(nlevels)) 
+          k_mycsom  = calc_myc_mortality(froot_prof(nlevels))  
           
           CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
