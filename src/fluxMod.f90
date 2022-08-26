@@ -282,9 +282,9 @@ contains
     C_EcMSOMc=C_EcM*k_mycsom(1)*fEcMSOM(2)!somc !C21
     C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(3)!soma !C22
     
-    C_AMSOMp=C_AM*k_mycsom(3)*fAMSOM(1) !C23
-    C_AMSOMc=C_AM*k_mycsom(3)*fAMSOM(2) !C24
-    C_AMSOMa=C_AM*k_mycsom(3)*fAMSOM(3) !C25
+    C_AMSOMp=C_AM*k_mycsom(2)*fAMSOM(1) !C23
+    C_AMSOMc=C_AM*k_mycsom(2)*fAMSOM(2) !C24
+    C_AMSOMa=C_AM*k_mycsom(2)*fAMSOM(3) !C25
 
     !Ectomycorrhizal mining options:
     if ( use_Sulman ) then
