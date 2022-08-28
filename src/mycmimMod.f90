@@ -458,8 +458,6 @@ contains
         fCHEM = f_sapsom(2,:)
         fAVAIL  = f_sapsom(3,:)
                 
-        ! call disp("W_SCALAR: ", W_SCALAR)
-        ! call disp("r_moist: ", r_moist)
         do j = 1, nlevels !For each depth level (for the no vertical transport case, nlevels = 1, so loop is only done once):
           
           H2OSOI=SOILLIQ(j)+SOILICE(j) !Used for sorp/desorp calculations
@@ -513,7 +511,8 @@ contains
           end if
           
           C_PlantEcM = f_alloc(j,1)*C_MYCinput*froot_prof(j) !C29
-          C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j) !C30         
+          C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j) !C30    
+               
           if (counter == write_hour/dt .or. t==1) then !Write fluxes from calculate_fluxes to file            
             call fluxes_netcdf(writencid,int(time), write_hour, j)
           end if !write fluxes

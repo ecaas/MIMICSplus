@@ -7,15 +7,14 @@
 #31997_Verdal 32088_Lesja 32103_Halden 32139_Rennebu 32374_Saltdal 32404_Vinje 32409_Vang  
 #32438_Porsanger 31519_Nissedal NR32170_Selbu NR31801_Trysil NR31883_Trysil NR32174_Selbu 
 #NR32173_Selbu NR31579_Kvinesdal NR31577_Kvinesdal NR31799_Trysil NR31677_Suldal 31650_Valle 31714_Flaa 32085_Skjaak NR31906_Voss 32124_Engerdal
-description="test"
+description="test_normscale"
 namelist_file='options.nml'
 mkdir /home/ecaas/soil_decomp/results/${description}
-for site in 31463_Hurdal #31650_Valle #31463_Hurdal #31464_Hurdal 31650_Valle 32087_Dovre NR32182_Stryn NR31906_Voss 32103_Halden 31984_Namdalseid 32438_Porsanger 31714_Flaa
-#31650_Valle 31463_Hurdal 31464_Hurdal 32087_Dovre NR32182_Stryn NR31906_Voss 32103_Halden 31984_Namdalseid 
+cp /home/ecaas/soil_decomp/src/paramMod.f90  /home/ecaas/soil_decomp//results/${description}/parameters_${description}_${site}.txt
+for site in 31464_Hurdal 31714_Flaa 31650_Valle 31984_Namdalseid 32087_Dovre 31463_Hurdal 32438_Porsanger 32103_Halden NR32182_Stryn #NR31906_Voss
 do
   cp options.nml /home/ecaas/soil_decomp/results/${description}/options_${description}_${site}.txt
-  clm_data_file='/home/ecaas/nird/'${site}'_historical/lnd/hist/'${site}
-  clm_surface_file='/home/ecaas/nird/surface_files/'${site}'/surfdata_'${site}'_simyr2000.nc'
- 
+  clm_data_file='/home/ecaas/Documents/sites/'${site}'_historical/lnd/hist/'${site}
+  clm_surface_file='/home/ecaas/Documents/surface_files/'${site}'/surfdata_'${site}'_simyr2000.nc'
   ./run_script_dev $site $description $clm_data_file $clm_surface_file $namelist_file
 done

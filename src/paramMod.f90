@@ -105,6 +105,7 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,11,
 real(r8),dimension(:),allocatable  :: ndep_prof
 real(r8),dimension(:),allocatable  :: leaf_prof
 real(r8),dimension(:),allocatable  :: froot_prof
+
 real(r8) :: save_N,save_C
 
 !For timing purposes:
@@ -149,7 +150,7 @@ contains
     real(r8)         :: p 
     
     p = 1.0/(2*exp(-2.0*sqrt(clay_fraction)))
-    K_mod =  [real(r8) :: 0.125,0.5,0.25*p,0.5,0.25,0.167*p]
+    K_mod =  [real(r8) :: 0.125,0.5,0.25*p,0.5,0.25,0.167*p] !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
   end function calc_Kmod
   
   function Km_function(temperature) result(K_m)
@@ -221,9 +222,9 @@ contains
     !output
     real(r8),dimension(no_of_som_pools,no_of_sap_pools) :: f_saptosom
     
-    f_saptosom(1,:) = [real(r8) :: 0.3*exp(1.3*clay_frac), 0.2*exp(0.8*clay_frac)]
-    f_saptosom(2,:) = [real(r8) :: 0.1*exp(-3.0*met_frac), 0.3*exp(-3.0*met_frac)]
-    f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))
+    f_saptosom(1,:) = [real(r8) :: 0.3*exp(1.3*clay_frac), 0.2*exp(0.8*clay_frac)]!PHYS
+    f_saptosom(2,:) = [real(r8) :: 0.1*exp(-3.0*met_frac), 0.3*exp(-3.0*met_frac)]!CHEM
+    f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))!AVAL
   end function calc_sap_to_som_fractions
   
   function calc_sap_turnover_rate(met_frac,moist_modifier, temp,rprof) result(turnover_rate)
@@ -320,77 +321,77 @@ contains
     end if
   end subroutine read_some_parameters
 
-subroutine open_inputfile(file_path, file_unit, iostat)
-    !! Check whether file exists, with consitent error message
-    !! return the file unit
-    character(len=*),  intent(in)  :: file_path
-    integer,  intent(out) :: file_unit, iostat
+  subroutine open_inputfile(file_path, file_unit, iostat)
+      !! Check whether file exists, with consitent error message
+      !! return the file unit
+      character(len=*),  intent(in)  :: file_path
+      integer,  intent(out) :: file_unit, iostat
 
-    inquire (file=file_path, iostat=iostat)
-    if (iostat /= 0) then
-        write (stderr, '(3a)') 'Error: file "', trim(file_path), '" not found!'
-    end if
-    open (action='read', file=file_path, iostat=iostat, newunit=file_unit)
-end subroutine open_inputfile
+      inquire (file=file_path, iostat=iostat)
+      if (iostat /= 0) then
+          write (stderr, '(3a)') 'Error: file "', trim(file_path), '" not found!'
+      end if
+      open (action='read', file=file_path, iostat=iostat, newunit=file_unit)
+  end subroutine open_inputfile
 
-subroutine close_inputfile(file_path, file_unit, iostat)
-    !! Check the reading was OK
-    !! return error line IF not
-    !! close the unit
-    character(len=*),  intent(in)  :: file_path
-    character(len=1000) :: line
-    integer,  intent(in) :: file_unit, iostat
+  subroutine close_inputfile(file_path, file_unit, iostat)
+      !! Check the reading was OK
+      !! return error line IF not
+      !! close the unit
+      character(len=*),  intent(in)  :: file_path
+      character(len=1000) :: line
+      integer,  intent(in) :: file_unit, iostat
 
-    if (iostat /= 0) then
-        write (stderr, '(2a)') 'Error reading file :"', trim(file_path)
-        write (stderr, '(a, i0)') 'iostat was:"', iostat
-        backspace(file_unit)
-        read(file_unit,fmt='(A)') line
-        write(stderr,'(A)') &
-            'Invalid line : '//trim(line)
-    end if
-    close (file_unit)   
-end subroutine close_inputfile
+      if (iostat /= 0) then
+          write (stderr, '(2a)') 'Error reading file :"', trim(file_path)
+          write (stderr, '(a, i0)') 'iostat was:"', iostat
+          backspace(file_unit)
+          read(file_unit,fmt='(A)') line
+          write(stderr,'(A)') &
+              'Invalid line : '//trim(line)
+      end if
+      close (file_unit)   
+  end subroutine close_inputfile
 
-subroutine f_met(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lignNratio,fmet)
+  subroutine f_met(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lignNratio,fmet)
 
-  !In: 
-  real(r8), intent(in) :: leaf_to_lit
-  real(r8), intent(in) :: froot_to_lit
-  real(r8), intent(in) :: cwd_to_lit_vr(:)
+    !In: 
+    real(r8), intent(in) :: leaf_to_lit
+    real(r8), intent(in) :: froot_to_lit
+    real(r8), intent(in) :: cwd_to_lit_vr(:)
 
-  !out:
-  real(r8), intent(out) :: lignNratio
-  real(r8), intent(out) :: fmet
+    !out:
+    real(r8), intent(out) :: lignNratio
+    real(r8), intent(out) :: fmet
 
-  !local
-  real(r8), parameter :: p1 = 0.75
-  real(r8), parameter :: p2 = 0.85
-  real(r8), parameter :: p3 = 0.013
-  real(r8), parameter :: p4 = 40.
-  real(r8), parameter :: fr_flig = 0.25
-  real(r8), parameter :: lf_flig = 0.25
-  real(r8), parameter :: cwd_flig = 0.24
-  real(r8), parameter :: frootcn = 42.
-  real(r8), parameter :: cwdcn = 481.
-  real(r8), parameter :: lflitcn = 50 !NOTE: Change with PFT!
+    !local
+    real(r8), parameter :: p1 = 0.75
+    real(r8), parameter :: p2 = 0.85
+    real(r8), parameter :: p3 = 0.013
+    real(r8), parameter :: p4 = 40.
+    real(r8), parameter :: fr_flig = 0.25
+    real(r8), parameter :: lf_flig = 0.25
+    real(r8), parameter :: cwd_flig = 0.24
+    real(r8), parameter :: frootcn = 42.
+    real(r8), parameter :: cwdcn = 481.
+    real(r8), parameter :: lflitcn = 50 !NOTE: Change with PFT!
 
-  real(r8) :: cwd_to_lit
-  real(r8) :: lignNleaf
-  real(r8) :: lignNfroot
-  real(r8) :: lignNcwd
+    real(r8) :: cwd_to_lit
+    real(r8) :: lignNleaf
+    real(r8) :: lignNfroot
+    real(r8) :: lignNcwd
 
-  cwd_to_lit = sum(cwd_to_lit_vr*delta_z(1:nlevels))
+    cwd_to_lit = sum(cwd_to_lit_vr*delta_z(1:nlevels))
 
-  lignNleaf  = lf_flig*lflitcn*leaf_to_lit
-  lignNfroot = fr_flig*frootcn*froot_to_lit
-  lignNcwd   = cwd_flig*cwdcn*cwd_to_lit
+    lignNleaf  = lf_flig*lflitcn*leaf_to_lit
+    lignNfroot = fr_flig*frootcn*froot_to_lit
+    lignNcwd   = cwd_flig*cwdcn*cwd_to_lit
 
-  lignNratio = (lignNleaf + lignNfroot + lignNcwd) / &
-              max(1e-3, leaf_to_lit+froot_to_lit+cwd_to_lit)
+    lignNratio = (lignNleaf + lignNfroot + lignNcwd) / &
+                max(1e-3, leaf_to_lit+froot_to_lit+cwd_to_lit)
 
-  fmet = p1*(p2-p3*min(p4,lignNratio))
+    fmet = p1*(p2-p3*min(p4,lignNratio))
 
-end subroutine f_met
+  end subroutine f_met
 
 end module paramMod
