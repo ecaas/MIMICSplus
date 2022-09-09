@@ -531,8 +531,6 @@ contains
                         C_inSOMp,C_inSOMa,C_inSOMc, &
                         N_inSOMp,N_inSOMa,N_inSOMc)
                         
-
-    !NOTE: Which and how many layers that receives input from the "outside" (CLM history file) is hardcoded here. This may change in the future.
     !in:
     integer,  intent(in) :: layer_nr
     real(r8), intent(in) :: LEAFC_TO_LIT

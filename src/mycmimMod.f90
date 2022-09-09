@@ -213,6 +213,7 @@ contains
       real(r8)                                 :: drain
       real(r8)                                 :: h2o_liq_tot
       real(r8)                              :: H2OSOI
+      real(r8),dimension(:),allocatable  :: norm_froot_prof
       
       integer                        :: j,i,t              !for iterations
           
@@ -337,23 +338,27 @@ contains
         W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
       end if
       
-      allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels))   
+      allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels), norm_froot_prof(nlevels))   
          
       call read_WATSAT_and_profiles(adjustr(clm_input_path)//'_historical.clm2.all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof)         
       call moisture_func(SOILLIQ,WATSAT,SOILICE,r_moist)                   
       call read_clay(adjustr(clm_surf_path),fCLAY)
+      
+      
+      norm_froot_prof = (froot_prof-minval(froot_prof))/(maxval(froot_prof)-minval(froot_prof))
+      
       
       if ( .not. use_ROI ) then !use static PFT determined fractionation between EcM and AM C input
         call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
         f_alloc(:,1) = calc_EcMfrac(PFT_distribution)
         f_alloc(:,2) = 1-calc_EcMfrac(PFT_distribution)
       end if
-      
+    
       if (f_alloc(1,1)==1.0 ) then !To avoid writing errors when AM = 0
-        pool_matrixC(:,7)=0.0
-        pool_matrixN(:,7)=0.0
-        pool_matrixC_previous(:,7)=0.0
-        pool_matrixN_previous(:,7)=0.0
+        pool_matrixC(:,6)=0.0
+        pool_matrixN(:,6)=0.0
+        pool_matrixC_previous(:,6)=0.0
+        pool_matrixN_previous(:,6)=0.0
         pool_C_start_for_mass_cons=pool_matrixC
         pool_N_start_for_mass_cons=pool_matrixN
       end if
@@ -447,7 +452,6 @@ contains
         !-----------------------------------------------------------------------------------
 
 
-
         input_mod = r_input(C_MYCinput,max_mining) !calculate factor that scales mycorrhizal activity based on C payment from plant
         if ( abs(input_mod) > 1.0 ) then
           print*, input_mod, time !for checking
@@ -468,7 +472,7 @@ contains
           Vmax    = Vmax_function(TSOIL(j),r_moist(j)) !  ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
 
           ![1/h] Microbial turnover rate (SAP to SOM)
-          k_sapsom  = calc_sap_turnover_rate(fMET,r_moist(j), TSOIL(j), froot_prof(nlevels)) 
+          k_sapsom  = calc_sap_turnover_rate(fMET,r_moist(j), TSOIL(j), norm_froot_prof(j)) 
           k_mycsom  = calc_myc_mortality(froot_prof(nlevels))  
           
           CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
@@ -674,14 +678,14 @@ contains
         monthly_sum_consNinorg  = monthly_sum_consNinorg  + inorg_N_matrix
         monthly_sum_consC       = monthly_sum_consC       + pool_matrixC
         
-        if ( month_counter == days_in_month(current_month)*hr_pr_day/dt .and. Spinup_run) then
-        
-          total_months = total_months + 1
-          call monthly_mean(monthly_sum_consC,monthly_sum_consN,monthly_sum_consNinorg,current_month,total_months,write_y,run_name)
-          monthly_sum_consN =0
-          monthly_sum_consC =0
-          monthly_sum_consNinorg=0
-        end if
+        ! if ( month_counter == days_in_month(current_month)*hr_pr_day/dt .and. Spinup_run) then
+        ! 
+        !   total_months = total_months + 1
+        !   call monthly_mean(monthly_sum_consC,monthly_sum_consN,monthly_sum_consNinorg,current_month,total_months,write_y,run_name)
+        !   monthly_sum_consN =0
+        !   monthly_sum_consC =0
+        !   monthly_sum_consNinorg=0
+        ! end if
 
         if (ycounter == 365*24/dt) then
           ycounter = 0
@@ -755,7 +759,7 @@ contains
       end if
       call print_summary(save_N, save_C,c1a,c1b,c2,c3a,c3b,c4a,c4b,pool_C_final,pool_N_final,inorg_N_final)
       !deallocation
-      deallocate(ndep_prof,leaf_prof,froot_prof,r_moist, NH4_sorp_eq_vr)
+      deallocate(ndep_prof,leaf_prof,froot_prof,norm_froot_prof,r_moist, NH4_sorp_eq_vr)
       deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr,f_enzprod)    
       !For timing
       call system_clock(count=clock_stop)      ! Stop Timer

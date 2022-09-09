@@ -254,10 +254,13 @@ contains
     
     real(r8),dimension(no_of_sap_pools) :: turnover_rate
     
+    !Local: 
+    real(r8), parameter :: min_modifier = 0.3
+
     if ( temp < 0 ) then
-      turnover_rate=0.0
+      turnover_rate=[real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*min_modifier, 2.4e-4*exp(0.1_r8*met_frac)*min_modifier]
     else
-      turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*sqrt(rprof), 2.4e-4*exp(0.1_r8*met_frac)*sqrt(rprof)]
+      turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*max(rprof,min_modifier), 2.4e-4*exp(0.1_r8*met_frac)*max(rprof,min_modifier)]
     end if
   end function calc_sap_turnover_rate
   

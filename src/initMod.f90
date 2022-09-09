@@ -42,7 +42,8 @@ contains
     
     call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
     call check(nf90_inq_varid(ncid, 'nbedrock', nid))
-    call check(nf90_get_var(ncid, nid, nlevels))
+    call check(nf90_get_var(ncid, nid, nlevels)) !NOTE: nlevels is public, so it can be accessed from multiple modules. May not be good programming..
+
     call check(nf90_close(ncid))
   end subroutine read_nlayers   
   
