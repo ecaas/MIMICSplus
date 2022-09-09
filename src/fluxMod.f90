@@ -7,7 +7,7 @@ module fluxMod
   implicit none
   PRIVATE
   real(r8) :: NH4_sol_final, NH4_sorp_final,NO3_final
-  public :: calc_nitrification,calc_Leaching,set_N_dep,forward_MMK_flux,input_rates,calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final,NH4_sorp_final, NO3_final
+  public :: calc_nitrification,calc_Leaching,set_N_dep,forward_MMK_flux,reverse_MMK_flux,input_rates,calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final,NH4_sorp_final, NO3_final
 contains 
   
   function calc_nitrification(nh4,t_scalar,w_scalar,soil_temp) result(f_nit)
@@ -252,18 +252,18 @@ contains
     !------------------CARBON FLUXES----------------------------:
     !Decomposition of LIT and SOMa by SAP:
     !On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
-    C_LITmSAPb=forward_MMK_flux(C_SAPb,C_LITm,1) !C6
-    C_LITsSAPb=forward_MMK_flux(C_SAPb,C_LITs,2) !C7
-    C_SOMaSAPb=forward_MMK_flux(C_SAPb,C_SOMa,3) !C8
-    C_LITmSAPf=forward_MMK_flux(C_SAPf,C_LITm,4) !C9
-    C_LITsSAPf=forward_MMK_flux(C_SAPf,C_LITs,5) !C10
-    C_SOMaSAPf=forward_MMK_flux(C_SAPf,C_SOMa,6) !C11
+    C_LITmSAPb=reverse_MMK_flux(C_SAPb,C_LITm,1) !C6
+    C_LITsSAPb=reverse_MMK_flux(C_SAPb,C_LITs,2) !C7
+    C_SOMaSAPb=reverse_MMK_flux(C_SAPb,C_SOMa,3) !C8
+    C_LITmSAPf=reverse_MMK_flux(C_SAPf,C_LITm,4) !C9
+    C_LITsSAPf=reverse_MMK_flux(C_SAPf,C_LITs,5) !C10
+    C_SOMaSAPf=reverse_MMK_flux(C_SAPf,C_SOMa,6) !C11
     
     !Oxidation from SOMc to SOMa
     !From equations for decomposing structural litter in mimics,eq. A10
     !KO modifies Km which is used in the litter->SAP equations.
-    C_SOMcSOMa    = ( C_SAPb * Vmax(2) * C_SOMc / (KO(1)*Km(2) + C_SOMc)) + &
-    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SOMc)) !C12
+    C_SOMcSOMa    = ( C_SAPb * Vmax(2) * C_SOMc / (KO(1)*Km(2) + C_SAPb)) + &
+    (C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SAPf)) !C12
     
     !Desorbtion controls transport from physically protected to available SOM
     C_SOMpSOMa=C_SOMp*desorp !C13

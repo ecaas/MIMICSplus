@@ -107,25 +107,6 @@ module readMod
       call check(nf90_get_var(ncid, pftid, PFT_dist, count=(/1,1,15/)))
       call check(nf90_close(ncid))
     end subroutine read_PFTs
-    
-    ! function read_nlayers(clm_history_file) result(nlevels)
-    !   !INPUT
-    !   character (len = *),intent(in):: clm_history_file
-    ! 
-    !   !OUTPUT
-    !   integer       :: nlevels
-    ! 
-    !   !LOCAL
-    !   integer            :: ncid, nid
-    ! 
-    !   call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
-    !   call check(nf90_inq_varid(ncid, 'nbedrock', nid))
-    !   call check(nf90_get_var(ncid, nid, nlevels))
-    !   call check(nf90_close(ncid))
-    ! end function read_nlayers      
-    
-
-    
                 
     subroutine read_clm_model_input(ncid,time_entry, &
                                     LEAFN_TO_LITTER,FROOTN_TO_LITTER, NPP_MYC,NDEP_TO_SMINN, &

@@ -37,6 +37,7 @@ real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.85 !5.47      !LITm,
 real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (1000g/mg*cm3/m3 * 10 mg/cm3 from german et al 2012)
 real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
 real(kind=r8),dimension(MM_eqs)              :: Kmod    ! see function calc_Kmod
+real(kind=r8),dimension(MM_eqs)              :: Kmod_reverse    ! see function calc_Kmod_reverse
 real(kind=r8)                                :: pscalar ! see function calc_Kmod
 real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 2.0, 10.0, 3.0,3.0, 2.0/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
 real(kind=r8),parameter, dimension(2)        :: KO      =  4                 ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
@@ -152,12 +153,30 @@ contains
     p = 1.0/(2*exp(-2.0*sqrt(clay_fraction)))
     K_mod =  [real(r8) :: 0.125,0.5,0.25*p,0.5,0.25,0.167*p] !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
   end function calc_Kmod
+
+  function calc_reverse_Kmod(clay_fraction) result(K_mod_rev)
+    !Input:
+    real(r8), intent(in) :: clay_fraction
+    !Output:
+    real(r8), dimension(MM_eqs) :: K_mod_rev
+    !Local:
+    real(r8)         :: p 
+    
+    p = 1.0/(2*exp(-2.0*sqrt(clay_fraction)))
+    K_mod_rev =  [real(r8) :: 0.001953125, 0.0078125, 0.00390625*p, 0.0078125, 0.00390625, 0.002604167*p]*1000 !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+  end function calc_reverse_Kmod
   
   function Km_function(temperature) result(K_m)
     real(r8),dimension(MM_eqs)             :: K_m
     real(r8), intent(in)                   :: temperature
     K_m      = exp(Kslope*temperature + Kint)*a_k*Kmod               ![mgC/cm3]*1e3=[gC/m3]    
   end function Km_function
+
+  function reverse_Km_function(temperature) result(K_m_reverse)
+    real(r8),dimension(MM_eqs)             :: K_m_reverse
+    real(r8), intent(in)                   :: temperature
+    K_m_reverse      = exp(Kslope*temperature + Kint)*Kmod_reverse               ![mgC/cm3]*1e3=[gC/m3]    
+  end function reverse_Km_function
 
   function Vmax_function(temperature, moisture) result(V_max)
     real(r8),dimension(MM_eqs)             :: V_max

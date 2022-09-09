@@ -21,7 +21,7 @@ module mycmimMod
   use fluxMod,    only: calc_nitrification,calc_Leaching,set_N_dep,forward_MMK_flux,input_rates,&
                         calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final, NH4_sorp_final,NO3_final
   use writeMod,   only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf,create_monthly_mean_netcdf, &
-                        fill_yearly_netcdf,fill_monthly_netcdf, fluxes_netcdf,store_parameters,check
+                        fill_yearly_netcdf,fill_monthly_netcdf, fluxes_netcdf,store_parameters,check,fill_MMK
   use testMod,    only: respired_mass, test_mass_conservation_C,test_mass_conservation_N, &
                         total_carbon_conservation,total_nitrogen_conservation
   use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
@@ -276,7 +276,7 @@ contains
       pool_temporaryC=pool_C_start
       pool_temporaryN=pool_N_start
       inorg_Ntemporary_matrix=inorg_N_start
-      
+
       !Make sure things start from zero
       sum_consN      = 0
       sum_consNinorg = 0
@@ -375,9 +375,10 @@ contains
             
       desorp= calc_desorp(fCLAY)
       Kmod  = calc_Kmod(fCLAY)
+      Kmod_reverse  = calc_reverse_Kmod(fCLAY)
+      
       
       call f_met(C_leaf_litter,C_root_litter,C_CWD_litter, Nlign_ratio, fMET)
-      
       
       
       !print initial values to terminal      
@@ -463,7 +464,7 @@ contains
           H2OSOI=SOILLIQ(j)+SOILICE(j) !Used for sorp/desorp calculations
           
           !Michaelis Menten parameters:
-          Km      = Km_function(TSOIL(j))
+          Km      = reverse_Km_function(TSOIL(j))
           Vmax    = Vmax_function(TSOIL(j),r_moist(j)) !  ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
 
           ![1/h] Microbial turnover rate (SAP to SOM)
@@ -636,6 +637,9 @@ contains
             stop !for checking
           end if
           
+          if (counter == write_hour/dt) then          
+            call fill_MMK(writencid, int(time),write_hour,j,Km,Vmax)
+          end if
           !Summarize in and out print timestep to check mass balance
           sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+CUE_ecm_vr(j)*C_PlantEcM+CUE_am_vr(j)*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2 !NOTE: Because of the varying mycorrhizal CUE, input may vary slightly between simulations with different nutrient availability. 
           sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+N_PlantSOMc+N_PlantSOMp+N_PlantSOMa+Deposition)*dt*delta_z(j) !g/m2

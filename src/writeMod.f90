@@ -6,7 +6,7 @@ module writeMod
   use initMod, only: nlevels
   implicit none
   private
-  public :: check, create_netcdf,fill_netcdf,store_parameters,fluxes_netcdf, &
+  public :: check, create_netcdf,fill_netcdf,store_parameters,fluxes_netcdf, fill_MMK,&
             create_yearly_mean_netcdf,fill_yearly_netcdf,fill_monthly_netcdf,create_monthly_mean_netcdf
     
   integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid, varid
@@ -85,7 +85,8 @@ module writeMod
       !call check(nf90_def_var(ncid, "N_changeinorganic", NF90_FLOAT,(/t_dimid, lev_dimid/), varid))
       call check(nf90_def_var(ncid, "N_InPlant", NF90_FLOAT,(/t_dimid, lev_dimid/), varid))
       
-
+      call check(nf90_def_var(ncid, "Km", NF90_FLOAT, (/mmk_dimid,t_dimid, lev_dimid/),varid))
+      call check(nf90_def_var(ncid, "Vmax", NF90_FLOAT, (/mmk_dimid,t_dimid, lev_dimid/),varid))
 
       do v = 1, size(C_name_fluxes)
          call check(nf90_def_var(ncid, "C_"//trim(C_name_fluxes(v)), NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
@@ -104,11 +105,33 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_netcdf
 
+    subroutine fill_MMK(ncid,time,write_hour,depth,Km,Vmax)
+      integer,intent(in)               :: ncid 
+      integer, intent(in)              :: time
+      integer, intent(in)              :: depth
+      integer, intent(in)              :: write_hour
+      
+      real(r8),dimension(MM_eqs), intent(in)       :: Km
+      real(r8),dimension(MM_eqs), intent(in)       :: Vmax
+      
+      integer                          :: varid, timestep 
+      
+      call get_timestep(time, write_hour, timestep)
+      
+      call check(nf90_inq_varid(ncid, "Km", varid))
+      call check(nf90_put_var(ncid, varid, Km, start = (/ 1,timestep, depth /)))
+      
+      call check(nf90_inq_varid(ncid, "Vmax", varid))
+      call check(nf90_put_var(ncid, varid, Vmax, start = (/ 1,timestep, depth /)))
+    end subroutine fill_MMK
+
+      
     subroutine fill_netcdf(ncid, time, pool_matrix, Npool_matrix,inorganic_N_matrix, &
       mcdate,HR_sum, HR_flux, HRb,HRf,HRe,HRa,vert_sum,Nvert_sum, write_hour,month, &
       TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,ROI_EcM,ROI_AM,enz_frac,f_alloc, NH4_eq)
       !INPUT:
       integer,intent(in)               :: ncid 
+      integer, intent(in)              :: time
       real(r8), intent(in)             :: pool_matrix(nlevels,pool_types), Npool_matrix(nlevels,pool_types_N)   ! For storing pool concentrations [gC/m3]
       real(r8), intent(in)             :: inorganic_N_matrix(nlevels,inorg_N_pools)
       real(r8), intent(in)             :: vert_sum(nlevels,pool_types)
@@ -116,7 +139,6 @@ module writeMod
       integer, intent(in)              :: mcdate
       integer, intent(in)              :: write_hour
       integer, intent(in)              :: month
-      integer, intent(in)              :: time
       real(r8),intent(in)              :: HR_sum
       real(r8),dimension(nlevels,2),intent(in)              :: f_alloc
       real(r8),dimension(nlevels), intent(in)       :: HR_flux,HRb,HRf
@@ -128,6 +150,7 @@ module writeMod
       real(r8),dimension(nlevels), intent(in)       :: CUE_bacteria,CUE_fungi, CUE_ecm,CUE_am
       real(r8),dimension(nlevels), intent(in)       :: NH4_eq
       
+      
           
       !OUTPUT:
       
@@ -135,7 +158,6 @@ module writeMod
       integer                          :: i , j !for looping
       integer                          :: varid, timestep 
       real(r8)                         :: N_SMIN
-
 
       call get_timestep(time, write_hour, timestep)
 
@@ -192,7 +214,7 @@ module writeMod
         call check_and_write(ncid, "NH4_sol", inorganic_N_matrix(j,1),timestep,j)
         call check_and_write(ncid, "NH4_sorp",inorganic_N_matrix(j,2),  timestep,j)
         call check_and_write(ncid, "NO3",  inorganic_N_matrix(j,3),timestep,j)
-
+      
         N_SMIN = inorganic_N_matrix(j,1)+inorganic_N_matrix(j,2)+inorganic_N_matrix(j,3)
         call check_and_write(ncid, "N_SMIN",N_SMIN, timestep,j)
 
