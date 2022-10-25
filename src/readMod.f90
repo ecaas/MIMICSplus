@@ -7,7 +7,7 @@ module readMod
   use initMod,     only: nlevels
   implicit none
     private
-    public :: read_time,read_maxC,read_WATSAT_and_profiles,read_clay,read_PFTs,read_clm_model_input
+    public :: read_time,read_maxC,read_WATSAT_and_profiles,read_clay,read_PFTs,read_clm_model_input,calc_PFT
 
   contains
       
@@ -72,6 +72,26 @@ module readMod
       
       call check(nf90_close(ncid))
     end subroutine read_WATSAT_and_profiles
+    
+    subroutine calc_PFT(clm_history_file,lflitcn_avg) 
+      !INPUT
+      character (len = *),intent(in):: clm_history_file       
+      !OUTPUT
+      real(r8), intent(out)          :: lflitcn_avg
+   
+      !LOCAL
+      integer            :: ncid, pftid
+      real(r8),dimension(15)           :: PCT_NAT_PFT,test
+      real(r8), dimension(15),parameter           :: lflitcn = (/1, 70, 80, 50, 60, 60, 50, 50, 50, 60, 50, 50, 50, 50, 50/) !from ctsm51_params.c211112.nc 
+      
+      call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
+      call check(nf90_inq_varid(ncid, 'PCT_NAT_PFT', pftid))
+      call check(nf90_get_var(ncid, pftid, PCT_NAT_PFT, count=(/1,15/)))
+      call check(nf90_close(ncid))
+
+      lflitcn_avg = sum(lflitcn*PCT_NAT_PFT/100.)
+      print*, lflitcn_avg
+    end subroutine calc_PFT
     
     subroutine read_clay(clm_surface_file,mean_clay_content)
       !INPUT

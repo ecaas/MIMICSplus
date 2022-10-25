@@ -453,6 +453,8 @@ module writeMod
       call check(nf90_def_var(ncid, "N_NH4_sol", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "N_NH4_sorp", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "N_NO3", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_def_var(ncid, "HR_flux", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      
       
       call check(nf90_def_var(ncid, "year_since_start", NF90_FLOAT, (/t_dimid /), varid))
       call check(nf90_enddef(ncid))
@@ -491,10 +493,11 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_monthly_mean_netcdf
 
-    subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, Ninorg_pool_yearly) !TODO: yearly HR and climate variables (if needed?)
+    subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, Ninorg_pool_yearly,HR_flux_yearly)
       !INPUT
       character (len = *),intent(in):: run_name
       integer,intent(in)            :: year
+      real(r8),intent(in)            :: HR_flux_yearly  
       real(r8), intent(in)          :: Cpool_yearly(nlevels,pool_types)  ! For storing C pool sizes [gC/m3]
       real(r8),intent(in)           :: Npool_yearly(nlevels,pool_types_N)  
       real(r8),intent(in)           :: Ninorg_pool_yearly(nlevels,inorg_N_pools)  
@@ -516,7 +519,9 @@ module writeMod
         
         call check(nf90_inq_varid(ncid, "N_NO3", varid))
         call check(nf90_put_var(ncid, varid, Ninorg_pool_yearly(j,3), start = (/year, j/)))
-        
+
+        call check(nf90_inq_varid(ncid, "HR_flux", varid))
+        call check(nf90_put_var(ncid, varid, HR_flux_yearly, start = (/year, j/)))
                 
         do i = 1,pool_types
           if ( Cpool_yearly(j,i) < epsilon(Cpool_yearly) ) then
@@ -546,6 +551,7 @@ module writeMod
       real(r8),intent(in)           :: Npool_monthly(nlevels,pool_types_N)  
       real(r8),intent(in)           :: Ninorg_pool_monthly(nlevels,inorg_N_pools)  
       
+      
       !LOCAL
       integer :: i,j,varid,ncid
       real(r8) :: value
@@ -566,7 +572,6 @@ module writeMod
         
         call check(nf90_inq_varid(ncid, "N_NO3", varid))
         call check(nf90_put_var(ncid, varid, Ninorg_pool_monthly(j,3), start = (/months_since_start, j/)))
-        
                 
         do i = 1,pool_types
           if ( Cpool_monthly(j,i) < epsilon(Cpool_monthly) ) then

@@ -17,7 +17,7 @@ module mycmimMod
   use paramMod
   use initMod,    only: nlevels,calc_init_NH4
   use readMod,    only: read_maxC, read_time,read_clm_model_input,read_clay,&
-                        read_WATSAT_and_profiles,read_PFTs
+                        read_WATSAT_and_profiles,read_PFTs,calc_PFT
   use fluxMod,    only: calc_nitrification,calc_Leaching,set_N_dep,forward_MMK_flux,input_rates,&
                         calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final, NH4_sorp_final,NO3_final
   use writeMod,   only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf,create_monthly_mean_netcdf, &
@@ -33,25 +33,27 @@ module mycmimMod
     
 contains
   
-  subroutine annual_mean(yearly_sumC,yearly_sumN,yearly_sumNinorg, year, run_name)
+  subroutine annual_mean(yearly_sumC,yearly_sumN,yearly_sumNinorg,sum_HR, year, run_name)
     !Input 
     REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: yearly_sumC
     REAL(r8), DIMENSION(nlevels,pool_types_N), intent(in):: yearly_sumN
     REAL(r8), DIMENSION(nlevels,inorg_N_pools), intent(in):: yearly_sumNinorg
-    
+    REAL(r8), intent(in):: sum_HR    
     integer,  intent(in) :: year
     CHARACTER (len = *), intent(in):: run_name
     !Local
     REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
     REAL(r8), DIMENSION(nlevels,pool_types_N) :: yearly_meanN
     REAL(r8), DIMENSION(nlevels,inorg_N_pools) :: yearly_meanNinorg
+    real(r8) :: yearly_mean_HR
     integer, parameter                         :: hr_in_year = 24*365
     
     yearly_meanC=yearly_sumC/hr_in_year
     yearly_meanN=yearly_sumN/hr_in_year
     yearly_meanNinorg=yearly_sumNinorg/hr_in_year
+    yearly_mean_HR = sum_HR/hr_in_year
     
-    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,yearly_meanNinorg)
+    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,yearly_meanNinorg,yearly_mean_HR)
   end subroutine annual_mean
 
   subroutine monthly_mean(monthly_sumC,monthly_sumN,monthly_sumNinorg, month,total_months,year, run_name)
@@ -106,20 +108,20 @@ contains
       real(r8)                    :: pool_N_start_for_mass_cons(nlevels,pool_types_N)   ! 
       real(r8)                    :: pool_Ninorg_start_for_mass_cons(nlevels,inorg_N_pools)   ! 
      !Shape of pool_matrixC/change_matrixC
-     !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc |
-     !|level1   1   2    3    4   5   6   7   8    9    10  |
-     !|level2                                               |
-     !| .                                                   |
-     !| .                                                   |
-     !|nlevels _____________________________________________|
+     !|       LITm LITs SAPb SAPf EcM AM SOMp SOMa SOMc |
+     !|level1   1   2    3    4   5   6   7   8    9    |
+     !|level2                                           |
+     !| .                                               |
+     !| .                                               |
+     !|nlevels _________________________________________|
 
      !Shape of the pool_matrixN/change_matrixN
-     !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc|
-     !|level1   1   2    3    4   5   6   7   8    9    10 |
-     !|level2                                              |
-     !| .                                                  |
-     !| .                                                  |
-     !|nlevels ____________________________________________|
+     !|       LITm LITs SAPb SAPf EcM AM SOMp SOMa SOMc|
+     !|level1   1   2    3    4   5   6   7   8    9   |
+     !|level2                                          |
+     !| .                                              |
+     !| .                                              |
+     !|nlevels ________________________________________|
      
      !Shape of inorg_N_matrix
      !|       NH4_sol NH4_sorp   NO3|
@@ -179,7 +181,7 @@ contains
       real(r8)                       :: sum_N_out_total
       real(r8)                       :: sum_N_out_step
       real(r8)                       :: sum_N_input_step       ! Used for checking mass conservation
-
+      real(r8)                       :: HR_mass_yearly
       real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
       real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
       real(r8),allocatable           :: vert_inorgN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
@@ -193,7 +195,6 @@ contains
       integer                        :: current_month
       integer                        :: current_day
       integer                        :: total_months
-      
       logical                        :: Spinup_run
       integer,parameter              ::t_init=1
       integer                        :: date
@@ -202,7 +203,7 @@ contains
       real(r8)                       :: vertC_change_sum(nlevels, pool_types)
       real(r8),dimension(15)         :: PFT_distribution
       real(r8),dimension(no_of_som_pools,no_of_sap_pools)        :: f_sapsom
-      
+      real(r8)                       :: lflitcn_avg
       !For reading soil temperature and moisture from CLM output file
       real(r8), dimension(nlevels)          :: TSOIL
       real(r8), dimension(nlevels)          :: SOILLIQ
@@ -277,7 +278,6 @@ contains
       pool_temporaryC=pool_C_start
       pool_temporaryN=pool_N_start
       inorg_Ntemporary_matrix=inorg_N_start
-
       !Make sure things start from zero
       sum_consN      = 0
       sum_consNinorg = 0
@@ -343,7 +343,7 @@ contains
       call read_WATSAT_and_profiles(adjustr(clm_input_path)//'_historical.clm2.all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof)         
       call moisture_func(SOILLIQ,WATSAT,SOILICE,r_moist)                   
       call read_clay(adjustr(clm_surf_path),fCLAY)
-      
+      call calc_PFT(adjustr(clm_input_path)//'_historical_obsveg.clm2.all.'//"1901.nc",lflitcn_avg)
       
       norm_froot_prof = (froot_prof-minval(froot_prof))/(maxval(froot_prof)-minval(froot_prof))
       
@@ -383,7 +383,7 @@ contains
       Kmod_reverse  = calc_reverse_Kmod(fCLAY)
       
       
-      call f_met(C_leaf_litter,C_root_litter,C_CWD_litter, Nlign_ratio, fMET)
+      call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg, Nlign_ratio, fMET)
       
       
       !print initial values to terminal      
@@ -415,7 +415,7 @@ contains
                                 W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
               max_mining = read_maxC(ncid,input_steps)
-              call f_met(C_leaf_litter,C_root_litter,C_CWD_litter, Nlign_ratio, fMET)
+              call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg, Nlign_ratio, fMET)
             end if     
             
             if (input_steps==240) then
@@ -427,7 +427,7 @@ contains
                                 W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
               max_mining = read_maxC(spinupncid,input_steps)
-              call f_met(C_leaf_litter,C_root_litter,C_CWD_litter, Nlign_ratio, fMET)
+              call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg, Nlign_ratio, fMET)
               
             end if                             
         end if 
@@ -446,7 +446,7 @@ contains
             W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)        
             max_mining = read_maxC(ncid,input_steps)                
-            call f_met(C_leaf_litter,C_root_litter,C_CWD_litter, Nlign_ratio, fMET)
+            call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg,Nlign_ratio,fMET)
           end if        
         end if         
         !-----------------------------------------------------------------------------------
@@ -465,7 +465,7 @@ contains
                 
         do j = 1, nlevels !For each depth level (for the no vertical transport case, nlevels = 1, so loop is only done once):
           
-          H2OSOI=SOILLIQ(j)+SOILICE(j) !Used for sorp/desorp calculations
+          H2OSOI=SOILLIQ(j)+SOILICE(j) !Used for N sorp/desorp calculations
           
           !Michaelis Menten parameters:
           Km      = reverse_Km_function(TSOIL(j))
@@ -475,8 +475,8 @@ contains
           k_sapsom  = calc_sap_turnover_rate(fMET,r_moist(j), TSOIL(j), norm_froot_prof(j)) 
           k_mycsom  = calc_myc_mortality(froot_prof(nlevels))  
           
-          CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
-          CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
+          CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+0.3)
+          CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+0.7)
           CUE_ecm_vr(j) = CUE_myc_0
           CUE_am_vr(j) = CUE_myc_0
           f_enzprod=0.1_r8
@@ -617,6 +617,9 @@ contains
             pool_temporaryN(j,i)=pool_matrixN(j,i) + change_matrixN(j,i)*dt
             
             if ( pool_temporaryC(j,i) < 2.2204460492503131E-016 ) then
+              !print*, pool_temporaryC(j,i),change_matrixC(j,i)*dt, j, i, time
+              !call disp(pool_temporaryC)
+              !stop
               save_C=save_C+pool_temporaryC(j,i)
               pool_temporaryC(j,i)=0._r8
             end if   
@@ -654,7 +657,7 @@ contains
         !Store accumulated HR mass
         call respired_mass(HR, HR_mass)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
-        
+        HR_mass_yearly = HR_mass_yearly + HR_mass
         !TODO: tot_diffC, upperC, lowerC is not used and can be removed!
         if (isVertical) then
           call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC,D_carbon)
@@ -692,7 +695,7 @@ contains
           write_y =write_y+1 !For writing to annual mean file
           
           if ( Spinup_run ) then 
-            call annual_mean(sum_consC,sum_consN,sum_consNinorg,write_y , run_name) !calculates the annual mean and write the result to file
+            call annual_mean(sum_consC,sum_consN,sum_consNinorg,HR_mass,write_y , run_name) !calculates the annual mean and write the result to file
           end if
           if (year == stop_year) then
             year = start_year         
@@ -702,13 +705,16 @@ contains
           end if          
           write (year_char,year_fmt) year          
           if ( .not. Spinup_run ) then            
+            
+            
             call check(nf90_close(ncid)) !Close netcdf file containing values for the past year
-            call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
+            call check(nf90_open(trim(adjustr(clm_input_path)//'_historical_obsveg.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
             call read_time(ncid,input_steps)     
           end if           
           sum_consN =0
           sum_consC =0
           sum_consNinorg=0
+          HR_mass_yearly=0
         end if
         if (counter == write_hour/dt) then
           counter = 0        

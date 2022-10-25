@@ -39,8 +39,8 @@ real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
 real(kind=r8),dimension(MM_eqs)              :: Kmod    ! see function calc_Kmod
 real(kind=r8),dimension(MM_eqs)              :: Kmod_reverse    ! see function calc_Kmod_reverse
 real(kind=r8)                                :: pscalar ! see function calc_Kmod
-real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 2.0, 10.0, 3.0,3.0, 2.0/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),parameter, dimension(2)        :: KO      =  4                 ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
+real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 3.0, 10.0, 3.0,5.0, 2.0/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),parameter, dimension(2)        :: KO      =  6              ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
 real(kind=r8),dimension(MM_eqs)              :: Km      ![mgC/cm3]*1e3=[gC/m3] (convert units in a_k) see function Km_function
 real(kind=r8),dimension(MM_eqs)              :: Vmax    ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. see function Vmax_function
 
@@ -51,7 +51,7 @@ real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal u
 real(r8), parameter :: K_MO      = 0.003_r8/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
-real(r8)                      :: fMET                        ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
+real(r8)                      :: fMET                        ![-] Fraction determining distribution of total litter production between LITm and LITs
 real(r8), dimension(no_of_sap_pools)    :: k_sapsom  ![1/h] (tau in MIMICS)
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
 
@@ -77,7 +77,7 @@ real(r8)                             :: max_mining
 real(r8)                             :: input_mod 
 
 !Efficiencies
-real(r8),parameter                   :: CUE_0=0.5
+real(r8),parameter                   :: CUE_0=0.4
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
 real(r8),dimension(:),allocatable    :: CUE_bacteria_vr
 real(r8),dimension(:),allocatable    :: CUE_fungi_vr
@@ -88,8 +88,8 @@ real(r8),parameter                   :: CUE_myc_0=0.25_r8 !Baskaran
 real(r8),parameter                   :: NUE=0.7_r8
 
 !Fractions
-real(r8), parameter                  :: f_met_to_som   = 0.1_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-real(r8), parameter                  :: f_struct_to_som= 0.05_r8 ! fraction of structural litter flux that goes directly to SOM pools
+real(r8), parameter                  :: f_met_to_som   = 0.05_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
+real(r8), parameter                  :: f_struct_to_som= 0.2_r8 ! fraction of structural litter flux that goes directly to SOM pools
 real(r8),dimension(:),allocatable    :: f_enzprod 
 real(r8),parameter                   :: f_enzprod_0    = 0.1_r8
 real(r8), parameter                  :: f_growth       = 0.5_r8 !Fraction of mycorrhizal N uptake that needs to stay within the fungi (not given to plant) 
@@ -163,6 +163,7 @@ contains
     real(r8)         :: p 
     
     p = 1.0/(2*exp(-2.0*sqrt(clay_fraction)))
+    !NOTE: from CTSM param file, multiplied w. 1000 to get units right. Combines a_k and Kmod 
     K_mod_rev =  [real(r8) :: 0.001953125, 0.0078125, 0.00390625*p, 0.0078125, 0.00390625, 0.002604167*p]*1000 !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
   end function calc_reverse_Kmod
   
@@ -175,7 +176,7 @@ contains
   function reverse_Km_function(temperature) result(K_m_reverse)
     real(r8),dimension(MM_eqs)             :: K_m_reverse
     real(r8), intent(in)                   :: temperature
-    K_m_reverse      = exp(Kslope*temperature + Kint)*Kmod_reverse               ![mgC/cm3]*1e3=[gC/m3]    
+    K_m_reverse      = exp(Kslope*temperature + Kint)*Kmod_reverse
   end function reverse_Km_function
 
   function Vmax_function(temperature, moisture) result(V_max)
@@ -186,6 +187,7 @@ contains
   end function Vmax_function
   
   function calc_desorp(clay_fraction) result(d)
+    !For transport from SOMp to SOMa
     real(r8)             :: d
     real(r8), intent(in) :: clay_fraction
     d = 1.5e-5*exp(-1.5*(clay_fraction))
@@ -193,8 +195,8 @@ contains
   
   function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) ! Based on Sulman et al 2019
     !INPUT
-    real(r8),intent(in) :: N_aquired
-    real(r8),intent(in) :: C_myc 
+    real(r8),intent(in) :: N_aquired ![gN/m3 hr]
+    real(r8),intent(in) :: C_myc ![gC/m3]
     real(r8),intent(in) :: loss_rate ![1/h]
     
     !OUTPUT
@@ -238,10 +240,10 @@ contains
     !input
     real(r8),intent(in)      :: clay_frac
     real(r8),INTENT(IN)      :: met_frac
-    !output
+    !NOTE: Kyker-Snowman et al: "Finally, we adjusted the partitioning of microbial turnover to stable soil pools in order to more closely match distributions at Harvard Forest." Can we adjust better to Norwegian forests?
     real(r8),dimension(no_of_som_pools,no_of_sap_pools) :: f_saptosom
     
-    f_saptosom(1,:) = [real(r8) :: 0.3*exp(1.3*clay_frac), 0.2*exp(0.8*clay_frac)]!PHYS
+    f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))!AVAIL
     f_saptosom(2,:) = [real(r8) :: 0.1*exp(-3.0*met_frac), 0.3*exp(-3.0*met_frac)]!CHEM
     f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))!AVAL
   end function calc_sap_to_som_fractions
@@ -253,7 +255,7 @@ contains
     real(r8),INTENT(IN) :: rprof
     
     real(r8),dimension(no_of_sap_pools) :: turnover_rate
-    
+    real(r8), parameter :: min_modifier = 0.2
     !Local: 
     real(r8), parameter :: min_modifier = 0.3
 
@@ -267,6 +269,7 @@ contains
   function calc_myc_mortality(rprof) result(myc_mortality)
     !NOTE: Is it better to call it turnover rate? Is there a difference?    
     real(r8),INTENT(IN) :: rprof  
+    !NOTE: introduced root modifier after NCAR stay. Determine if it should be normalized or not. Also, temperature dependence?  
     real(r8), dimension(no_of_myc_pools) :: myc_mortality
     myc_mortality=(/1.14_r8,1.14_r8/)*1e-4*sqrt(rprof)  ![1/h]  1/yr  
   end function calc_myc_mortality
@@ -280,6 +283,8 @@ contains
     real(r8), intent(out), dimension(nlevels) :: moist_mod
     !LOCAL:
     real(r8), dimension(nlevels)  :: theta_frzn
+    
+    !NOTE: This moisture function represent both inhibition bc. very dry conditions, and very wet (anaerobic) conditions. 
     real(r8), dimension(nlevels)  :: theta_liq
     real(r8), dimension(nlevels)  :: air_filled_porosity
     !FROM mimics_cycle.f90 in testbed:
@@ -370,12 +375,13 @@ contains
           backspace(file_unit)
           read(file_unit,fmt='(A)') line
           write(stderr,'(A)') &
-              'Invalid line : '//trim(line)
+  subroutine f_met(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lflitcn,lignNratio,fmet)
       end if
       close (file_unit)   
   end subroutine close_inputfile
 
   subroutine f_met(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lignNratio,fmet)
+    real(r8), intent(in) :: lflitcn
 
     !In: 
     real(r8), intent(in) :: leaf_to_lit
@@ -391,7 +397,7 @@ contains
     real(r8), parameter :: p2 = 0.85
     real(r8), parameter :: p3 = 0.013
     real(r8), parameter :: p4 = 40.
-    real(r8), parameter :: fr_flig = 0.25
+  !  real(r8), parameter :: lflitcn = 50 !NOTE: Change with PFT!
     real(r8), parameter :: lf_flig = 0.25
     real(r8), parameter :: cwd_flig = 0.24
     real(r8), parameter :: frootcn = 42.
@@ -399,7 +405,6 @@ contains
     real(r8), parameter :: lflitcn = 50 !NOTE: Change with PFT!
 
     real(r8) :: cwd_to_lit
-    real(r8) :: lignNleaf
     real(r8) :: lignNfroot
     real(r8) :: lignNcwd
 
