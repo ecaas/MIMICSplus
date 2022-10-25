@@ -375,7 +375,6 @@ contains
           backspace(file_unit)
           read(file_unit,fmt='(A)') line
           write(stderr,'(A)') &
-  subroutine f_met(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lflitcn,lignNratio,fmet)
       end if
       close (file_unit)   
   end subroutine close_inputfile
@@ -397,8 +396,8 @@ contains
     real(r8), parameter :: p2 = 0.85
     real(r8), parameter :: p3 = 0.013
     real(r8), parameter :: p4 = 40.
-  !  real(r8), parameter :: lflitcn = 50 !NOTE: Change with PFT!
     real(r8), parameter :: lf_flig = 0.25
+    real(r8), parameter :: fr_flig = 0.25
     real(r8), parameter :: cwd_flig = 0.24
     real(r8), parameter :: frootcn = 42.
     real(r8), parameter :: cwdcn = 481.
