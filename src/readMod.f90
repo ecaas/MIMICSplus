@@ -7,7 +7,7 @@ module readMod
   use initMod,     only: nlevels
   implicit none
     private
-    public :: read_time,read_maxC,read_WATSAT_and_profiles,read_clay,read_PFTs,read_clm_model_input
+    public :: read_time,read_maxC,read_WATSAT_and_profiles,read_clay,read_PFTs,read_clm_model_input,calc_PFT
 
   contains
       
@@ -73,6 +73,26 @@ module readMod
       call check(nf90_close(ncid))
     end subroutine read_WATSAT_and_profiles
     
+    subroutine calc_PFT(clm_history_file,lflitcn_avg) 
+      !INPUT
+      character (len = *),intent(in):: clm_history_file       
+      !OUTPUT
+      real(r8), intent(out)          :: lflitcn_avg
+   
+      !LOCAL
+      integer            :: ncid, pftid
+      real(r8),dimension(15)           :: PCT_NAT_PFT,test
+      real(r8), dimension(15),parameter           :: lflitcn = (/1, 70, 80, 50, 60, 60, 50, 50, 50, 60, 50, 50, 50, 50, 50/) !from ctsm51_params.c211112.nc 
+      
+      call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
+      call check(nf90_inq_varid(ncid, 'PCT_NAT_PFT', pftid))
+      call check(nf90_get_var(ncid, pftid, PCT_NAT_PFT, count=(/1,15/)))
+      call check(nf90_close(ncid))
+
+      lflitcn_avg = sum(lflitcn*PCT_NAT_PFT/100.)
+      print*, lflitcn_avg
+    end subroutine calc_PFT
+    
     subroutine read_clay(clm_surface_file,mean_clay_content)
       !INPUT
       character (len = *),intent(in):: clm_surface_file
@@ -82,11 +102,11 @@ module readMod
       
       !LOCAL
       integer            :: ncid, clayid
-      real(r8),dimension(nlevels)           :: pct_clay
+      real(r8),dimension(10)           :: pct_clay
 
       call check(nf90_open(trim(clm_surface_file), nf90_nowrite, ncid))
       call check(nf90_inq_varid(ncid, 'PCT_CLAY', clayid))
-      call check(nf90_get_var(ncid, clayid, pct_clay, count=(/1,1,nlevels/)))
+      call check(nf90_get_var(ncid, clayid, pct_clay, count=(/1,1,10/)))
       call check(nf90_close(ncid))
 
       mean_clay_content = (sum(pct_clay)/size(pct_clay))/100.0 !output as fraction
@@ -107,25 +127,6 @@ module readMod
       call check(nf90_get_var(ncid, pftid, PFT_dist, count=(/1,1,15/)))
       call check(nf90_close(ncid))
     end subroutine read_PFTs
-    
-    ! function read_nlayers(clm_history_file) result(nlevels)
-    !   !INPUT
-    !   character (len = *),intent(in):: clm_history_file
-    ! 
-    !   !OUTPUT
-    !   integer       :: nlevels
-    ! 
-    !   !LOCAL
-    !   integer            :: ncid, nid
-    ! 
-    !   call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
-    !   call check(nf90_inq_varid(ncid, 'nbedrock', nid))
-    !   call check(nf90_get_var(ncid, nid, nlevels))
-    !   call check(nf90_close(ncid))
-    ! end function read_nlayers      
-    
-
-    
                 
     subroutine read_clm_model_input(ncid,time_entry, &
                                     LEAFN_TO_LITTER,FROOTN_TO_LITTER, NPP_MYC,NDEP_TO_SMINN, &
@@ -162,8 +163,7 @@ module readMod
       real(r8)                    :: N_CWD3(nlevels)       
       real(r8)                    :: NPP_NACTIVE  !Mycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s]) 
       real(r8)                    :: NPP_NNONMYC  !NONMycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s]) 
-                 
-        
+                         
       ! C in Coarse Woody Debris
       call check(nf90_inq_varid(ncid, 'CWDC_TO_LITR2C_vr', varid))
       call check(nf90_get_var(ncid, varid, C_CWD2, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))
@@ -173,7 +173,6 @@ module readMod
       C_CWD3=C_CWD3*sec_pr_hr !gC/(m3 s) to gC/(m3 h)
       
       C_CWD=C_CWD2+C_CWD3
-      
       ! N in Coarse Woody Debris
       call check(nf90_inq_varid(ncid, 'CWDN_TO_LITR2N_vr', varid))
       call check(nf90_get_var(ncid, varid, N_CWD2, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))
@@ -183,7 +182,6 @@ module readMod
       call check(nf90_get_var(ncid, varid, N_CWD3, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))
       N_CWD3=N_CWD3*sec_pr_hr !gN/(m3 s) to gN/(m3 h)        
       N_CWD=N_CWD2+N_CWD3
-      
       !C and N litter from leafs and fine roots:
       call check(nf90_inq_varid(ncid, 'LEAFN_TO_LITTER', varid))
       call check(nf90_get_var(ncid, varid, LEAFN_TO_LITTER,start=(/1, time_entry/)))
@@ -193,10 +191,10 @@ module readMod
       call check(nf90_get_var(ncid, varid, FROOTN_TO_LITTER,start=(/1, time_entry/)))
       FROOTN_TO_LITTER = FROOTN_TO_LITTER*sec_pr_hr  ![gC/m^2/h]    
 
+
       call check(nf90_inq_varid(ncid, 'LEAFC_TO_LITTER', varid))
       call check(nf90_get_var(ncid, varid, LEAFC_TO_LITTER,start=(/1, time_entry/)))          
       LEAFC_TO_LITTER = LEAFC_TO_LITTER*sec_pr_hr  ![gC/m^2/h]
-
       call check(nf90_inq_varid(ncid, 'FROOTC_TO_LITTER', varid))
       call check(nf90_get_var(ncid, varid, FROOTC_TO_LITTER,start=(/1, time_entry/)))          
       FROOTC_TO_LITTER = FROOTC_TO_LITTER*sec_pr_hr  ![gC/m^2/h]
@@ -217,7 +215,6 @@ module readMod
       call check(nf90_inq_varid(ncid, 'NDEP_TO_SMINN', varid))
       call check(nf90_get_var(ncid, varid, NDEP_TO_SMINN,start=(/1, time_entry/)))
       NDEP_TO_SMINN = NDEP_TO_SMINN*sec_pr_hr ![gN/m^2/h]
-
       !Environmental variables:      
       call check(nf90_inq_varid(ncid, 'TSOI', varid))
       call check(nf90_get_var(ncid, varid, TSOI, start=(/1,1,time_entry/), count=(/1,nlevels,1/)))

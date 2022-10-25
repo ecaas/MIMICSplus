@@ -13,49 +13,87 @@
 !In addition a reservoir of inorganic nitrogen, N_IN, is found in each layer. A plant pool of carbon and nitrogen is also included (not vertically resolved).
 
 module mycmimMod
-  use shr_kind_mod   , only : r8 => shr_kind_r8
+  use shr_kind_mod, only : r8 => shr_kind_r8
   use paramMod
-  use initMod, only: nlevels
-  use readMod, only: read_maxC, read_time,read_clm_model_input,read_clay,read_WATSAT_and_profiles,read_PFTs
-  use fluxMod,    only: nitrification,calc_Leaching,set_N_dep,calc_desorp,MMK_flux,input_rates,calculate_fluxes,vertical_diffusion,myc_to_plant
-  use writeMod,   only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf,fill_yearly_netcdf,fluxes_netcdf,store_parameters,check
-  use testMod,    only: respired_mass, test_mass_conservation,total_mass_conservation,total_nitrogen_conservation
+  use initMod,    only: nlevels,calc_init_NH4
+  use readMod,    only: read_maxC, read_time,read_clm_model_input,read_clay,&
+                        read_WATSAT_and_profiles,read_PFTs,calc_PFT
+  use fluxMod,    only: calc_nitrification,calc_Leaching,set_N_dep,forward_MMK_flux,input_rates,&
+                        calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final, NH4_sorp_final,NO3_final
+  use writeMod,   only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf,create_monthly_mean_netcdf, &
+                        fill_yearly_netcdf,fill_monthly_netcdf, fluxes_netcdf,store_parameters,check,fill_MMK
+  use testMod,    only: respired_mass, test_mass_conservation_C,test_mass_conservation_N, &
+                        total_carbon_conservation,total_nitrogen_conservation
   use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
   use netcdf,     only: nf90_nowrite,nf90_write,nf90_close,nf90_open
   
   implicit none
     private 
     public :: decomp
+    
 contains
   
-  subroutine annual_mean(yearly_sumC,yearly_sumN,nlevels, year, run_name)
+  subroutine annual_mean(yearly_sumC,yearly_sumN,yearly_sumNinorg,sum_HR, year, run_name)
     !Input 
     REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: yearly_sumC
     REAL(r8), DIMENSION(nlevels,pool_types_N), intent(in):: yearly_sumN
+    REAL(r8), DIMENSION(nlevels,inorg_N_pools), intent(in):: yearly_sumNinorg
+    REAL(r8), intent(in):: sum_HR    
     integer,  intent(in) :: year
-    integer , intent(in) :: nlevels
     CHARACTER (len = *), intent(in):: run_name
     !Local
     REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
     REAL(r8), DIMENSION(nlevels,pool_types_N) :: yearly_meanN
+    REAL(r8), DIMENSION(nlevels,inorg_N_pools) :: yearly_meanNinorg
+    real(r8) :: yearly_mean_HR
     integer, parameter                         :: hr_in_year = 24*365
+    
     yearly_meanC=yearly_sumC/hr_in_year
     yearly_meanN=yearly_sumN/hr_in_year
-    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN)
-
+    yearly_meanNinorg=yearly_sumNinorg/hr_in_year
+    yearly_mean_HR = sum_HR/hr_in_year
+    
+    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,yearly_meanNinorg,yearly_mean_HR)
   end subroutine annual_mean
 
-  
-  subroutine decomp(nsteps, run_name,step_frac,write_hour,pool_C_start, &
-      pool_N_start,pool_C_final,pool_N_final,start_year,stop_year,clm_input_path,clm_surf_path) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
+  subroutine monthly_mean(monthly_sumC,monthly_sumN,monthly_sumNinorg, month,total_months,year, run_name)
+    !Input 
+    REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: monthly_sumC
+    REAL(r8), DIMENSION(nlevels,pool_types_N), intent(in):: monthly_sumN
+    REAL(r8), DIMENSION(nlevels,inorg_N_pools), intent(in):: monthly_sumNinorg
+    
+    integer,  intent(in) :: month
+    integer,  intent(in) :: total_months
+    
+    integer,  intent(in) :: year
+    
+    CHARACTER (len = *), intent(in):: run_name
+    !Local
+    REAL(r8), DIMENSION(nlevels,pool_types) :: monthly_meanC
+    REAL(r8), DIMENSION(nlevels,pool_types_N) :: monthly_meanN
+    REAL(r8), DIMENSION(nlevels,inorg_N_pools) :: monthly_meanNinorg
+    integer, parameter                         :: hr_in_month = 24*days_in_month(month)
+    
+    monthly_meanC=monthly_sumC/hr_in_month
+    monthly_meanN=monthly_sumN/hr_in_month
+    monthly_meanNinorg=monthly_sumNinorg/hr_in_month
+    call fill_monthly_netcdf(run_name, year,month,total_months, monthly_meanC,monthly_meanN,monthly_meanNinorg)
+  end subroutine monthly_mean
+
+  subroutine decomp(nsteps,   &
+                    run_name, &
+                    write_hour,&
+                    pool_C_start,pool_N_start,inorg_N_start, &
+                    pool_C_final,pool_N_final,inorg_N_final,  &
+                    start_year,stop_year,clm_input_path,clm_surf_path) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
       !INPUT
       integer,intent(in)                        :: nsteps               ! number of time steps to iterate over
       character (len=*) ,intent(in)             :: run_name             ! used for naming outputfiles
-      integer,intent(in)                        :: step_frac            ! determines the size of the time step
-    !  integer,intent(in)                        :: nlevels           ! number of vertical layers
       integer,intent(in)                        :: write_hour           !How often output is written to file
       real(r8),intent(in)                       :: pool_C_start(nlevels,pool_types)     ! For store and output final C pool sizes 
       real(r8),intent(in)                       :: pool_N_start(nlevels,pool_types_N)   ! For storing and output final N pool sizes [gN/m3] 
+      real(r8),intent(in)                       :: inorg_N_start(nlevels,inorg_N_pools)   ! For storing and output final N pool sizes [gN/m3] 
+      
       integer, intent(in)                       :: start_year !Forcing start year
       integer, intent(in)                       :: stop_year !Forcing end year, i.e. forcing loops over interval start_year-stop_year
       character (len=*) ,intent(in)             :: clm_input_path             ! file path for input
@@ -64,23 +102,34 @@ contains
       !OUTPUT
       real(r8),intent(out)                      :: pool_C_final(nlevels,pool_types)     ! For store and output final C pool sizes 
       real(r8),intent(out)                      :: pool_N_final(nlevels,pool_types_N)   ! For storing and output final N pool sizes [gN/m3] 
+      real(r8),intent(out)                      :: inorg_N_final(nlevels,inorg_N_pools)   ! For storing and output final N pool sizes [gN/m3] 
       
-      
+      real(r8)                    :: pool_C_start_for_mass_cons(nlevels,pool_types)     ! To use in total mass conservation subroutine
+      real(r8)                    :: pool_N_start_for_mass_cons(nlevels,pool_types_N)   ! 
+      real(r8)                    :: pool_Ninorg_start_for_mass_cons(nlevels,inorg_N_pools)   ! 
      !Shape of pool_matrixC/change_matrixC
-     !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc |
-     !|level1   1   2    3    4   5   6   7   8    9    10  |
-     !|level2                                               |
-     !| .                                                   |
-     !| .                                                   |
-     !|nlevels __________________________________________|
+     !|       LITm LITs SAPb SAPf EcM AM SOMp SOMa SOMc |
+     !|level1   1   2    3    4   5   6   7   8    9    |
+     !|level2                                           |
+     !| .                                               |
+     !| .                                               |
+     !|nlevels _________________________________________|
 
      !Shape of the pool_matrixN/change_matrixN
-     !|       LITm LITs SAPb SAPf EcM ErM AM SOMp SOMa SOMc NH4 NO3|
-     !|level1   1   2    3    4   5   6   7   8    9    10  11  12 |
-     !|level2                                                      |
-     !| .                                                          |
-     !| .                                                          |
-     !|nlevels _________________________________________________|
+     !|       LITm LITs SAPb SAPf EcM AM SOMp SOMa SOMc|
+     !|level1   1   2    3    4   5   6   7   8    9   |
+     !|level2                                          |
+     !| .                                              |
+     !| .                                              |
+     !|nlevels ________________________________________|
+     
+     !Shape of inorg_N_matrix
+     !|       NH4_sol NH4_sorp   NO3|
+     !|level1    1       2       3  |
+     !|level2                       |
+     !| .                           |
+     !| .                           |
+     !|nlevels _____________________|
      
       !LOCAL
       character (len=4)              :: year_fmt
@@ -89,20 +138,28 @@ contains
       real(r8),dimension(nlevels) :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
       real(r8)                       :: HR_mass_accumulated, HR_mass
       real(r8),dimension(nlevels) :: HRb,HRf !For storing respiration separately for bacteria and fungi
+      real(r8),dimension(nlevels) :: HRe,HRa !For storing respiration separately for mycorrhiza
       real(r8)                       :: pool_matrixC(nlevels,pool_types)     ! For storing C pool sizes [gC/m3]
       real(r8)                       :: change_matrixC(nlevels,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
       real(r8)                       :: pool_temporaryC(nlevels,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
       real(r8)                       :: pool_matrixC_previous(nlevels,pool_types) !Used for checking mass conservation
       real(r8)                       :: pool_matrixN_previous(nlevels,pool_types_N) !Used for checking mass conservation
+      real(r8)                       :: inorg_N_matrix_previous(nlevels,inorg_N_pools) !Used for checking mass conservation
       real(r8)                       :: pool_temporaryN(nlevels,pool_types_N)! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
       real(r8)                       :: pool_matrixN(nlevels,pool_types_N)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
       real(r8)                       :: change_matrixN(nlevels,pool_types_N) ! For storing dC/dt for each time step [gN/(m3*hour)]
+      real(r8)                       :: inorg_N_matrix(nlevels, inorg_N_pools) ! Inorganic N pool sizes (gN/m3)
+      real(r8)                       :: inorg_Ntemporary_matrix(nlevels, inorg_N_pools) ! Inorganic N pool sizes (gN/m3)
       
       real(r8),dimension(nlevels) :: ROI_EcM
       real(r8),dimension(nlevels) :: ROI_AM
       real(r8),dimension(nlevels,2)          :: f_alloc
       real(r8)                       :: sum_consN(nlevels, pool_types_N) !g/m3 for calculating annual mean
+      real(r8)                       :: sum_consNinorg(nlevels, inorg_N_pools) !g/m3 for calculating annual mean
       real(r8)                       :: sum_consC(nlevels, pool_types) !g/m3 for calculating annual mean
+      real(r8)                       :: monthly_sum_consN(nlevels, pool_types_N) !g/m3 for calculating monthly mean
+      real(r8)                       :: monthly_sum_consNinorg(nlevels, inorg_N_pools) !g/m3 for calculating monthly mean
+      real(r8)                       :: monthly_sum_consC(nlevels, pool_types) !g/m3 for calculating monthly mean
       real(r8)                       :: N_DEPinput
       real(r8)                       :: C_MYCinput
       real(r8)                       :: C_leaf_litter
@@ -112,21 +169,23 @@ contains
       real(r8)                       :: C_CWD_litter(nlevels)
       real(r8)                       :: N_CWD_litter(nlevels)
 
-      real(r8)                       :: dt                            ! size of time step
       real(r8)                       :: time                          ! t*dt
-      real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss,N_exchange
+      real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss
       real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion
       real(r8)                       :: tot_diffN,upperN,lowerN                 ! For the call to vertical_diffusion
+      real(r8)                       :: tot_diffNinorg,upperNinorg,lowerNinorg                 ! For the call to vertical_diffusion
+      
       real(r8)                       :: sum_input_step         ! Used for checking mass conservation
       real(r8)                       :: sum_input_total        ! Used for checking mass conservation
       real(r8)                       :: sum_N_input_total
       real(r8)                       :: sum_N_out_total
       real(r8)                       :: sum_N_out_step
       real(r8)                       :: sum_N_input_step       ! Used for checking mass conservation
-
+      real(r8)                       :: HR_mass_yearly
       real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
       real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
-
+      real(r8),allocatable           :: vert_inorgN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
+      real(r8) ::  Nlign_ratio, f_met_fraction
       !Counters
       integer                        :: ycounter, year,write_y
       integer                        :: counter            !used for determining when to output results
@@ -135,21 +194,16 @@ contains
       integer                        :: spinup_counter
       integer                        :: current_month
       integer                        :: current_day
+      integer                        :: total_months
       logical                        :: Spinup_run
-      integer                        :: j,i,t              !for iterations
       integer,parameter              ::t_init=1
       integer                        :: date
-      integer                       :: input_steps
-
+      integer                        :: input_steps
       real(r8)                       :: change_sum(nlevels, pool_types)
       real(r8)                       :: vertC_change_sum(nlevels, pool_types)
       real(r8),dimension(15)         :: PFT_distribution
-      real(r8)                       :: nh4_frac
-      real(r8)                       :: NH4_temporary
-      real(r8)                       :: NO3_temporary
-      real(r8)                       :: C_EcMenz_prod
-      real(r8),dimension(no_of_som_pools,no_of_sap_pools)        :: f_partitions
-      
+      real(r8),dimension(no_of_som_pools,no_of_sap_pools)        :: f_sapsom
+      real(r8)                       :: lflitcn_avg
       !For reading soil temperature and moisture from CLM output file
       real(r8), dimension(nlevels)          :: TSOIL
       real(r8), dimension(nlevels)          :: SOILLIQ
@@ -159,16 +213,18 @@ contains
       real(r8), dimension(nlevels)          :: T_SCALAR
       real(r8)                                 :: drain
       real(r8)                                 :: h2o_liq_tot
+      real(r8)                              :: H2OSOI
+      real(r8),dimension(:),allocatable  :: norm_froot_prof
+      
+      integer                        :: j,i,t              !for iterations
           
       integer :: ncid
       integer :: writencid
       integer :: spinupncid
-      
+            
       call system_clock(count_rate=clock_rate) !Find the time rate
       call system_clock(count=clock_start)     !Start Timer  
       
-      dt= 1.0/step_frac !Setting the time step
-
       if (nlevels>1) then 
         soil_depth=sum(delta_z(1:nlevels))
         isVertical = .True.
@@ -177,6 +233,7 @@ contains
         isVertical = .False.
         allocate (vertC, mold = pool_matrixC)
         allocate (vertN, mold = pool_matrixN)
+        allocate (vert_inorgN, mold = inorg_N_matrix)
                      !TODO: This can be done better
       end if
           
@@ -194,7 +251,8 @@ contains
       allocate(r_moist(nlevels))
       allocate(f_enzprod(nlevels))
       f_enzprod=f_enzprod_0
-      
+      allocate(NH4_sorp_eq_vr(nlevels))
+      NH4_sorp_eq_vr=10.0
       input_mod=1.0 !Initialize input modifier (r_input)
       !For counting mineralization/immobilization occurences:
       c1a=0
@@ -204,21 +262,37 @@ contains
       c3b=0
       c4a=0
       c4b=0
-      
+      save_N=0._r8
+      save_C=0._r8
+
       !Set initial concentration values:
       pool_matrixC=pool_C_start
       pool_matrixN=pool_N_start
+      inorg_N_matrix=inorg_N_start
       pool_matrixC_previous = pool_C_start
       pool_matrixN_previous = pool_N_start
-      
+      inorg_N_matrix_previous=inorg_N_start
+      pool_C_start_for_mass_cons=pool_C_start
+      pool_N_start_for_mass_cons=pool_N_start
+      pool_Ninorg_start_for_mass_cons=inorg_N_start
+      pool_temporaryC=pool_C_start
+      pool_temporaryN=pool_N_start
+      inorg_Ntemporary_matrix=inorg_N_start
       !Make sure things start from zero
       sum_consN      = 0
+      sum_consNinorg = 0
       sum_consC      = 0
+      monthly_sum_consN      = 0
+      monthly_sum_consNinorg = 0
+      monthly_sum_consC      = 0
+      total_months   = 0
       change_matrixC = 0.0
       change_matrixN = 0.0
       HR             = 0.0
       HRb            = 0.0
       HRf            = 0.0
+      HRe            = 0.0
+      HRa            = 0.0
       ROI_EcM        = 0.0
       ROI_AM         = 0.0
       f_alloc        = 0.0
@@ -248,7 +322,7 @@ contains
       if ( start_year == 1850 ) then
         Spinup_run = .True.
         spinup_counter =1
-        call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.for_spinup.1850-1869.nc'), nf90_nowrite, spinupncid)) !open netcdf containing values for the next year  
+        call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.for_spinup.1850-1869.nc'), nf90_nowrite, spinupncid))  
         call read_time(spinupncid,input_steps) !Check if inputdata is daily or monthly:         
         call read_clm_model_input(spinupncid,Spinup_counter, &
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
@@ -256,59 +330,66 @@ contains
         W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)        
       else
         Spinup_run = .False.        
-        call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year  
+        call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) 
         call read_time(ncid,input_steps) !Check if inputdata is daily or monthly: 
         call read_clm_model_input(ncid,1, &
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
         C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
         W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
       end if
-
-      allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels))   
+      
+      allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels), norm_froot_prof(nlevels))   
          
       call read_WATSAT_and_profiles(adjustr(clm_input_path)//'_historical.clm2.all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof)         
-      call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)                   
+      call moisture_func(SOILLIQ,WATSAT,SOILICE,r_moist)                   
       call read_clay(adjustr(clm_surf_path),fCLAY)
+      call calc_PFT(adjustr(clm_input_path)//'_historical_obsveg.clm2.all.'//"1901.nc",lflitcn_avg)
+      
+      norm_froot_prof = (froot_prof-minval(froot_prof))/(maxval(froot_prof)-minval(froot_prof))
+      
       
       if ( .not. use_ROI ) then !use static PFT determined fractionation between EcM and AM C input
         call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
-        f_EcM = calc_EcMfrac(PFT_distribution)
-        f_alloc(:,1) = f_EcM
-        f_alloc(:,2) = 1-f_EcM   
-      else
-        f_EcM = 999_r8
+        f_alloc(:,1) = calc_EcMfrac(PFT_distribution)
+        f_alloc(:,2) = 1-calc_EcMfrac(PFT_distribution)
       end if
+    
       if (f_alloc(1,1)==1.0 ) then !To avoid writing errors when AM = 0
-        print*, "inside"
-        pool_matrixC(:,7)=0.0
-        pool_matrixN(:,7)=0.0
-        pool_matrixC_previous(:,7)=0.0
-        pool_matrixN_previous(:,7)=0.0
+        pool_matrixC(:,6)=0.0
+        pool_matrixN(:,6)=0.0
+        pool_matrixC_previous(:,6)=0.0
+        pool_matrixN_previous(:,6)=0.0
+        pool_C_start_for_mass_cons=pool_matrixC
+        pool_N_start_for_mass_cons=pool_matrixN
       end if
       if ( Spinup_run ) then
+        call create_yearly_mean_netcdf(run_name)  !open and prepare files to store results. Store initial values
+        call create_monthly_mean_netcdf(run_name)  !open and prepare files to store results. Store initial values
+        
         max_mining = read_maxC(spinupncid,input_steps)
       else
         max_mining = read_maxC(ncid,input_steps)        
       end if
-      
-      !open and prepare files to store results. Store initial values
-      call create_yearly_mean_netcdf(run_name)  
       call create_netcdf(run_name)
-      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))
-      
-      call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN, &
-                       date, HR_mass_accumulated,HR,HRb,HRf, change_matrixC,change_matrixN,write_hour,current_month, &
-                      TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc)
+      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))      
+      call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN,inorg_N_matrix, &
+                       date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa, change_matrixC,&
+                       change_matrixN,write_hour,current_month,TSOIL, r_moist, &
+                       CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM, & 
+                       ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
             
       desorp= calc_desorp(fCLAY)
       Kmod  = calc_Kmod(fCLAY)
-      k_mycsom  = calc_myc_mortality()  
-      ! Fracions of SAP that goes to different SOM pools
-      f_partitions = calc_sap_to_som_fractions(fCLAY,fMET)
-      fPHYS = f_partitions(1,:)
-      fCHEM = f_partitions(2,:)
-      fAVAIL  = f_partitions(3,:)
-
+      Kmod_reverse  = calc_reverse_Kmod(fCLAY)
+      
+      
+      call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg, Nlign_ratio, fMET)
+      
+      
+      !print initial values to terminal      
+      call disp("InitC", pool_matrixC)
+      call disp("InitN", pool_matrixN)
+      call disp("InitN inorganic", inorg_N_matrix)
       !----------------------------------------------------------------------------------------------------------------
       do t =1,nsteps !Starting time iterations
         time = t*dt
@@ -316,10 +397,10 @@ contains
         counter  = counter + 1
         ycounter = ycounter + 1            !Counts hours in a year 
         month_counter = month_counter + 1 !Counts hours in a month
-        day_counter = day_counter + 1     !Counts hours in a day (24)
-
-        ! !Update temp and moisture values monthly/daily 
-        if (month_counter == days_in_month(current_month)*hr_pr_day*step_frac+1) then
+        day_counter = day_counter + 1     !Counts hours in a day
+         
+        !------------Update forcing and environmental data at the right timesteps-----------
+        if (month_counter == days_in_month(current_month)*hr_pr_day/dt+1) then
             month_counter = 1       
                  
             if (current_month == 12) then
@@ -327,7 +408,6 @@ contains
             else
               current_month = current_month + 1 
             end if   
-   
             if (input_steps==12) then  
               call read_clm_model_input(ncid,current_month, &
                                 N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
@@ -335,6 +415,7 @@ contains
                                 W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
               max_mining = read_maxC(ncid,input_steps)
+              call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg, Nlign_ratio, fMET)
             end if     
             
             if (input_steps==240) then
@@ -346,10 +427,12 @@ contains
                                 W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
               max_mining = read_maxC(spinupncid,input_steps)
+              call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg, Nlign_ratio, fMET)
+              
             end if                             
         end if 
         
-        if (day_counter == hr_pr_day*step_frac+1) then
+        if (day_counter == hr_pr_day/dt+1) then
           day_counter = 1   
           current_day = current_day +1                      
           if ( current_day == 366 ) then
@@ -363,32 +446,37 @@ contains
             W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)        
             max_mining = read_maxC(ncid,input_steps)                
+            call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg,Nlign_ratio,fMET)
           end if        
         end if         
-        !print initial values to terminal
-        if (t == 1) then
-          call disp("InitC", pool_matrixC)
-          call disp("InitN", pool_matrixN)
-        end if
-        
-        input_mod = r_input(C_MYCinput,max_mining)
+        !-----------------------------------------------------------------------------------
+
+
+        input_mod = r_input(C_MYCinput,max_mining) !calculate factor that scales mycorrhizal activity based on C payment from plant
         if ( abs(input_mod) > 1.0 ) then
-          print*, input_mod, time
+          print*, input_mod, time !for checking
         end if
         
-        
+        ! Fracions of SAP that goes to different SOM pools
+        f_sapsom = calc_sap_to_som_fractions(fCLAY,fMET)
+        fPHYS = f_sapsom(1,:)
+        fCHEM = f_sapsom(2,:)
+        fAVAIL  = f_sapsom(3,:)
+                
         do j = 1, nlevels !For each depth level (for the no vertical transport case, nlevels = 1, so loop is only done once):
-
-
+          
+          H2OSOI=SOILLIQ(j)+SOILICE(j) !Used for N sorp/desorp calculations
+          
           !Michaelis Menten parameters:
-          Km      = Km_function(TSOIL(j))
+          Km      = reverse_Km_function(TSOIL(j))
           Vmax    = Vmax_function(TSOIL(j),r_moist(j)) !  ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
 
           ![1/h] Microbial turnover rate (SAP to SOM)
-          k_sapsom = calc_sap_turnover_rate(fMET,r_moist(j)) 
+          k_sapsom  = calc_sap_turnover_rate(fMET,r_moist(j), TSOIL(j), norm_froot_prof(j)) 
+          k_mycsom  = calc_myc_mortality(froot_prof(nlevels))  
           
-          CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
-          CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0)
+          CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+0.3)
+          CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+0.7)
           CUE_ecm_vr(j) = CUE_myc_0
           CUE_am_vr(j) = CUE_myc_0
           f_enzprod=0.1_r8
@@ -402,60 +490,59 @@ contains
                                       C_PlantSOMp,C_PlantSOMa,C_PlantSOMc, &
                                       N_PlantSOMp,N_PlantSOMa,N_PlantSOMc)
                                       
+          Leaching    = calc_Leaching(drain,h2o_liq_tot,inorg_N_matrix(j,3)) !N32
+          Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
+          nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton in timestep !N35
           
-          !Determine deposition, Leaching and nitrification in timestep
-          Deposition = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j)
-          Leaching = calc_Leaching(drain,h2o_liq_tot,pool_matrixN(j,12))
-          nitrif_rate=nitrification((pool_matrixN(j,11)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j))
-          max_Nimmobilized = calc_Fmax(k2,pool_matrixN(j,11)+Deposition*dt-nitrif_rate*dt)
           !Calculate fluxes between pools in level j (file: fluxMod.f90):
-          call calculate_fluxes(j,TSOIL(j), pool_matrixC, pool_matrixN,dt)
+          call calculate_fluxes(j,TSOIL(j),H2OSOI, pool_matrixC, pool_matrixN,inorg_N_matrix,Deposition, Leaching, nitrif_rate)
+          inorg_Ntemporary_matrix(j,1)=NH4_sol_final
+          inorg_Ntemporary_matrix(j,2)=NH4_sorp_final          
+          inorg_Ntemporary_matrix(j,3)=NO3_final
           
           if ( use_ROI ) then
             ROI_EcM(j) = ROI_function(N_INEcM+N_SOMpEcM+N_SOMcEcM,pool_matrixC(j,5),k_mycsom(1))
-            ROI_AM(j) = ROI_function(N_INAM, pool_matrixC(j,7),k_mycsom(3))
-            if ( C_MYCinput .NE. 0.0 ) then !To avoid NaN when both ROI is zero
-              f_alloc(j,1) = ROI_EcM(j)/(ROI_EcM(j)+ROI_AM(j))
-              f_alloc(j,2) = ROI_AM(j)/(ROI_EcM(j)+ROI_AM(j))
+            ROI_AM(j) = ROI_function(N_INAM, pool_matrixC(j,6),k_mycsom(2))
+            if ( C_MYCinput .NE. 0.0  ) then !To avoid NaN when both ROI is zero
+              if ( ROI_EcM(j) +ROI_AM(j) == 0.0 ) then !Too little myc in layer to contribute
+                f_alloc(j,:)=0.0 
+              else
+                f_alloc(j,1) = ROI_EcM(j)/(ROI_EcM(j)+ROI_AM(j)) !Eq. (4), Sulman et al. 2019 (DOI: 10.1029/2018GB005973)
+                f_alloc(j,2) = ROI_AM(j)/(ROI_EcM(j)+ROI_AM(j))
+              end if
             else
               f_alloc(j,:)=0.5 !Value does not really matter bc. C_MYCinput is zero
             end if
           end if
           
-          C_PlantEcM = f_alloc(j,1)*C_MYCinput*froot_prof(j)
-          C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j)
-          
-          call myc_to_plant(j,C_PlantEcM,C_PlantAM,N_AMPlant,N_EcMPlant,N_ErMPlant,CUE_EcM_vr(j),CUE_AM_vr(j),f_enzprod(j))
-       !---------Calc fraction of inorg N that is NH4----------------------------------------          
-          NH4_temporary = pool_matrixN(j,11) + (Deposition - nitrif_rate)*dt
-          NO3_temporary = pool_matrixN(j,12) + (nitrif_rate - Leaching)*dt                    
-          if (NH4_temporary+NO3_temporary == 0._r8) Then
-            nh4_frac = 0.5_8
-          else
-            nh4_frac = NH4_temporary/(NH4_temporary+NO3_temporary)
-          end if
-      !---------------------------------------------------------------------------------------          
-          if (counter == write_hour*step_frac .or. t==1) then !Write fluxes from calculate_fluxes to file            
-           call fluxes_netcdf(writencid,int(time), write_hour, j)
+          C_PlantEcM = f_alloc(j,1)*C_MYCinput*froot_prof(j) !C29
+          C_PlantAM = f_alloc(j, 2)*C_MYCinput*froot_prof(j) !C30    
+               
+          if (counter == write_hour/dt .or. t==1) then !Write fluxes from calculate_fluxes to file            
+            call fluxes_netcdf(writencid,int(time), write_hour, j)
           end if !write fluxes
           
-          do i = 1,pool_types_N !loop over all the pool types, i, in depth level j 
+          call myc_to_plant(CUE_EcM_vr(j),CUE_AM_vr(j),f_enzprod(j),N_AMPlant,N_EcMPlant) !N30,N31
+          
+          C_EcMenz_prod=CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j) !C28
+
+          do i = 1,pool_types !loop over all the pool types, i, in depth level j 
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
             !NOTE: If pools are added/removed (i.e the actual model equations is changed), this loop needs to be updated.
 
             if (i==1) then !LITm
-              N_Gain = N_PlantLITm
-              N_Loss = N_LITmSAPb + N_LITmSAPf
               C_Gain = C_PlantLITm
               C_Loss = C_LITmSAPb + C_LITmSAPf
+              N_Gain = N_PlantLITm
+              N_Loss = N_LITmSAPb + N_LITmSAPf
               
             elseif (i==2) then !LITs
-              N_Gain = N_PlantLITs
-              N_Loss = N_LITsSAPb + N_LITsSAPf
               C_Gain = C_PlantLITs
               C_Loss = C_LITsSAPb + C_LITsSAPf
+              N_Gain = N_PlantLITs
+              N_Loss = N_LITsSAPb + N_LITsSAPf
 
-            elseif (i==3) then !SAPb              
+            elseif (i==3) then !SAPb 
               C_Gain = CUE_bacteria_vr(j)*(C_LITmSAPb + C_LITsSAPb &
                 + C_SOMaSAPb)
               C_Loss =  C_SAPbSOMp + C_SAPbSOMa + C_SAPbSOMc
@@ -480,128 +567,68 @@ contains
               end if
 
             elseif (i==5) then !EcM
-              C_EcMenz_prod=CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
               
-              C_Gain = CUE_ecm_vr(j)*C_PlantEcM + C_SOMcEcM + C_SOMpEcM !
-              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
+              C_Gain = CUE_ecm_vr(j)*C_PlantEcM
+              C_Loss = C_EcMSOMp + C_EcMSOMa + C_EcMSOMc + C_EcMenz_prod
               N_Gain = N_INEcM + N_SOMpEcM + N_SOMcEcM
               N_Loss = N_EcMPlant + N_EcMSOMa + N_EcMSOMp + N_EcMSOMc
-            elseif (i==6) then !ErM
-              C_Gain = CUE_erm_vr(j)*C_PlantErM
-              C_Loss = C_ErMSOMp + C_ErMSOMa + C_ErMSOMc 
-              N_Gain = N_INErM
-              N_Loss = N_ErMPlant + N_ErMSOMa + N_ErMSOMp + N_ErMSOMc
 
-            elseif (i==7) then !AM
+            ! elseif (i==6) then !ErM
+            !   C_Gain = 0.0
+            !   C_Loss = 0.0
+            !   N_Gain = 0.0
+            !   N_Loss = 0.0
+
+          elseif (i==6) then !AM
               C_Gain = CUE_am_vr(j)*C_PlantAM
               C_Loss = C_AMSOMp + C_AMSOMa + C_AMSOMc
               N_Gain = N_INAM 
               N_Loss = N_AMPlant + N_AMSOMa + N_AMSOMp + N_AMSOMc
 
-            elseif (i==8) then !SOMp
-              C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_ErMSOMp + C_AMSOMp+ C_PlantSOMp
-              C_Loss = C_SOMpSOMa+C_EcMdecompSOMp + C_SOMpEcM
-              N_Gain =  N_SAPbSOMp + N_SAPfSOMp + N_EcMSOMp + N_ErMSOMp + N_AMSOMp+N_PlantSOMp
+            elseif (i==7) then !SOMp
+              C_Gain =  C_SAPbSOMp + C_SAPfSOMp + C_EcMSOMp + C_AMSOMp+ C_PlantSOMp
+              C_Loss = C_SOMpSOMa+C_EcMdecompSOMp 
+              N_Gain =  N_SAPbSOMp + N_SAPfSOMp + N_EcMSOMp + N_AMSOMp+N_PlantSOMp
               N_Loss = N_SOMpSOMa + N_SOMpEcM
 
-            elseif (i==9) then !SOMa
-               C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc &
-               + C_ErMSOMa + C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
+            elseif (i==8) then !SOMa
+               C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc + &
+               C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
                C_Loss = C_SOMaSAPb + C_SOMaSAPf 
                N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
-               N_ErMSOMa + N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa +N_PlantSOMa
+               N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa +N_PlantSOMa
                N_Loss = N_SOMaSAPb + N_SOMaSAPf
-            elseif (i==10) then !SOMc
-              C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_ErMSOMc + C_AMSOMc+C_PlantSOMc
-              C_Loss = C_SOMcSOMa+C_EcMdecompSOMc + C_SOMcEcM
-              N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_ErMSOMc + N_AMSOMc+N_PlantSOMc
+               
+            elseif (i==9) then !SOMc
+              C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_AMSOMc+C_PlantSOMc
+              C_Loss = C_SOMcSOMa+C_EcMdecompSOMc
+              N_Gain =  N_SAPbSOMc + N_SAPfSOMc + N_EcMSOMc + N_AMSOMc+N_PlantSOMc
               N_Loss = N_SOMcSOMa + N_SOMcEcM
-              
-            elseif (i == 11) then !NH4 inorganic N
-              N_Gain = Deposition + (1-NUE)*(N_LITmSAPf + N_LITsSAPf + N_SOMaSAPf+N_LITmSAPb + N_LITsSAPb + N_SOMaSAPb)
-              
-              if ( N_INSAPb < 0. ) then !Mineralized N as NH4 only
-                N_exchange = N_INSAPb
-              else 
-                N_exchange = nh4_frac*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
-              end if
-              if ( N_INSAPf < 0. ) then !Mineralized N as NH4 only
-                N_exchange = N_exchange + N_INSAPf
-              else 
-                N_exchange=N_exchange+ nh4_frac*N_INSAPf!N is immobilized based on NH4 fraction
-              end if              
-
-              N_Loss = nitrif_rate + nh4_frac*(N_INEcM + N_InPlant  + N_INAM )!+ N_INErM
-              change_matrixN(j,i) = N_Gain - N_exchange - N_loss 
-              
-            elseif (i == 12) then !NO3 inorganic N
-              N_Gain = nitrif_rate
-                            
-              if ( N_INSAPb < 0. ) then !Mineralized N as NH4 only
-                N_exchange = 0.0
-              else 
-                N_exchange = (1-nh4_frac)*N_INSAPb!N_exchange can act both as a sink and a source, depending on the SAP demand for N
-              end if
-              if ( N_INSAPf < 0. ) then !Mineralized N as NH4 only
-                N_exchange=N_exchange+ 0.0
-              else 
-                N_exchange= N_exchange+(1-nh4_frac)*N_INSAPf!N is immobilized based on NH4 fraction
-              end if              
-            
-              N_Loss = Leaching + (1-nh4_frac)*(N_INEcM + N_InPlant  + N_INAM )!+ N_INErM
-              change_matrixN(j,i) = N_Gain - N_exchange - N_loss
 
             else
               print*, 'Too many pool types expected, pool_types = ',pool_types, 'i: ', i
             end if !determine total gains and losses
 
-            if (i < 11) then !Carbon matrix does only have 10 columns (if i == 11 or 12 this is handeled inside the loop over pools)
-                change_matrixC(j,i) = C_Gain - C_Loss !net change in timestep
-                change_matrixN(j,i) = N_Gain - N_loss            
-                !For summarize total change between each written output
-                !change_sum(j,i)= change_sum(j,i) + change_matrixC(j,i)*dt                
-                !Store these values as temporary so that they can be used in the vertical diffusion subroutine
-                pool_temporaryC(j,i)=pool_matrixC(j,i) + change_matrixC(j,i)*dt
-            end if
-
-            pool_temporaryN(j,i) =pool_matrixN(j,i) + change_matrixN(j,i)*dt
-
-            !NOTE: This is introduced to avoid very small errors that may make inorganic N pools negative (~ E-020). Overall mass balance is still within error limits
-            if ( abs(pool_temporaryN(j,i)) < 1e-18 ) then
-              pool_temporaryN(j,i)=0._r8
-            end if
+            change_matrixC(j,i) = C_Gain - C_Loss !net change in timestep
+            change_matrixN(j,i) = N_Gain - N_loss   
+                     
+            !Store these values as temporary so that they can be used in the vertical diffusion subroutine
+            pool_temporaryC(j,i)=pool_matrixC(j,i) + change_matrixC(j,i)*dt
+            pool_temporaryN(j,i)=pool_matrixN(j,i) + change_matrixN(j,i)*dt
             
-            if (isnan(pool_temporaryN(j,i))) then
-              print*, 'NaN NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
-              stop
-            end if
-            if (pool_temporaryN(j,i) < 0.000) then
-              print*, 'Too small pool size: NITROGEN value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryN(j,i)
-              print*, pool_matrixN(j,11), pool_matrixN(j,12), pool_matrixN(j,11)+ pool_matrixN(j,12)
-              print*, change_matrixN(j,11), change_matrixN(j,12), change_matrixN(j,11)+ change_matrixN(j,12)
-              print*, pool_temporaryN(j,11), pool_temporaryN(j,12), pool_temporaryN(j,11)+ pool_temporaryN(j,12), nitrif_rate
-              call disp(pool_temporaryN)
-              call disp(pool_temporaryC)
-              call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))              
-              stop
-            end if
-            
-            if (i < 11 ) then
-              if (isnan(pool_temporaryC(j,i))) then
-                print*, 'NaN CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
-                stop
-              end if
-              if (pool_temporaryC(j,i) < 0.000) then
-                print*, 'Too small pool size: CARBON value at t',t,'depth level',j,'pool number',i, ':', pool_temporaryC(j,i)
-                stop
-              end if
-              if ( abs(pool_temporaryN(j,i)) < 1e-18 ) then
-                pool_temporaryN(j,i)=0._r8
-              end if
-            end if
-
+            if ( pool_temporaryC(j,i) < 2.2204460492503131E-016 ) then
+              !print*, pool_temporaryC(j,i),change_matrixC(j,i)*dt, j, i, time
+              !call disp(pool_temporaryC)
+              !stop
+              save_C=save_C+pool_temporaryC(j,i)
+              pool_temporaryC(j,i)=0._r8
+            end if   
+            if ( pool_temporaryN(j,i) < 2.2204460492503131E-016 ) then  
+              save_N=save_N + pool_temporaryN(j,i)*dt*delta_z(j)
+              pool_temporaryN(j,i)=0._r8                
+            end if                                    
           end do !i, pool_types
-
+          
           !Calculate the heterotrophic respiration loss from depth level j in timestep t:
           HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j)) + (C_LITmSAPf &
           + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j)))*dt!+CUE_ecm_vr(j)*C_PlantEcM*dt + CUE_am_vr(j)*C_PlantAM*dt
@@ -611,81 +638,112 @@ contains
           HRe(j) = CUE_ecm_vr(j)*C_PlantEcM*dt 
           HRa(j) = CUE_am_vr(j)*C_PlantAM*dt
           if (HR(j) < 0 ) then
-            print*, 'Negative HR: ', HR(j), t
+            print*, 'Negative HR: ', HR(j), t,j
+            print*, "Pools C", pool_matrixC(j,1),pool_matrixC(j,2),pool_matrixC(j,3),pool_matrixC(j,4), pool_matrixC(j,8)
+            print*, "pools N", inorg_N_matrix(j,1), inorg_N_matrix(j,3), N_INSAPb, N_INSAPf
+            print*, "Fluxes", C_LITmSAPb,C_LITsSAPb,C_SOMaSAPb,C_LITmSAPf,C_LITsSAPf,C_SOMaSAPf
+            stop !for checking
           end if
           
+          if (counter == write_hour/dt) then          
+            call fill_MMK(writencid, int(time),write_hour,j,Km,Vmax)
+          end if
           !Summarize in and out print timestep to check mass balance
-          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+CUE_ecm_vr(j)*C_PlantEcM+CUE_am_vr(j)*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2
+          sum_input_step=sum_input_step+(C_PlantLITm+C_PlantLITs+CUE_ecm_vr(j)*C_PlantEcM+CUE_am_vr(j)*C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2 !NOTE: Because of the varying mycorrhizal CUE, input may vary slightly between simulations with different nutrient availability. 
           sum_N_input_step=sum_N_input_step+(N_PlantLITm+N_PlantLITs+N_PlantSOMc+N_PlantSOMp+N_PlantSOMa+Deposition)*dt*delta_z(j) !g/m2
           sum_N_out_step=sum_N_out_step+(N_EcMPlant+N_AMPlant+N_INPlant+Leaching)*dt*delta_z(j)
 
         end do !j, depth_level
-
+        
         !Store accumulated HR mass
         call respired_mass(HR, HR_mass)
         HR_mass_accumulated = HR_mass_accumulated + HR_mass
+        HR_mass_yearly = HR_mass_yearly + HR_mass
         !TODO: tot_diffC, upperC, lowerC is not used and can be removed!
         if (isVertical) then
           call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC,D_carbon)
           call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN,D_nitrogen)
-          pool_matrixC = vertC*dt + pool_temporaryC
-          pool_matrixN = vertN*dt + pool_temporaryN
+          call vertical_diffusion(tot_diffNinorg,upperNinorg,lowerNinorg,inorg_Ntemporary_matrix,vert_inorgN,D_nitrogen)
+
+          pool_matrixC    = vertC*dt        + pool_temporaryC
+          pool_matrixN    = vertN*dt        + pool_temporaryN
+          inorg_N_matrix  = vert_inorgN*dt  + inorg_Ntemporary_matrix          
         else
-          pool_matrixC=pool_temporaryC
-          pool_matrixN=pool_temporaryN
+          pool_matrixC    = pool_temporaryC
+          pool_matrixN    = pool_temporaryN
+          inorg_N_matrix  = inorg_Ntemporary_matrix
         end if!isVertical
 
-        sum_consN = sum_consN + pool_matrixN
-        sum_consC = sum_consC + pool_matrixC
+        sum_consN       = sum_consN       + pool_matrixN
+        sum_consNinorg  = sum_consNinorg  + inorg_N_matrix
+        sum_consC       = sum_consC       + pool_matrixC
 
-        if (ycounter == 365*24*step_frac) then
+        monthly_sum_consN       = monthly_sum_consN       + pool_matrixN
+        monthly_sum_consNinorg  = monthly_sum_consNinorg  + inorg_N_matrix
+        monthly_sum_consC       = monthly_sum_consC       + pool_matrixC
+        
+        ! if ( month_counter == days_in_month(current_month)*hr_pr_day/dt .and. Spinup_run) then
+        ! 
+        !   total_months = total_months + 1
+        !   call monthly_mean(monthly_sum_consC,monthly_sum_consN,monthly_sum_consNinorg,current_month,total_months,write_y,run_name)
+        !   monthly_sum_consN =0
+        !   monthly_sum_consC =0
+        !   monthly_sum_consNinorg=0
+        ! end if
+
+        if (ycounter == 365*24/dt) then
           ycounter = 0
           write_y =write_y+1 !For writing to annual mean file
-          if ( Spinup_run ) then
-            call annual_mean(sum_consC,sum_consN, nlevels,write_y , run_name) !calculates the annual mean and write the result to file
+          
+          if ( Spinup_run ) then 
+            call annual_mean(sum_consC,sum_consN,sum_consNinorg,HR_mass,write_y , run_name) !calculates the annual mean and write the result to file
           end if
           if (year == stop_year) then
             year = start_year         
             spinup_counter=0            
           else 
             year = year + 1             
-          end if
-          
-          write (year_char,year_fmt) year
-          
+          end if          
+          write (year_char,year_fmt) year          
           if ( .not. Spinup_run ) then            
+            
+            
             call check(nf90_close(ncid)) !Close netcdf file containing values for the past year
-            call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
+            call check(nf90_open(trim(adjustr(clm_input_path)//'_historical_obsveg.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
             call read_time(ncid,input_steps)     
-          end if 
-          
+          end if           
           sum_consN =0
           sum_consC =0
+          sum_consNinorg=0
+          HR_mass_yearly=0
         end if
-
-        if (counter == write_hour*step_frac) then
+        if (counter == write_hour/dt) then
           counter = 0        
-
-          call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,&
-           date, HR_mass_accumulated,HR,HRb,HRf,vertC,vertN, write_hour,current_month, &
-           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,ROI_EcM=ROI_EcM,ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc)
-           change_sum = 0.0
+          call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,inorg_N_matrix,&
+           date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa,vertC,vertN, write_hour,current_month, &
+           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,ROI_EcM=ROI_EcM,&
+           ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
+          change_sum = 0.0
         end if!writing
 
         !Write end values to terminal
         if (t == nsteps) then
-          call disp("pool_matrixC gC/m3 ",pool_matrixC)
-          call disp("pool_matrixN gN/m3 ",pool_matrixN)          
-          call disp("C:N : ",pool_matrixC/pool_matrixN(:,1:10))
-          pool_C_final=pool_matrixC
-          pool_N_final=pool_matrixN    
+          pool_C_final  = pool_matrixC
+          pool_N_final  = pool_matrixN    
+          inorg_N_final = inorg_N_matrix              
           call store_parameters(writencid)    
         end if
         
-        call test_mass_conservation(sum_input_step,HR_mass,pool_matrixC_previous,pool_matrixC,nlevels,pool_types)
-        call test_mass_conservation(sum_N_input_step,sum_N_out_step,pool_matrixN_previous,pool_matrixN,nlevels,pool_types_N)
+        call test_mass_conservation_C(sum_input_step,HR_mass, &
+                                      pool_matrixC_previous,pool_matrixC, &
+                                      nlevels)
+        call test_mass_conservation_N(sum_N_input_step,sum_N_out_step, &
+                                      pool_matrixN_previous,inorg_N_matrix_previous,&
+                                      pool_matrixN,inorg_N_matrix,nlevels)
+                                      
         pool_matrixC_previous=pool_matrixC
         pool_matrixN_previous=pool_matrixN
+        inorg_N_matrix_previous=inorg_N_matrix
         sum_input_total=sum_input_total+sum_input_step
         sum_input_step=0.0
         sum_N_input_total=sum_N_input_total+sum_N_input_step  
@@ -695,31 +753,43 @@ contains
       end do !t
       
       !Check total mass conservation 
-      call total_mass_conservation(sum_input_total,HR_mass_accumulated,pool_C_start,pool_C_final,nlevels,pool_types)
-      call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total,pool_N_start,pool_N_final,nlevels,pool_types_N)
+      call total_carbon_conservation(sum_input_total,HR_mass_accumulated, &
+                                      pool_C_start_for_mass_cons,pool_C_final,&
+                                      nlevels)
+      call total_nitrogen_conservation(sum_N_input_total,sum_N_out_total, &
+                                      pool_N_start_for_mass_cons,pool_Ninorg_start_for_mass_cons, &
+                                      pool_N_final,inorg_N_final,nlevels)
       
       call check(nf90_close(writencid))
       if ( Spinup_run ) then
         call check(nf90_close(Spinupncid))
       end if
-      
-      print*, "Immobilization, not enough N:",c1a
-      print*, "Immobilization enough N: ",c1b
-      print*, "Mineralization: ",c2
-      print*, "Bacteria needs, fungi mineralize, not enough N: ",c3a
-      print*, "Bacteria needs, fungi mineralize, enough N: ",c3b
-      print*, "Fungi needs, bacteria mineralize, not enough N: ",c4a
-      print*, "Fungi needs, bacteria mineralize, enough N: ",c4b
+      call print_summary(save_N, save_C,c1a,c1b,c2,c3a,c3b,c4a,c4b,pool_C_final,pool_N_final,inorg_N_final)
       !deallocation
-      deallocate(ndep_prof,leaf_prof,froot_prof,r_moist)
-      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr,f_enzprod)
-      
+      deallocate(ndep_prof,leaf_prof,froot_prof,norm_froot_prof,r_moist, NH4_sorp_eq_vr)
+      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr,f_enzprod)    
       !For timing
       call system_clock(count=clock_stop)      ! Stop Timer
-      print*, "Total time for decomp subroutine in seconds: ", real(clock_stop-clock_start)/real(clock_rate)
       print*, "Total time for decomp subroutine in minutes: ", (real(clock_stop-clock_start)/real(clock_rate))/60
   end subroutine decomp
 
-
-
+  subroutine print_summary(discarded_N, discarded_C,imm_a,imm_b,min,f_min_a,f_min_b,b_min_a,b_min_b,matrixC,matrixN,matrixInorg)
+    real(r8), intent(in) :: discarded_N, discarded_C
+    integer, intent(in) :: imm_a,imm_b,min,f_min_a,f_min_b,b_min_a,b_min_b
+    real(r8),dimension(:,:) :: matrixC,matrixN,matrixInorg
+    call disp("pool_matrixC gC/m3 ",matrixC, 'F12.5')
+    call disp("pool_matrixN gN/m3 ",matrixN, 'F12.5')          
+    call disp("Inorganic N gN/m3 ",matrixInorg, 'F9.6')          
+    !call disp("C:N : ",pool_matrixC/pool_matrixN)
+    print*, "AMOUNT OF N DISCARDED: ", discarded_N
+    print*, "AMOUNT OF C DISCARDED: ", discarded_C
+    
+    print*, "Immobilization, not enough N:",imm_a
+    print*, "Immobilization enough N: ",imm_b
+    print*, "Mineralization: ",min
+    print*, "Bacteria needs, fungi mineralize, not enough N: ",f_min_a
+    print*, "Bacteria needs, fungi mineralize, enough N: ",f_min_b
+    print*, "Fungi needs, bacteria mineralize, not enough N: ",b_min_a
+    print*, "Fungi needs, bacteria mineralize, enough N: ",b_min_b
+  end subroutine print_summary
 end module mycmimMod

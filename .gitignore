@@ -193,7 +193,6 @@ fort.7
 fort.8
 fort.9
 src/test_testing
-
-test_files/test_vert.f90
-test2.txt
 test.txt
+test2.txt
+test_files/*
