@@ -604,10 +604,12 @@ contains
 
           !Calculate the heterotrophic respiration loss from depth level j in timestep t:
           HR(j) =(( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j)) + (C_LITmSAPf &
-          + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j)))*dt
-          HRb(j) = ( C_LITmSAPb + C_LITsSAPb  + C_SOMaSAPb)*(1-CUE_bacteria_vr(j))*dt
-          HRf(j)=(C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j))*dt
-
+          + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j)))*dt!+CUE_ecm_vr(j)*C_PlantEcM*dt + CUE_am_vr(j)*C_PlantAM*dt
+          
+          HRb(j) = ( C_LITmSAPb + C_LITsSAPb + C_SOMaSAPb)*(1-CUE_bacteria_vr(j))*dt
+          HRf(j) = ( C_LITmSAPf + C_LITsSAPf + C_SOMaSAPf)*(1-CUE_fungi_vr(j))*dt
+          HRe(j) = CUE_ecm_vr(j)*C_PlantEcM*dt 
+          HRa(j) = CUE_am_vr(j)*C_PlantAM*dt
           if (HR(j) < 0 ) then
             print*, 'Negative HR: ', HR(j), t
           end if

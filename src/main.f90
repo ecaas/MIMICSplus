@@ -40,8 +40,8 @@ program main
   
 
   call read_nlayers(trim(adjustr(clm_data_file)//'_historical.clm2.all.1901.nc'))
-  call read_some_parameters(trim(namelist_file),use_ROI, use_Sulman, use_ENZ, use_Fmax)
-  print*, use_ROI,use_Sulman,use_ENZ,use_Fmax
+  call read_some_parameters(trim(namelist_file),use_ROI, use_Sulman, use_ENZ)
+  print*, use_ROI,use_Sulman,use_ENZ
   !ALLOCATE:
   allocate(C_matrix_init(nlevels,pool_types),N_matrix_init(nlevels,pool_types_N))
   allocate(C_matrix_Spunup(nlevels,pool_types),N_matrix_Spunup(nlevels,pool_types_N))

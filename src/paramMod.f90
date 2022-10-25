@@ -14,22 +14,6 @@ real(r8), parameter:: abs_zero=273.15 !Kelvin
 
 integer, parameter, dimension(12)            :: days_in_month =(/31,28,31,30,31,30,31,31,30,31,30,31/)
 
-logical,public :: use_ROI, use_Sulman, use_ENZ, use_Fmax
-!For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
-integer, parameter                           :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters
-real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = (/0.017, 0.027, 0.017, 0.017, 0.027, 0.017/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),dimension(MM_eqs),parameter    :: Vslope  = (/0.063, 0.063, 0.063, 0.063, 0.063, 0.063/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),dimension(MM_eqs),parameter    :: Kint    = 3.19      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),parameter                      :: a_k     = 1e4 !Tuning parameter g/m3 (10 mg/cm3 from german et al 2012)
-real(kind=r8),parameter                      :: a_v     = 8e-6 !Tuning parameter
-real(kind=r8)                                :: pscalar 
-real(kind=r8),dimension(MM_eqs)              :: Kmod   
-real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 2.0, 10.0, 3.0,3.0, 2.0/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-real(kind=r8),parameter, dimension(2)        :: KO      =  4                 ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
-real(kind=r8),dimension(MM_eqs)              :: Km                              ![mgC/cm3]*10e3=[gC/m3]
-real(kind=r8),dimension(MM_eqs)              :: Vmax                            ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
-
 !Pools: NOTE: This needs to be updated if pools are added to/removed from the system.
 integer, parameter                           :: no_of_litter_pools = 2         !Metabolic and structural
 integer, parameter                           :: no_of_sap_pools = 2            !SAP bacteria and SAP fungi
@@ -37,7 +21,32 @@ integer, parameter                           :: no_of_myc_pools = 3            !
 integer, parameter                           :: no_of_som_pools = 3            !Physically protected, chemically protected, available carbon
 integer, parameter                           :: pool_types = no_of_litter_pools + no_of_myc_pools + &
                                                 no_of_sap_pools + no_of_som_pools
-integer, parameter                           :: pool_types_N = pool_types + 2 !pool_types + NH4 + NO3
+integer, parameter                           :: pool_types_N = pool_types !organic N types 
+integer, parameter                           :: inorg_N_pools = 3 !NH4_sol, NH4_sorp, NO3 (sol)
+
+real(r8), public :: dt
+logical,public :: use_ROI, use_Sulman, use_ENZ
+!For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
+integer, parameter                           :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters
+real(kind=r8),dimension(MM_eqs),parameter    :: Kslope  = (/0.017, 0.027, 0.017, 0.017, 0.027, 0.017/) !Alaska 0.034!!LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs),parameter    :: Vslope  = (/0.063, 0.063, 0.063, 0.063, 0.063, 0.063/) !Alaska: 0.055 !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs),parameter    :: Kint    = 3.19 !Alaska 2.88 !      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),dimension(MM_eqs),parameter    :: Vint    = 5.47 ! Alaska 5.85 !    !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),parameter                      :: a_k     = 5*1E3 !Tuning parameter g/m3 (1000g/mg*cm3/m3 * 10 mg/cm3 from german et al 2012)
+real(kind=r8),parameter                      :: a_v     = 1.25e-8 !Tuning parameter
+real(kind=r8),dimension(MM_eqs)              :: Kmod    ! see function calc_Kmod
+real(kind=r8),dimension(MM_eqs)              :: Kmod_reverse    ! see function calc_Kmod_reverse
+real(kind=r8)                                :: pscalar ! see function calc_Kmod
+real(kind=r8),dimension(MM_eqs)              :: Vmod    = (/10.0, 3.0, 10.0, 3.0,5.0, 2.0/) !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+real(kind=r8),parameter, dimension(2)        :: KO      =  6              ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
+real(kind=r8),dimension(MM_eqs)              :: Km      ![mgC/cm3]*1e3=[gC/m3] (convert units in a_k) see function Km_function
+real(kind=r8),dimension(MM_eqs)              :: Vmax    ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. see function Vmax_function
+
+real(r8)                                :: desorp ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
+!From Baskaran et al 2016
+real(r8), parameter :: Km_myc    = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) 
+real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) 
+real(r8), parameter :: K_MO      = 0.003_r8/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
 real(r8),parameter                      :: fMET =0.6                       ![-] Fraction determining distribution of total litter production between LITm and LITs NOTE: Needs revision
@@ -52,7 +61,6 @@ real(kind=r8),dimension(3)             :: k_mycsom                        ![1/h]
 real(r8), dimension(no_of_som_pools), parameter    :: fEcMSOM = (/0.4,0.4,0.2/) !somp,soma,somc. Fraction of flux from EcM to different SOM pools NOTE: assumed
 real(r8), dimension(no_of_som_pools), parameter    :: fErMSOM = (/0.3,0.4,0.3/)
 real(r8), dimension(no_of_som_pools), parameter    :: fAMSOM = (/0.3,0.3,0.4/)
-real(r8)                                :: desorp ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
 !Depth & vertical transport
 real(r8)                             :: soil_depth           ![m] 
@@ -106,15 +114,6 @@ real(r8), dimension(pool_types), parameter   :: CN_ratio = (/15,15,5,8,20,20,20,
                                                                                           !SOM: From CLM documentation, table 21.3 (Mendeley version)
                                                                                           !LITm: MIMICS-CN manuscript
                                                                                           !LITs, ErM, AM: Guesses!
-
-!From Baskaran et al 2016
-real(r8), parameter :: Km_myc = 0.08            ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) 
-real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) 
-
-
-
-!Decomposition rates:
-real(r8), parameter :: K_MO = 0.003_r8/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
 !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
 real(r8), parameter                          :: P = 44.247 !normalization of moisture function
@@ -194,7 +193,8 @@ contains
     real(r8) :: max_input
     !output
     real(r8) :: mod
-
+    !NOTE: Rename r_input and/or input_mod?
+    !NOTE: max_input is from the input year of the current year. Should rather store value from last year?
     mod = C_input/(max_input)
   end function r_input 
     
@@ -205,25 +205,26 @@ contains
     real(r8),INTENT(IN)      :: met_frac
     !output
     real(r8),dimension(no_of_som_pools,no_of_sap_pools) :: f_saptosom
-    
-    f_saptosom(1,:) = [real(r8) :: 0.3*exp(1.3*clay_frac), 0.2*exp(0.8*clay_frac)]
-    f_saptosom(2,:) = [real(r8) :: 0.1*exp(-3.0*met_frac), 0.3*exp(-3.0*met_frac)]
-    f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))
+    !NOTE: Kyker-Snowman et al: "Finally, we adjusted the partitioning of microbial turnover to stable soil pools in order to more closely match distributions at Harvard Forest." Can we adjust better to Norwegian forests?
+    f_saptosom(1,:) = [real(r8) :: 0.3*exp(1.3*clay_frac), 0.2*exp(0.8*clay_frac)]!PHYS
+    f_saptosom(2,:) = [real(r8) :: 0.1*exp(-3.0*met_frac), 0.3*exp(-3.0*met_frac)]!CHEM
+    f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))!AVAIL
   end function calc_sap_to_som_fractions
-  
-  function calc_myc_mortality() result(myc_mortality)
-    !NOTE: Is it better to call it turnover rate? Is there a difference?
-    real(r8), dimension(no_of_myc_pools) :: myc_mortality
-    myc_mortality=(/1.14_r8,1.14_r8,1.14_r8/)*1e-4  ![1/h]  1/yr  
-  end function calc_myc_mortality
 
   function calc_sap_turnover_rate(met_frac,moist_modifier) result(turnover_rate)
     real(r8),INTENT(IN) :: met_frac
     real(r8),INTENT(IN) :: moist_modifier
     
     real(r8),dimension(no_of_sap_pools) :: turnover_rate
+    
+    !Local: 
+    real(r8), parameter :: min_modifier = 0.2
 
-    turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*moist_modifier, 2.4e-4*exp(0.1_r8*met_frac)*moist_modifier]
+    if ( temp < 0 ) then
+      turnover_rate=[real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*min_modifier, 2.4e-4*exp(0.1_r8*met_frac)*min_modifier]
+    else
+      turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*max(rprof,min_modifier), 2.4e-4*exp(0.1_r8*met_frac)*max(rprof,min_modifier)]
+    end if
   end function calc_sap_turnover_rate
 
   function calc_EcMfrac(PFT_dist) result(EcM_frac)
@@ -238,10 +239,27 @@ contains
     EcM_frac = EcM_frac/100.
   end function calc_EcMfrac
   
-  subroutine moisture_func(theta_l,theta_sat, theta_f,r_moist) !NOTE: Should maybe be placed somewhere else?
-    real(r8), intent(out), dimension(nlevels) :: r_moist
-    real(r8), intent(in), dimension(nlevels)  :: theta_l, theta_sat, theta_f
-    real(r8), dimension(nlevels)  :: theta_frzn, theta_liq, air_filled_porosity
+  function calc_myc_mortality(rprof) result(myc_mortality)
+    !NOTE: Is it better to call it turnover rate? Is there a difference?    
+    real(r8),INTENT(IN) :: rprof  
+    real(r8), dimension(no_of_myc_pools) :: myc_mortality
+    myc_mortality=(/1.14_r8,1.14_r8/)*1e-4*sqrt(rprof)  ![1/h]  1/yr
+    !NOTE: introduced root modifier after NCAR stay. Determine if it should be normalized or not. Also, temperature dependence?  
+  end function calc_myc_mortality
+  
+  subroutine moisture_func(theta_l,theta_sat, theta_f,moist_mod) 
+    !IN:
+    real(r8), intent(in), dimension(nlevels)  :: theta_l
+    real(r8), intent(in), dimension(nlevels)  :: theta_sat
+    real(r8), intent(in), dimension(nlevels)  :: theta_f
+    !OUT:
+    real(r8), intent(out), dimension(nlevels) :: moist_mod
+    !LOCAL:
+    real(r8), dimension(nlevels)  :: theta_frzn
+    real(r8), dimension(nlevels)  :: theta_liq
+    real(r8), dimension(nlevels)  :: air_filled_porosity
+    
+    !NOTE: This moisture function represent both inhibition bc. very dry conditions, and very wet (anaerobic) conditions. 
     !FROM mimics_cycle.f90 in testbed:
     ! ! Read in soil moisture data as in CORPSE
     !  theta_liq  = min(1.0, casamet%moistavg(npt)/soil%ssat(npt))     ! fraction of liquid water-filled pore space (0.0 - 1.0)
@@ -308,40 +326,79 @@ contains
         !! write here what to do if reading failed"
         return
     end if
-end subroutine read_some_parameters
+  end subroutine read_some_parameters
 
-!! Namelist helpers
+  subroutine open_inputfile(file_path, file_unit, iostat)
+      !! Check whether file exists, with consitent error message
+      !! return the file unit
+      character(len=*),  intent(in)  :: file_path
+      integer,  intent(out) :: file_unit, iostat
 
-subroutine open_inputfile(file_path, file_unit, iostat)
-    !! Check whether file exists, with consitent error message
-    !! return the file unit
-    character(len=*),  intent(in)  :: file_path
-    integer,  intent(out) :: file_unit, iostat
+      inquire (file=file_path, iostat=iostat)
+      if (iostat /= 0) then
+          write (stderr, '(3a)') 'Error: file "', trim(file_path), '" not found!'
+      end if
+      open (action='read', file=file_path, iostat=iostat, newunit=file_unit)
+  end subroutine open_inputfile
 
-    inquire (file=file_path, iostat=iostat)
-    if (iostat /= 0) then
-        write (stderr, '(3a)') 'Error: file "', trim(file_path), '" not found!'
-    end if
-    open (action='read', file=file_path, iostat=iostat, newunit=file_unit)
-end subroutine open_inputfile
+  subroutine close_inputfile(file_path, file_unit, iostat)
+      !! Check the reading was OK
+      !! return error line IF not
+      !! close the unit
+      character(len=*),  intent(in)  :: file_path
+      character(len=1000) :: line
+      integer,  intent(in) :: file_unit, iostat
 
-subroutine close_inputfile(file_path, file_unit, iostat)
-    !! Check the reading was OK
-    !! return error line IF not
-    !! close the unit
-    character(len=*),  intent(in)  :: file_path
-    character(len=1000) :: line
-    integer,  intent(in) :: file_unit, iostat
+      if (iostat /= 0) then
+          write (stderr, '(2a)') 'Error reading file :"', trim(file_path)
+          write (stderr, '(a, i0)') 'iostat was:"', iostat
+          backspace(file_unit)
+          read(file_unit,fmt='(A)') line
+          write(stderr,'(A)') &
+              'Invalid line : '//trim(line)
+      end if
+      close (file_unit)   
+  end subroutine close_inputfile
 
-    if (iostat /= 0) then
-        write (stderr, '(2a)') 'Error reading file :"', trim(file_path)
-        write (stderr, '(a, i0)') 'iostat was:"', iostat
-        backspace(file_unit)
-        read(file_unit,fmt='(A)') line
-        write(stderr,'(A)') &
-            'Invalid line : '//trim(line)
-    end if
-    close (file_unit)   
-end subroutine close_inputfile
+  subroutine f_met(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lflitcn,lignNratio,fmet)
+
+    !In: 
+    real(r8), intent(in) :: leaf_to_lit
+    real(r8), intent(in) :: froot_to_lit
+    real(r8), intent(in) :: cwd_to_lit_vr(:)
+    real(r8), intent(in) :: lflitcn
+
+    !out:
+    real(r8), intent(out) :: lignNratio
+    real(r8), intent(out) :: fmet
+
+    !local
+    real(r8), parameter :: p1 = 0.75
+    real(r8), parameter :: p2 = 0.85
+    real(r8), parameter :: p3 = 0.013
+    real(r8), parameter :: p4 = 40.
+    real(r8), parameter :: fr_flig = 0.25
+    real(r8), parameter :: lf_flig = 0.25
+    real(r8), parameter :: cwd_flig = 0.24
+    real(r8), parameter :: frootcn = 42.
+    real(r8), parameter :: cwdcn = 481.
+  !  real(r8), parameter :: lflitcn = 50 !NOTE: Change with PFT!
+
+    real(r8) :: cwd_to_lit
+    real(r8) :: lignNleaf
+    real(r8) :: lignNfroot
+    real(r8) :: lignNcwd
+
+    cwd_to_lit = sum(cwd_to_lit_vr*delta_z(1:nlevels))
+    lignNleaf  = lf_flig*lflitcn*leaf_to_lit
+    lignNfroot = fr_flig*frootcn*froot_to_lit
+    lignNcwd   = cwd_flig*cwdcn*cwd_to_lit
+
+    lignNratio = (lignNleaf + lignNfroot + lignNcwd) / &
+                max(1e-3, leaf_to_lit+froot_to_lit+cwd_to_lit)
+
+    fmet = p1*(p2-p3*min(p4,lignNratio))
+
+  end subroutine f_met
 
 end module paramMod
