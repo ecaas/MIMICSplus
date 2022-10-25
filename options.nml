@@ -1,7 +1,7 @@
 &options
-    use_ROI = .False.
+    use_ROI = .True.
     use_Sulman = .False.
     use_ENZ = .False.
-    use_Fmax = .True.
+    timestep = 1
 / 
 
