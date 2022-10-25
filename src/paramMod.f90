@@ -363,23 +363,23 @@ contains
   end subroutine open_inputfile
 
   subroutine close_inputfile(file_path, file_unit, iostat)
-      !! Check the reading was OK
-      !! return error line IF not
-      !! close the unit
-      character(len=*),  intent(in)  :: file_path
-      character(len=1000) :: line
-      integer,  intent(in) :: file_unit, iostat
+    !! Check the reading was OK
+    !! return error line IF not
+    !! close the unit
+    character(len=*),  intent(in)  :: file_path
+    character(len=1000) :: line
+    integer,  intent(in) :: file_unit, iostat
 
-      if (iostat /= 0) then
-          write (stderr, '(2a)') 'Error reading file :"', trim(file_path)
-          write (stderr, '(a, i0)') 'iostat was:"', iostat
-          backspace(file_unit)
-          read(file_unit,fmt='(A)') line
-          write(stderr,'(A)') &
-      close (file_unit)   
-      end if
-
-  end subroutine close_inputfile
+    if (iostat /= 0) then
+        write (stderr, '(2a)') 'Error reading file :"', trim(file_path)
+        write (stderr, '(a, i0)') 'iostat was:"', iostat
+        backspace(file_unit)
+        read(file_unit,fmt='(A)') line
+        write(stderr,'(A)') &
+            'Invalid line : '//trim(line)
+    end if
+    close (file_unit)   
+end subroutine close_inputfile
 
   subroutine f_met(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lflitcn,lignNratio,fmet)
 
@@ -401,6 +401,7 @@ contains
     real(r8), parameter :: p4 = 40.
   !  real(r8), parameter :: lflitcn = 50 !NOTE: Change with PFT!
     real(r8), parameter :: lf_flig = 0.25
+    real(r8), parameter :: fr_flig = 0.25
     real(r8), parameter :: cwd_flig = 0.24
     real(r8), parameter :: frootcn = 42.
     real(r8), parameter :: cwdcn = 481.
