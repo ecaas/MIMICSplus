@@ -379,16 +379,15 @@ contains
             'Invalid line : '//trim(line)
     end if
     close (file_unit)   
-end subroutine close_inputfile
+  end subroutine close_inputfile
+
 
   subroutine f_met(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lflitcn,lignNratio,fmet)
-
     !In: 
     real(r8), intent(in) :: leaf_to_lit
     real(r8), intent(in) :: froot_to_lit
     real(r8), intent(in) :: cwd_to_lit_vr(:)
     real(r8), intent(in) :: lflitcn
-
 
     !out:
     real(r8), intent(out) :: lignNratio
@@ -399,7 +398,6 @@ end subroutine close_inputfile
     real(r8), parameter :: p2 = 0.85
     real(r8), parameter :: p3 = 0.013
     real(r8), parameter :: p4 = 40.
-  !  real(r8), parameter :: lflitcn = 50 !NOTE: Change with PFT!
     real(r8), parameter :: lf_flig = 0.25
     real(r8), parameter :: fr_flig = 0.25
     real(r8), parameter :: cwd_flig = 0.24
