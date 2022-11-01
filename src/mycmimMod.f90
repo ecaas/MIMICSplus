@@ -473,7 +473,7 @@ contains
 
           ![1/h] Microbial turnover rate (SAP to SOM)
           k_sapsom  = calc_sap_turnover_rate(fMET,r_moist(j), TSOIL(j), norm_froot_prof(j)) 
-          k_mycsom  = calc_myc_mortality(froot_prof(nlevels))  
+          k_mycsom  = calc_myc_mortality(froot_prof(j))  
           
           CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+0.3)
           CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+0.7)
