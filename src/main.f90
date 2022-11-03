@@ -37,6 +37,7 @@ program main
   character (len=200)  :: clm_data_file 
   character (len=200)  :: clm_surface_file
   character (len=200)  :: namelist_file
+  character (len=200)  :: output_path
   character (len=200)  :: description
   character (len=200)  :: site
 
@@ -47,12 +48,13 @@ program main
   call GET_COMMAND_ARGUMENT(number=3,value=clm_data_file)
   call GET_COMMAND_ARGUMENT(number=4,value=clm_surface_file)
   call GET_COMMAND_ARGUMENT(number=5,value=namelist_file)
-  
+  call get_command_argument(number=6,value=output_path)
+
   call read_nlayers(trim(adjustr(clm_data_file)//'_historical.clm2.all.1901.nc'))
   call read_some_parameters(trim(namelist_file),use_ROI, use_Sulman, use_ENZ, dt)
   print*, use_ROI,use_Sulman,use_ENZ, dt,nlevels
   
-    
+
   !ALLOCATE:
   allocate(C_matrix_init(nlevels,pool_types),N_matrix_init(nlevels,pool_types_N),N_inorg_matrix_init(nlevels,inorg_N_pools))
   allocate(C_matrix_Spunup(nlevels,pool_types),N_matrix_Spunup(nlevels,pool_types_N),N_inorg_matrix_Spunup(nlevels,inorg_N_pools))
@@ -62,7 +64,7 @@ program main
 
   
 !   !1: INITIALIZE
-  print*, nlevels,pool_types
+
   call initialize(C_matrix_init,N_matrix_init,N_inorg_matrix_init)
   !2: SPINUP
   call decomp(nsteps=1000*24*365, &
@@ -70,7 +72,7 @@ program main
               write_hour=24*365*100+100*24,&
               pool_C_start=C_matrix_init,pool_N_start=N_matrix_init,inorg_N_start=N_inorg_matrix_init,&
               pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,inorg_N_final=N_inorg_matrix_Spunup,&
-              start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
+              start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
  ! |
  ! | Use output of last timestep to initialize step 2
  ! ! V
@@ -80,7 +82,7 @@ program main
               write_hour=1*24*365*10+1+100*24,&
               pool_C_start=C_matrix_Spunup,pool_N_start=N_matrix_Spunup,inorg_N_start=N_inorg_matrix_Spunup,&
               pool_C_final=C_matrix_1970,pool_N_final=N_matrix_1970,inorg_N_final=N_inorg_matrix_1970,&
-              start_year=1900,stop_year=1970,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
+              start_year=1900,stop_year=1970,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
   !|
   !| Use output of last timestep to initialize step 4
   !V
@@ -90,7 +92,7 @@ program main
               write_hour=1*24*365,&
               pool_C_start=C_matrix_1970,pool_N_start=N_matrix_1970,inorg_N_start=N_inorg_matrix_1970,&
               pool_C_final=C_matrix_1987,pool_N_final=N_matrix_1987,inorg_N_final=N_inorg_matrix_1987,&
-              start_year=1971,stop_year=1987,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
+              start_year=1971,stop_year=1987,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
  
   !5: RUN WITH DAILY UPDATES of inputdata,output every day:
   call decomp(nsteps=5*24*365, &
@@ -98,7 +100,7 @@ program main
               write_hour=1*24,&
               pool_C_start=C_matrix_1987,pool_N_start=N_matrix_1987,inorg_N_start=N_inorg_matrix_1987,&
               pool_C_final=C_matrix_final,pool_N_final=N_matrix_final,inorg_N_final=N_inorg_matrix_final,&
-              start_year=1988,stop_year=1992,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file)
+              start_year=1988,stop_year=1992,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
 
   deallocate (C_matrix_init,N_matrix_init,N_inorg_matrix_init,C_matrix_Spunup,N_matrix_Spunup,N_inorg_matrix_Spunup)
   deallocate (C_matrix_1970,N_matrix_1970,N_inorg_matrix_1970,C_matrix_1987,N_matrix_1987,N_inorg_matrix_1987)

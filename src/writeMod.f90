@@ -38,8 +38,10 @@ module writeMod
       end if
     end subroutine check
 
-    subroutine create_netcdf(run_name)
-      character (len = *):: run_name
+    subroutine create_netcdf(output_path,run_name)
+      character (len = *),intent(in) :: run_name
+      character (len = *),intent(in) :: output_path
+
       integer :: ncid, varid
       integer, parameter :: gridcell = 1, column = 1
       integer :: v
@@ -436,13 +438,14 @@ module writeMod
 
     end subroutine write_Nfluxes
 
-    subroutine create_yearly_mean_netcdf(run_name)
+    subroutine create_yearly_mean_netcdf(output_path,run_name)
       character (len = *), intent(in):: run_name
+      character (len = *), intent(in) :: output_path
+
       integer :: ncid, varid
       integer, parameter :: gridcell = 1, column = 1
       integer :: v
-      call check(nf90_create(output_path//trim(run_name)//"_yearly_mean.nc",NF90_NETCDF4,ncid))
-
+      call check(nf90_create(trim(output_path)//trim(run_name)//"_yearly_mean.nc",NF90_NETCDF4,ncid))
       call check(nf90_def_dim(ncid, "time", nf90_unlimited, t_dimid))
       call check(nf90_def_dim(ncid, "gridcell", gridcell, grid_dimid))
       call check(nf90_def_dim(ncid, "column", column, col_dimid))
@@ -465,8 +468,10 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_yearly_mean_netcdf
 
-    subroutine create_monthly_mean_netcdf(run_name)
+    subroutine create_monthly_mean_netcdf(output_path,run_name)
       character (len = *), intent(in):: run_name
+      character (len = *),intent(in) :: output_path
+
       integer :: ncid, varid
       integer, parameter :: gridcell = 1, column = 1
       integer :: v
@@ -496,9 +501,11 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_monthly_mean_netcdf
 
-    subroutine fill_yearly_netcdf(run_name, year, Cpool_yearly, Npool_yearly, Ninorg_pool_yearly,HR_flux_yearly)
+    subroutine fill_yearly_netcdf(output_path,run_name, year, Cpool_yearly, Npool_yearly, Ninorg_pool_yearly,HR_flux_yearly)
       !INPUT
       character (len = *),intent(in):: run_name
+      character (len = *),intent(in) :: output_path
+
       integer,intent(in)            :: year
       real(r8),intent(in)            :: HR_flux_yearly  
       real(r8), intent(in)          :: Cpool_yearly(nlevels,pool_types)  ! For storing C pool sizes [gC/m3]
@@ -544,9 +551,11 @@ module writeMod
       call check(nf90_close(ncid))
     end subroutine fill_yearly_netcdf
 
-    subroutine fill_monthly_netcdf(run_name, year,month,months_since_start, Cpool_monthly, Npool_monthly, Ninorg_pool_monthly) !TODO: monthly HR and climate variables (if needed?)
+    subroutine fill_monthly_netcdf(output_path,run_name, year,month,months_since_start, Cpool_monthly, Npool_monthly, Ninorg_pool_monthly) !TODO: monthly HR and climate variables (if needed?)
       !INPUT
       character (len = *),intent(in):: run_name
+      character (len = *),intent(in) :: output_path
+
       integer,intent(in)            :: year
       integer,intent(in)            :: month      
       integer,intent(in)            :: months_since_start            

@@ -33,7 +33,7 @@ module mycmimMod
     
 contains
   
-  subroutine annual_mean(yearly_sumC,yearly_sumN,yearly_sumNinorg,sum_HR, year, run_name)
+  subroutine annual_mean(output_path,yearly_sumC,yearly_sumN,yearly_sumNinorg,sum_HR, year, run_name)
     !Input 
     REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: yearly_sumC
     REAL(r8), DIMENSION(nlevels,pool_types_N), intent(in):: yearly_sumN
@@ -41,6 +41,8 @@ contains
     REAL(r8), intent(in):: sum_HR    
     integer,  intent(in) :: year
     CHARACTER (len = *), intent(in):: run_name
+    character (len = *),intent(in) :: output_path
+
     !Local
     REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
     REAL(r8), DIMENSION(nlevels,pool_types_N) :: yearly_meanN
@@ -53,14 +55,16 @@ contains
     yearly_meanNinorg=yearly_sumNinorg/hr_in_year
     yearly_mean_HR = sum_HR/hr_in_year
     
-    call fill_yearly_netcdf(run_name, year, yearly_meanC,yearly_meanN,yearly_meanNinorg,yearly_mean_HR)
+    call fill_yearly_netcdf(output_path,run_name, year, yearly_meanC,yearly_meanN,yearly_meanNinorg,yearly_mean_HR)
   end subroutine annual_mean
 
-  subroutine monthly_mean(monthly_sumC,monthly_sumN,monthly_sumNinorg, month,total_months,year, run_name)
+  subroutine monthly_mean(output_path,monthly_sumC,monthly_sumN,monthly_sumNinorg, month,total_months,year, run_name)
     !Input 
     REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: monthly_sumC
     REAL(r8), DIMENSION(nlevels,pool_types_N), intent(in):: monthly_sumN
     REAL(r8), DIMENSION(nlevels,inorg_N_pools), intent(in):: monthly_sumNinorg
+    character (len = *),intent(in) :: output_path
+    
     
     integer,  intent(in) :: month
     integer,  intent(in) :: total_months
@@ -77,7 +81,7 @@ contains
     monthly_meanC=monthly_sumC/hr_in_month
     monthly_meanN=monthly_sumN/hr_in_month
     monthly_meanNinorg=monthly_sumNinorg/hr_in_month
-    call fill_monthly_netcdf(run_name, year,month,total_months, monthly_meanC,monthly_meanN,monthly_meanNinorg)
+    call fill_monthly_netcdf(output_path,run_name, year,month,total_months, monthly_meanC,monthly_meanN,monthly_meanNinorg)
   end subroutine monthly_mean
 
   subroutine decomp(nsteps,   &
@@ -85,7 +89,8 @@ contains
                     write_hour,&
                     pool_C_start,pool_N_start,inorg_N_start, &
                     pool_C_final,pool_N_final,inorg_N_final,  &
-                    start_year,stop_year,clm_input_path,clm_surf_path) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
+                    start_year,stop_year,clm_input_path, &
+                    clm_surf_path,out_path) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
       !INPUT
       integer,intent(in)                        :: nsteps               ! number of time steps to iterate over
       character (len=*) ,intent(in)             :: run_name             ! used for naming outputfiles
@@ -98,6 +103,8 @@ contains
       integer, intent(in)                       :: stop_year !Forcing end year, i.e. forcing loops over interval start_year-stop_year
       character (len=*) ,intent(in)             :: clm_input_path             ! file path for input
       character (len=*) ,intent(in)             :: clm_surf_path            ! file path for surface data
+      character (len=*) ,intent(in)             :: out_path            ! file path for surface data
+
   
       !OUTPUT
       real(r8),intent(out)                      :: pool_C_final(nlevels,pool_types)     ! For store and output final C pool sizes 
@@ -317,7 +324,7 @@ contains
       day_counter = 0
       counter  = 0
       ycounter = 0
-      
+
       !read data from CLM file
       if ( start_year == 1850 ) then
         Spinup_run = .True.
@@ -363,8 +370,8 @@ contains
         pool_N_start_for_mass_cons=pool_matrixN
       end if
       if ( Spinup_run ) then
-        call create_yearly_mean_netcdf(run_name)  !open and prepare files to store results. Store initial values
-        call create_monthly_mean_netcdf(run_name)  !open and prepare files to store results. Store initial values
+        call create_yearly_mean_netcdf(trim(out_path),run_name)  !open and prepare files to store results. Store initial values
+        call create_monthly_mean_netcdf(trim(out_path),run_name)  !open and prepare files to store results. Store initial values
         
         max_mining = read_maxC(spinupncid,input_steps)
       else
@@ -376,8 +383,8 @@ contains
       Kmod_reverse  = calc_reverse_Kmod(fCLAY)
       fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
 
-      call create_netcdf(run_name)
-      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))      
+      call create_netcdf(trim(out_path),run_name)
+      call check(nf90_open(trim(out_path)//trim(run_name)//".nc", nf90_write, writencid))      
       call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN,inorg_N_matrix, &
                       date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa, change_matrixC,&
                       change_matrixN,write_hour,current_month,TSOIL, r_moist, &
@@ -696,7 +703,7 @@ contains
           write_y =write_y+1 !For writing to annual mean file
           
           if ( Spinup_run ) then 
-            call annual_mean(sum_consC,sum_consN,sum_consNinorg,HR_mass,write_y , run_name) !calculates the annual mean and write the result to file
+            call annual_mean(trim(out_path),sum_consC,sum_consN,sum_consNinorg,HR_mass,write_y , run_name) !calculates the annual mean and write the result to file
           end if
           if (year == stop_year) then
             year = start_year         

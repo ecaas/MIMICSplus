@@ -137,7 +137,6 @@ real(r8),dimension(:),allocatable    :: NH4_sorp_eq_vr
  
 !For writing to file:
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
-character (len=*),parameter                  :: output_path = './results/test_fixes/'
 
 contains
   
