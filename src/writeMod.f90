@@ -9,7 +9,7 @@ module writeMod
   public :: check, create_netcdf,fill_netcdf,store_parameters,fluxes_netcdf, fill_MMK,&
             create_yearly_mean_netcdf,fill_yearly_netcdf,fill_monthly_netcdf,create_monthly_mean_netcdf
     
-  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid, varid
+  integer :: grid_dimid, col_dimid, t_dimid, lev_dimid,mmk_dimid,fracid
   character (len=4), dimension(pool_types)     :: variables = &
   (/  "LITm", "LITs", "SAPb","SAPf", "EcM ", "AM  ", "SOMp", "SOMa", "SOMc" /)
 
@@ -105,30 +105,29 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_netcdf
 
-    subroutine fill_MMK(ncid,time,write_hour,depth,Km,Vmax)
+    subroutine fill_MMK(ncid,time,write_hour,depth,K_m,V_max)
       integer,intent(in)               :: ncid 
       integer, intent(in)              :: time
       integer, intent(in)              :: depth
       integer, intent(in)              :: write_hour
       
-      real(r8),dimension(MM_eqs), intent(in)       :: Km
-      real(r8),dimension(MM_eqs), intent(in)       :: Vmax
+      real(r8),dimension(MM_eqs), intent(in)       :: K_m
+      real(r8),dimension(MM_eqs), intent(in)       :: V_max
       
       integer                          :: varid, timestep 
       
       call get_timestep(time, write_hour, timestep)
       
       call check(nf90_inq_varid(ncid, "Km", varid))
-      call check(nf90_put_var(ncid, varid, Km, start = (/ 1,timestep, depth /)))
+      call check(nf90_put_var(ncid, varid, K_m, start = (/ 1,timestep, depth /)))
       
       call check(nf90_inq_varid(ncid, "Vmax", varid))
-      call check(nf90_put_var(ncid, varid, Vmax, start = (/ 1,timestep, depth /)))
+      call check(nf90_put_var(ncid, varid, V_max, start = (/ 1,timestep, depth /)))
     end subroutine fill_MMK
-
       
     subroutine fill_netcdf(ncid, time, pool_matrix, Npool_matrix,inorganic_N_matrix, &
       mcdate,HR_sum, HR_flux, HRb,HRf,HRe,HRa,vert_sum,Nvert_sum, write_hour,month, &
-      TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,ROI_EcM,ROI_AM,enz_frac,f_alloc, NH4_eq)
+      TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,ROI_EcM,ROI_AM,enz_frac,f_met,f_alloc, NH4_eq)
       !INPUT:
       integer,intent(in)               :: ncid 
       integer, intent(in)              :: time
@@ -146,6 +145,7 @@ module writeMod
       real(r8),dimension(nlevels), intent(in)       :: ROI_EcM
       real(r8),dimension(nlevels), intent(in)       :: ROI_AM  
       real(r8),dimension(nlevels), intent(in)       :: enz_frac          
+      real(r8),                    intent(in)       :: f_met
       real(r8),dimension(nlevels), intent(in)       :: TSOIL, MOIST  
       real(r8),dimension(nlevels), intent(in)       :: CUE_bacteria,CUE_fungi, CUE_ecm,CUE_am
       real(r8),dimension(nlevels), intent(in)       :: NH4_eq
@@ -166,7 +166,7 @@ module writeMod
       call check(nf90_inq_varid(ncid, "mcdate", varid))
       call check(nf90_put_var(ncid, varid, mcdate, start = (/ timestep /)))    
       call check(nf90_inq_varid(ncid, "f_met", varid))
-      call check(nf90_put_var(ncid, varid, fmet, start = (/ timestep /)))    
+      call check(nf90_put_var(ncid, varid, f_met, start = (/ timestep /)))    
       call check(nf90_inq_varid(ncid, "month", varid))
       call check(nf90_put_var(ncid, varid, month, start = (/ timestep /)))
       call check(nf90_inq_varid(ncid, "HR_sum", varid))
@@ -359,6 +359,9 @@ module writeMod
       integer, intent(in) :: ncid
       integer, intent(in) :: timestep
       integer, intent(in) :: depth_level
+
+      !local
+      integer :: varid
 
       call check_and_write(ncid, "N_LITmSAPb", N_LITmSAPb,timestep,depth_level)
       call check_and_write(ncid, "N_LITsSAPb", N_LITsSAPb, timestep,depth_level)

@@ -18,7 +18,7 @@ module mycmimMod
   use initMod,    only: nlevels,calc_init_NH4
   use readMod,    only: read_maxC, read_time,read_clm_model_input,read_clay,&
                         read_WATSAT_and_profiles,read_PFTs,calc_PFT
-  use fluxMod,    only: calc_nitrification,calc_Leaching,set_N_dep,forward_MMK_flux,input_rates,&
+  use fluxMod,    only: calc_nitrification,calc_Leaching,set_N_dep,input_rates,&
                         calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final, NH4_sorp_final,NO3_final
   use writeMod,   only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf,create_monthly_mean_netcdf, &
                         fill_yearly_netcdf,fill_monthly_netcdf, fluxes_netcdf,store_parameters,check,fill_MMK
@@ -185,7 +185,6 @@ contains
       real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
       real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
       real(r8),allocatable           :: vert_inorgN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
-      real(r8) ::  Nlign_ratio, f_met_fraction
       !Counters
       integer                        :: ycounter, year,write_y
       integer                        :: counter            !used for determining when to output results
@@ -215,6 +214,7 @@ contains
       real(r8)                                 :: h2o_liq_tot
       real(r8)                              :: H2OSOI
       real(r8),dimension(:),allocatable  :: norm_froot_prof
+      real(r8)                      :: fMET                        ![-] Fraction determining distribution of total litter production between LITm and LITs
       
       integer                        :: j,i,t              !for iterations
           
@@ -234,14 +234,14 @@ contains
         allocate (vertC, mold = pool_matrixC)
         allocate (vertN, mold = pool_matrixN)
         allocate (vert_inorgN, mold = inorg_N_matrix)
-                     !TODO: This can be done better
+                    !TODO: This can be done better
       end if
           
       !Allocate and initialize
       allocate(CUE_bacteria_vr(nlevels))
-      CUE_bacteria_vr=CUE_0
+      CUE_bacteria_vr=CUE_0b
       allocate(CUE_fungi_vr(nlevels))
-      CUE_fungi_vr=CUE_0
+      CUE_fungi_vr=CUE_0b
       allocate(CUE_ecm_vr(nlevels))
       CUE_ecm_vr=CUE_myc_0
       allocate(CUE_erm_vr(nlevels))
@@ -339,11 +339,11 @@ contains
       end if
       
       allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels), norm_froot_prof(nlevels))   
-         
+
       call read_WATSAT_and_profiles(adjustr(clm_input_path)//'_historical.clm2.all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof)         
       call moisture_func(SOILLIQ,WATSAT,SOILICE,r_moist)                   
       call read_clay(adjustr(clm_surf_path),fCLAY)
-      call calc_PFT(adjustr(clm_input_path)//'_historical_obsveg.clm2.all.'//"1901.nc",lflitcn_avg)
+      call calc_PFT(adjustr(clm_input_path)//'_historical.clm2.all.'//"1901.nc",lflitcn_avg)
       
       norm_froot_prof = (froot_prof-minval(froot_prof))/(maxval(froot_prof)-minval(froot_prof))
       
@@ -370,20 +370,20 @@ contains
       else
         max_mining = read_maxC(ncid,input_steps)        
       end if
-      call create_netcdf(run_name)
-      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))      
-      call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN,inorg_N_matrix, &
-                       date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa, change_matrixC,&
-                       change_matrixN,write_hour,current_month,TSOIL, r_moist, &
-                       CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM, & 
-                       ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
-            
+
       desorp= calc_desorp(fCLAY)
       Kmod  = calc_Kmod(fCLAY)
       Kmod_reverse  = calc_reverse_Kmod(fCLAY)
-      
-      
-      call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg, Nlign_ratio, fMET)
+      fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
+
+      call create_netcdf(run_name)
+      call check(nf90_open(output_path//trim(run_name)//".nc", nf90_write, writencid))      
+      call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN,inorg_N_matrix, &
+                      date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa, change_matrixC,&
+                      change_matrixN,write_hour,current_month,TSOIL, r_moist, &
+                      CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM, & 
+                      ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
+            
       
       
       !print initial values to terminal      
@@ -415,7 +415,7 @@ contains
                                 W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
               max_mining = read_maxC(ncid,input_steps)
-              call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg, Nlign_ratio, fMET)
+              fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
             end if     
             
             if (input_steps==240) then
@@ -427,7 +427,7 @@ contains
                                 W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
               call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
               max_mining = read_maxC(spinupncid,input_steps)
-              call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg, Nlign_ratio, fMET)
+              fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
               
             end if                             
         end if 
@@ -446,7 +446,7 @@ contains
             W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)        
             max_mining = read_maxC(ncid,input_steps)                
-            call f_met(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg,Nlign_ratio,fMET)
+            fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
           end if        
         end if         
         !-----------------------------------------------------------------------------------
@@ -454,7 +454,7 @@ contains
 
         input_mod = r_input(C_MYCinput,max_mining) !calculate factor that scales mycorrhizal activity based on C payment from plant
         if ( abs(input_mod) > 1.0 ) then
-          print*, input_mod, time !for checking
+          print*, "input_mod, :", input_mod,"time: ", time !for checking
         end if
         
         ! Fracions of SAP that goes to different SOM pools
@@ -472,17 +472,17 @@ contains
           Vmax    = Vmax_function(TSOIL(j),r_moist(j)) !  ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics.
 
           ![1/h] Microbial turnover rate (SAP to SOM)
-          k_sapsom  = calc_sap_turnover_rate(fMET,r_moist(j), TSOIL(j), norm_froot_prof(j)) 
+          k_sapsom  = calc_sap_turnover_rate(fMET, TSOIL(j), norm_froot_prof(j)) 
           k_mycsom  = calc_myc_mortality(froot_prof(j))  
           
-          CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+0.3)
-          CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+0.7)
+          CUE_bacteria_vr(j) = (CUE_slope*TSOIL(j)+CUE_0b)
+          CUE_fungi_vr(j) = (CUE_slope*TSOIL(j)+CUE_0f)
           CUE_ecm_vr(j) = CUE_myc_0
           CUE_am_vr(j) = CUE_myc_0
           f_enzprod=0.1_r8
           
           !Determine input rates (from CLM data) in timestep
-          call input_rates(j,C_leaf_litter,C_root_litter,N_leaf_litter,&
+          call input_rates(j,fMET,C_leaf_litter,C_root_litter,N_leaf_litter,&
                                       N_root_litter, &
                                       N_CWD_litter,C_CWD_litter,&
                                       C_PlantLITm,C_PlantLITs, &
@@ -592,13 +592,13 @@ contains
               N_Loss = N_SOMpSOMa + N_SOMpEcM
 
             elseif (i==8) then !SOMa
-               C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc + &
-               C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
-               C_Loss = C_SOMaSAPb + C_SOMaSAPf 
-               N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
-               N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa +N_PlantSOMa
-               N_Loss = N_SOMaSAPb + N_SOMaSAPf
-               
+              C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc + &
+              C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j)
+              C_Loss = C_SOMaSAPb + C_SOMaSAPf 
+              N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
+              N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa +N_PlantSOMa
+              N_Loss = N_SOMaSAPb + N_SOMaSAPf
+
             elseif (i==9) then !SOMc
               C_Gain =  C_SAPbSOMc + C_SAPfSOMc + C_EcMSOMc + C_AMSOMc+C_PlantSOMc
               C_Loss = C_SOMcSOMa+C_EcMdecompSOMc
@@ -611,7 +611,7 @@ contains
 
             change_matrixC(j,i) = C_Gain - C_Loss !net change in timestep
             change_matrixN(j,i) = N_Gain - N_loss   
-                     
+
             !Store these values as temporary so that they can be used in the vertical diffusion subroutine
             pool_temporaryC(j,i)=pool_matrixC(j,i) + change_matrixC(j,i)*dt
             pool_temporaryN(j,i)=pool_matrixN(j,i) + change_matrixN(j,i)*dt
@@ -709,7 +709,7 @@ contains
             
             
             call check(nf90_close(ncid)) !Close netcdf file containing values for the past year
-            call check(nf90_open(trim(adjustr(clm_input_path)//'_historical_obsveg.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
+            call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
             call read_time(ncid,input_steps)     
           end if           
           sum_consN =0
@@ -720,9 +720,9 @@ contains
         if (counter == write_hour/dt) then
           counter = 0        
           call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,inorg_N_matrix,&
-           date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa,vertC,vertN, write_hour,current_month, &
-           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,ROI_EcM=ROI_EcM,&
-           ROI_AM=ROI_AM,enz_frac=f_enzprod,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
+                          date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa,vertC,vertN, write_hour,current_month, &
+                          TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,ROI_EcM=ROI_EcM,&
+                          ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
           change_sum = 0.0
         end if!writing
 

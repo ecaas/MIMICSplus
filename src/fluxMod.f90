@@ -523,7 +523,7 @@ contains
     end do !depth
   end subroutine vertical_diffusion
 
-  subroutine input_rates(layer_nr, LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,&
+  subroutine input_rates(layer_nr, met_fraction,LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,&
                         FROOTN_TO_LIT,&
                         N_CWD,C_CWD, &
                         C_inLITm,C_inLITs,&
@@ -533,6 +533,7 @@ contains
                         
     !in:
     integer,  intent(in) :: layer_nr
+    real(r8), intent(in) :: met_fraction
     real(r8), intent(in) :: LEAFC_TO_LIT
     real(r8), intent(in) :: FROOTC_TO_LIT
     real(r8), intent(in) :: LEAFN_TO_LIT
@@ -559,19 +560,19 @@ contains
     totC_LIT_input = FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !gC/m3h !NOTE: These do not include CWD
     totN_LIT_input = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
     
-    C_inLITm = fMET*totC_LIT_input*(1-f_met_to_som) !C1
-    N_inLITm = fMET*totN_LIT_input*(1-f_met_to_som) !N1
+    C_inLITm = met_fraction*totC_LIT_input*(1-f_met_to_som) !C1
+    N_inLITm = met_fraction*totN_LIT_input*(1-f_met_to_som) !N1
     
-    C_inLITs = ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*(1-f_struct_to_som) !C2
-    N_inLITs = ((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*(1-f_struct_to_som) !N2
+    C_inLITs = ((1-met_fraction)*totC_LIT_input + C_CWD(layer_nr))*(1-f_struct_to_som) !C2
+    N_inLITs = ((1-met_fraction)*totN_LIT_input + N_CWD(layer_nr))*(1-f_struct_to_som) !N2
     
-    C_inSOMp = fMET*totC_LIT_input*f_met_to_som 
-    C_inSOMc = ((1-fMET)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som
-    C_inSOMa = 0.0!fMET*totC_LIT_input*f_met_to_som*fAVAIL(1) 
+    C_inSOMp = met_fraction*totC_LIT_input*f_met_to_som 
+    C_inSOMc = ((1-met_fraction)*totC_LIT_input + C_CWD(layer_nr))*f_struct_to_som
+    C_inSOMa = 0.0!met_fraction*totC_LIT_input*f_met_to_som*fAVAIL(1) 
     
-    N_inSOMp = fMET*totN_LIT_input*f_met_to_som
-    N_inSOMc = ((1-fMET)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som
-    N_inSOMa = 0.0!fMET*totN_LIT_input*f_met_to_som*fAVAIL(1)     
+    N_inSOMp = met_fraction*totN_LIT_input*f_met_to_som
+    N_inSOMc = ((1-met_fraction)*totN_LIT_input + N_CWD(layer_nr))*f_struct_to_som
+    N_inSOMa = 0.0!met_fraction*totN_LIT_input*f_met_to_som*fAVAIL(1)     
     
   end subroutine input_rates
   

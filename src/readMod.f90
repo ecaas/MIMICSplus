@@ -1,5 +1,6 @@
 module readMod
   use shr_kind_mod, only : r8 => shr_kind_r8
+  use, intrinsic :: iso_fortran_env, only: stderr => error_unit
   use netcdf
   use dispmodule , only: disp
   use paramMod,    only: sec_pr_hr,delta_z
@@ -7,7 +8,8 @@ module readMod
   use initMod,     only: nlevels
   implicit none
     private
-    public :: read_time,read_maxC,read_WATSAT_and_profiles,read_clay,read_PFTs,read_clm_model_input,calc_PFT
+    public :: read_time,read_maxC,read_WATSAT_and_profiles,read_clay,read_PFTs,read_clm_model_input, &
+              calc_PFT,read_some_parameters
 
   contains
       
@@ -78,10 +80,10 @@ module readMod
       character (len = *),intent(in):: clm_history_file       
       !OUTPUT
       real(r8), intent(out)          :: lflitcn_avg
-   
+
       !LOCAL
       integer            :: ncid, pftid
-      real(r8),dimension(15)           :: PCT_NAT_PFT,test
+      real(r8),dimension(15)           :: PCT_NAT_PFT
       real(r8), dimension(15),parameter           :: lflitcn = (/1, 70, 80, 50, 60, 60, 50, 50, 50, 60, 50, 50, 50, 50, 50/) !from ctsm51_params.c211112.nc 
       
       call check(nf90_open(trim(clm_history_file), nf90_nowrite, ncid))
@@ -90,7 +92,7 @@ module readMod
       call check(nf90_close(ncid))
 
       lflitcn_avg = sum(lflitcn*PCT_NAT_PFT/100.)
-      print*, lflitcn_avg
+
     end subroutine calc_PFT
     
     subroutine read_clay(clm_surface_file,mean_clay_content)
@@ -163,7 +165,7 @@ module readMod
       real(r8)                    :: N_CWD3(nlevels)       
       real(r8)                    :: NPP_NACTIVE  !Mycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s]) 
       real(r8)                    :: NPP_NNONMYC  !NONMycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s]) 
-                         
+
       ! C in Coarse Woody Debris
       call check(nf90_inq_varid(ncid, 'CWDC_TO_LITR2C_vr', varid))
       call check(nf90_get_var(ncid, varid, C_CWD2, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))
@@ -236,18 +238,92 @@ module readMod
       call check(nf90_get_var(ncid, varid, QDRAI,start=(/1, time_entry/)))    
       QDRAI = QDRAI*sec_pr_hr !kgH2O/(m2 h)
 
-       h2o_liq_tot=0.0
-       do i = 1, nlevels ! Total liquid water in column, used for calculating leaching
-         h2o_liq_tot=h2o_liq_tot+SOILLIQ(i) !kg/m2
-       end do          
-       do i = 1, nlevels ! Unit conversion
-         SOILICE(i) = SOILICE(i)/(delta_z(i)*917) !kg/m2 to m3/m3 rho_ice=917kg/m3
-         SOILLIQ(i) = SOILLIQ(i)/(delta_z(i)*1000) !kg/m2 to m3/m3 rho_liq=1000kg/m3
-       end do          
-      
+      h2o_liq_tot=0.0
+      do i = 1, nlevels ! Total liquid water in column, used for calculating leaching
+        h2o_liq_tot=h2o_liq_tot+SOILLIQ(i) !kg/m2
+      end do          
+      do i = 1, nlevels ! Unit conversion
+        SOILICE(i) = SOILICE(i)/(delta_z(i)*917) !kg/m2 to m3/m3 rho_ice=917kg/m3
+        SOILLIQ(i) = SOILLIQ(i)/(delta_z(i)*1000) !kg/m2 to m3/m3 rho_liq=1000kg/m3
+      end do          
+    
       !CLM dates
       call check(nf90_inq_varid(ncid, 'mcdate', varid))
       call check(nf90_get_var(ncid, varid, mcdate, start=(/time_entry/)))
     end subroutine read_clm_model_input
+
+    subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ, timestep)
+      !! Read some parmeters,  Here we use a namelist 
+      !! but if you were to change the storage format (TOML,or home-made), 
+      !! this signature would not change
+
+      character(len=*),  intent(in)  :: file_path
+      logical, intent(out) :: use_ROI
+      logical, intent(out) :: use_Sulman
+      logical, intent(out) :: use_ENZ
+      real(r8), intent(out) :: timestep
+      
+      !integer, intent(out) :: type_
+      integer                        :: file_unit, iostat
+
+      ! Namelist definition===============================
+      namelist /OPTIONS/ &
+          use_ROI , &
+          use_Sulman, &
+          use_ENZ, &
+          timestep
+      use_ROI = .False.
+      use_Sulman = .False.
+      use_ENZ =  .False.
+      timestep = 1
+      ! Namelist definition===============================
+
+      call open_inputfile(file_path, file_unit, iostat)
+      if (iostat /= 0) then
+          print*, "Opening of file failed"
+          !! write here what to do if opening failed"
+          return
+      end if
+
+      read (nml=OPTIONS, iostat=iostat, unit=file_unit)
+      call close_inputfile(file_path, file_unit, iostat)
+      if (iostat /= 0) then
+          print*, "Closing of file failed"          
+          !! write here what to do if reading failed"
+          return
+      end if
+    end subroutine read_some_parameters
+
+    subroutine open_inputfile(file_path, file_unit, iostat)
+      !! Check whether file exists, with consitent error message
+      !! return the file unit
+      character(len=*),  intent(in)  :: file_path
+      integer,  intent(out) :: file_unit, iostat
+
+      inquire (file=file_path, iostat=iostat)
+      if (iostat /= 0) then
+          write (stderr, '(3a)') 'Error: file "', trim(file_path), '" not found!'
+      end if
+      open (action='read', file=file_path, iostat=iostat, newunit=file_unit)
+    end subroutine open_inputfile
+
+    subroutine close_inputfile(file_path, file_unit, iostat)
+      !! Check the reading was OK
+      !! return error line IF not
+      !! close the unit
+      character(len=*),  intent(in)  :: file_path
+      character(len=1000) :: line
+      integer,  intent(in) :: file_unit, iostat
+
+      if (iostat /= 0) then
+          write (stderr, '(2a)') 'Error reading file :"', trim(file_path)
+          write (stderr, '(a, i0)') 'iostat was:"', iostat
+          backspace(file_unit)
+          read(file_unit,fmt='(A)') line
+          write(stderr,'(A)') &
+              'Invalid line : '//trim(line)
+      end if
+      close (file_unit)   
+    end subroutine close_inputfile
 
 end module readMod

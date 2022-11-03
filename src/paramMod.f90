@@ -1,7 +1,6 @@
 module paramMod
 use shr_kind_mod   , only : r8 => shr_kind_r8
 use initMod, only : nlevels
-use, intrinsic :: iso_fortran_env, only: stderr => error_unit
 use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
 
 implicit none
@@ -51,7 +50,6 @@ real(r8), parameter :: V_max_myc = 1.8/hr_pr_yr  ![g g-1 hr-1] Max mycorrhizal u
 real(r8), parameter :: K_MO      = 0.003_r8/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
 !For calculating turnover from SAP to SOM (expressions from mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
-real(r8)                      :: fMET                        ![-] Fraction determining distribution of total litter production between LITm and LITs
 real(r8), dimension(no_of_sap_pools)    :: k_sapsom  ![1/h] (tau in MIMICS)
 real(r8), dimension(no_of_sap_pools)    :: fPHYS,fCHEM,fAVAIL              ![-]
 
@@ -77,7 +75,8 @@ real(r8)                             :: max_mining
 real(r8)                             :: input_mod 
 
 !Efficiencies
-real(r8),parameter                   :: CUE_0=0.4
+real(r8),parameter                   :: CUE_0b=0.3
+real(r8),parameter                   :: CUE_0f=0.7
 real(r8),parameter                   :: CUE_slope=0.0!-0.016 !From German et al 2012
 real(r8),dimension(:),allocatable    :: CUE_bacteria_vr
 real(r8),dimension(:),allocatable    :: CUE_fungi_vr
@@ -88,8 +87,8 @@ real(r8),parameter                   :: CUE_myc_0=0.25_r8 !Baskaran
 real(r8),parameter                   :: NUE=0.7_r8
 
 !Fractions
-real(r8), parameter                  :: f_met_to_som   = 0.05_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-real(r8), parameter                  :: f_struct_to_som= 0.2_r8 ! fraction of structural litter flux that goes directly to SOM pools
+real(r8), parameter                  :: f_met_to_som   = 0.1_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
+real(r8), parameter                  :: f_struct_to_som= 0.4_r8 ! fraction of structural litter flux that goes directly to SOM pools
 real(r8),dimension(:),allocatable    :: f_enzprod 
 real(r8),parameter                   :: f_enzprod_0    = 0.1_r8
 real(r8), parameter                  :: f_growth       = 0.5_r8 !Fraction of mycorrhizal N uptake that needs to stay within the fungi (not given to plant) 
@@ -138,7 +137,7 @@ real(r8),dimension(:),allocatable    :: NH4_sorp_eq_vr
  
 !For writing to file:
 integer                                      :: ios = 0 !Changes if something goes wrong when opening a file
-character (len=*),parameter                  :: output_path = './results/test/'
+character (len=*),parameter                  :: output_path = './results/test_fixes/'
 
 contains
   
@@ -249,16 +248,15 @@ contains
     f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))!AVAIL
   end function calc_sap_to_som_fractions
 
-  function calc_sap_turnover_rate(met_frac,moist_modifier,temp,rprof) result(turnover_rate)
+  function calc_sap_turnover_rate(met_frac,temp,rprof) result(turnover_rate)
     real(r8),INTENT(IN) :: met_frac
-    real(r8),INTENT(IN) :: moist_modifier
     real(r8),INTENT(IN) :: temp
     real(r8),INTENT(IN) :: rprof
     
     real(r8),dimension(no_of_sap_pools) :: turnover_rate
     
     !Local: 
-    real(r8), parameter :: min_modifier = 0.2
+    real(r8), parameter :: min_modifier = 0.1
 
     if ( temp < 0 ) then
       turnover_rate=[real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*min_modifier, 2.4e-4*exp(0.1_r8*met_frac)*min_modifier]
@@ -306,83 +304,9 @@ contains
 
     moist_mod = max(0.05, r_moist)
   end subroutine moisture_func
-  
-  subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ, timestep)
-    !! Read some parmeters,  Here we use a namelist 
-    !! but if you were to change the storage format (TOML,or home-made), 
-    !! this signature would not change
-
-    character(len=*),  intent(in)  :: file_path
-    logical, intent(out) :: use_ROI
-    logical, intent(out) :: use_Sulman
-    logical, intent(out) :: use_ENZ
-    real(r8), intent(out) :: timestep
-    
-    !integer, intent(out) :: type_
-    integer                        :: file_unit, iostat
-
-    ! Namelist definition===============================
-    namelist /OPTIONS/ &
-        use_ROI , &
-        use_Sulman, &
-        use_ENZ, &
-        timestep
-    use_ROI = .False.
-    use_Sulman = .False.
-    use_ENZ =  .False.
-    timestep = 1
-    ! Namelist definition===============================
-
-    call open_inputfile(file_path, file_unit, iostat)
-    if (iostat /= 0) then
-        print*, "Opening of file failed"
-        !! write here what to do if opening failed"
-        return
-    end if
-
-    read (nml=OPTIONS, iostat=iostat, unit=file_unit)
-    call close_inputfile(file_path, file_unit, iostat)
-    if (iostat /= 0) then
-        print*, "Closing of file failed"          
-        !! write here what to do if reading failed"
-        return
-    end if
-  end subroutine read_some_parameters
-
-  subroutine open_inputfile(file_path, file_unit, iostat)
-      !! Check whether file exists, with consitent error message
-      !! return the file unit
-      character(len=*),  intent(in)  :: file_path
-      integer,  intent(out) :: file_unit, iostat
-
-      inquire (file=file_path, iostat=iostat)
-      if (iostat /= 0) then
-          write (stderr, '(3a)') 'Error: file "', trim(file_path), '" not found!'
-      end if
-      open (action='read', file=file_path, iostat=iostat, newunit=file_unit)
-  end subroutine open_inputfile
-
-  subroutine close_inputfile(file_path, file_unit, iostat)
-    !! Check the reading was OK
-    !! return error line IF not
-    !! close the unit
-    character(len=*),  intent(in)  :: file_path
-    character(len=1000) :: line
-    integer,  intent(in) :: file_unit, iostat
-
-    if (iostat /= 0) then
-        write (stderr, '(2a)') 'Error reading file :"', trim(file_path)
-        write (stderr, '(a, i0)') 'iostat was:"', iostat
-        backspace(file_unit)
-        read(file_unit,fmt='(A)') line
-        write(stderr,'(A)') &
-            'Invalid line : '//trim(line)
-    end if
-    close (file_unit)   
-  end subroutine close_inputfile
 
 
-  subroutine f_met(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lflitcn,lignNratio,fmet)
+  function calc_met_fraction(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lflitcn) result(fmetabolic)
     !In: 
     real(r8), intent(in) :: leaf_to_lit
     real(r8), intent(in) :: froot_to_lit
@@ -390,10 +314,10 @@ contains
     real(r8), intent(in) :: lflitcn
 
     !out:
-    real(r8), intent(out) :: lignNratio
-    real(r8), intent(out) :: fmet
+    real(r8)            :: fmetabolic
 
     !local
+    real(r8)            :: lignNratio
     real(r8), parameter :: p1 = 0.75
     real(r8), parameter :: p2 = 0.85
     real(r8), parameter :: p3 = 0.013
@@ -419,8 +343,8 @@ contains
     lignNratio = (lignNleaf + lignNfroot + lignNcwd) / &
                 max(1e-3, leaf_to_lit+froot_to_lit+cwd_to_lit)
 
-    fmet = p1*(p2-p3*min(p4,lignNratio))
+    fmetabolic = p1*(p2-p3*min(p4,lignNratio))
 
-  end subroutine f_met
+  end function calc_met_fraction
 
 end module paramMod

@@ -3,9 +3,10 @@ program main
   use mycmimMod,  only: decomp
   use initMod, only: read_nlayers,nlevels, initialize
   use paramMod, only: full_clock_rate,full_clock_stop,full_clock_start, &
-                      pool_types, pool_types_N,inorg_N_pools, read_some_parameters, &
+                      pool_types, pool_types_N,inorg_N_pools, &
                       use_ROI, use_ENZ, use_Sulman, dt
-use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
+  use readMod, only: read_some_parameters  
+  use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
                       
   implicit none
 
@@ -50,7 +51,7 @@ use dispmodule, only: disp !External module to pretty print matrices (mainly for
   call read_nlayers(trim(adjustr(clm_data_file)//'_historical.clm2.all.1901.nc'))
   call read_some_parameters(trim(namelist_file),use_ROI, use_Sulman, use_ENZ, dt)
   print*, use_ROI,use_Sulman,use_ENZ, dt,nlevels
-
+  
     
   !ALLOCATE:
   allocate(C_matrix_init(nlevels,pool_types),N_matrix_init(nlevels,pool_types_N),N_inorg_matrix_init(nlevels,inorg_N_pools))
