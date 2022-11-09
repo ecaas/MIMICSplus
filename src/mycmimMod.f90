@@ -329,7 +329,7 @@ contains
       if ( start_year == 1850 ) then
         Spinup_run = .True.
         spinup_counter =1
-        call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.for_spinup.1850-1869.nc'), nf90_nowrite, spinupncid))  
+        call check(nf90_open(trim(adjustr(clm_input_path)//'for_spinup.1850-1869.nc'), nf90_nowrite, spinupncid))  
         call read_time(spinupncid,input_steps) !Check if inputdata is daily or monthly:         
         call read_clm_model_input(spinupncid,Spinup_counter, &
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
@@ -337,7 +337,7 @@ contains
         W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)        
       else
         Spinup_run = .False.        
-        call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) 
+        call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) 
         call read_time(ncid,input_steps) !Check if inputdata is daily or monthly: 
         call read_clm_model_input(ncid,1, &
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
@@ -347,10 +347,10 @@ contains
       
       allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels), norm_froot_prof(nlevels))   
 
-      call read_WATSAT_and_profiles(adjustr(clm_input_path)//'_historical.clm2.all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof)         
+      call read_WATSAT_and_profiles(adjustr(clm_input_path)//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof)         
       call moisture_func(SOILLIQ,WATSAT,SOILICE,r_moist)                   
       call read_clay(adjustr(clm_surf_path),fCLAY)
-      call calc_PFT(adjustr(clm_input_path)//'_historical.clm2.all.'//"1901.nc",lflitcn_avg)
+      call calc_PFT(adjustr(clm_input_path)//'all.'//"1901.nc",lflitcn_avg)
       
       norm_froot_prof = (froot_prof-minval(froot_prof))/(maxval(froot_prof)-minval(froot_prof))
       
@@ -716,7 +716,7 @@ contains
             
             
             call check(nf90_close(ncid)) !Close netcdf file containing values for the past year
-            call check(nf90_open(trim(adjustr(clm_input_path)//'_historical.clm2.all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
+            call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) !open netcdf containing values for the next year
             call read_time(ncid,input_steps)     
           end if           
           sum_consN =0

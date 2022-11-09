@@ -9,7 +9,7 @@ module readMod
   implicit none
     private
     public :: read_time,read_maxC,read_WATSAT_and_profiles,read_clay,read_PFTs,read_clm_model_input, &
-              calc_PFT,read_some_parameters
+            calc_PFT,read_namelist
 
   contains
       
@@ -252,7 +252,7 @@ module readMod
       call check(nf90_get_var(ncid, varid, mcdate, start=(/time_entry/)))
     end subroutine read_clm_model_input
 
-    subroutine read_some_parameters(file_path, use_ROI, use_Sulman, use_ENZ, timestep)
+    subroutine read_namelist(file_path, use_ROI, use_Sulman, use_ENZ, timestep) !Based on https://cerfacs.fr/coop/fortran-namelist-workedex
       !! Read some parmeters,  Here we use a namelist 
       !! but if you were to change the storage format (TOML,or home-made), 
       !! this signature would not change
@@ -292,9 +292,9 @@ module readMod
           !! write here what to do if reading failed"
           return
       end if
-    end subroutine read_some_parameters
+    end subroutine read_namelist
 
-    subroutine open_inputfile(file_path, file_unit, iostat)
+    subroutine open_inputfile(file_path, file_unit, iostat) !Based on https://cerfacs.fr/coop/fortran-namelist-workedex
       !! Check whether file exists, with consitent error message
       !! return the file unit
       character(len=*),  intent(in)  :: file_path
@@ -307,7 +307,7 @@ module readMod
       open (action='read', file=file_path, iostat=iostat, newunit=file_unit)
     end subroutine open_inputfile
 
-    subroutine close_inputfile(file_path, file_unit, iostat)
+    subroutine close_inputfile(file_path, file_unit, iostat) !Based on https://cerfacs.fr/coop/fortran-namelist-workedex
       !! Check the reading was OK
       !! return error line IF not
       !! close the unit
