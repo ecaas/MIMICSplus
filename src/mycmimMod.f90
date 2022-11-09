@@ -13,19 +13,19 @@
 !In addition a reservoir of inorganic nitrogen, N_IN, is found in each layer. A plant pool of carbon and nitrogen is also included (not vertically resolved).
 
 module mycmimMod
-  use shr_kind_mod, only : r8 => shr_kind_r8
+  use shr_kind_mod,   only : r8 => shr_kind_r8
   use paramMod
-  use initMod,    only: nlevels,calc_init_NH4
-  use readMod,    only: read_maxC, read_time,read_clm_model_input,read_clay,&
+  use initMod,        only: nlevels,calc_init_NH4
+  use readMod,        only: read_maxC, read_time,read_clm_model_input,read_clay,&
                         read_WATSAT_and_profiles,read_PFTs,calc_PFT
-  use fluxMod,    only: calc_nitrification,calc_Leaching,set_N_dep,input_rates,&
+  use fluxMod,        only: calc_nitrification,calc_Leaching,set_N_dep,input_rates,&
                         calculate_fluxes,vertical_diffusion,myc_to_plant, NH4_sol_final, NH4_sorp_final,NO3_final
-  use writeMod,   only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf,create_monthly_mean_netcdf, &
+  use writeMod,       only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf,create_monthly_mean_netcdf, &
                         fill_yearly_netcdf,fill_monthly_netcdf, fluxes_netcdf,store_parameters,check,fill_MMK
-  use testMod,    only: respired_mass, test_mass_conservation_C,test_mass_conservation_N, &
+  use testMod,        only: respired_mass, test_mass_conservation_C,test_mass_conservation_N, &
                         total_carbon_conservation,total_nitrogen_conservation
-  use dispmodule, only: disp !External module to pretty print matrices (mainly for testing purposes)
-  use netcdf,     only: nf90_nowrite,nf90_write,nf90_close,nf90_open
+  use dispmodule,     only: disp !External module to pretty print matrices (mainly for testing purposes)
+  use netcdf,         only: nf90_nowrite,nf90_write,nf90_close,nf90_open
   
   implicit none
     private 
@@ -90,39 +90,35 @@ contains
                     pool_C_start,pool_N_start,inorg_N_start, &
                     pool_C_final,pool_N_final,inorg_N_final,  &
                     start_year,stop_year,clm_input_path, &
-                    clm_surf_path,out_path) !Calculates the balance equations dC/dt and dN/dt for each pool at each time step based on the fluxes calculated in the same time step. Then update the pool sizes before moving on
-      !INPUT
-      integer,intent(in)                        :: nsteps               ! number of time steps to iterate over
-      character (len=*) ,intent(in)             :: run_name             ! used for naming outputfiles
-      integer,intent(in)                        :: write_hour           !How often output is written to file
+                    clm_surf_path,out_path) !Main subroutine. Calculates changes in each pool at each timestep (dC/dt & dN/dt)
+      !IN:
+      integer,intent(in)                        :: nsteps                               ! number of time steps to iterate over
+      character (len=*) ,intent(in)             :: run_name                             ! used for naming output files
+      integer,intent(in)                        :: write_hour                           ! How often output is written to file
       real(r8),intent(in)                       :: pool_C_start(nlevels,pool_types)     ! For store and output final C pool sizes 
       real(r8),intent(in)                       :: pool_N_start(nlevels,pool_types_N)   ! For storing and output final N pool sizes [gN/m3] 
-      real(r8),intent(in)                       :: inorg_N_start(nlevels,inorg_N_pools)   ! For storing and output final N pool sizes [gN/m3] 
-      
-      integer, intent(in)                       :: start_year !Forcing start year
-      integer, intent(in)                       :: stop_year !Forcing end year, i.e. forcing loops over interval start_year-stop_year
-      character (len=*) ,intent(in)             :: clm_input_path             ! file path for input
-      character (len=*) ,intent(in)             :: clm_surf_path            ! file path for surface data
-      character (len=*) ,intent(in)             :: out_path            ! file path for surface data
+      real(r8),intent(in)                       :: inorg_N_start(nlevels,inorg_N_pools) ! For storing and output final N pool sizes [gN/m3]      
+      integer, intent(in)                       :: start_year                           ! Forcing start year
+      integer, intent(in)                       :: stop_year                            ! Forcing end year, i.e. forcing loops over interval start_year-stop_year
+      character (len=*) ,intent(in)             :: clm_input_path                       ! file path for input
+      character (len=*) ,intent(in)             :: clm_surf_path                        ! file path for surface data
+      character (len=*) ,intent(in)             :: out_path                             ! file path for output file
 
-  
       !OUTPUT
       real(r8),intent(out)                      :: pool_C_final(nlevels,pool_types)     ! For store and output final C pool sizes 
       real(r8),intent(out)                      :: pool_N_final(nlevels,pool_types_N)   ! For storing and output final N pool sizes [gN/m3] 
-      real(r8),intent(out)                      :: inorg_N_final(nlevels,inorg_N_pools)   ! For storing and output final N pool sizes [gN/m3] 
+      real(r8),intent(out)                      :: inorg_N_final(nlevels,inorg_N_pools) ! For storing and output final inorganic N pool sizes [gN/m3] 
       
-      real(r8)                    :: pool_C_start_for_mass_cons(nlevels,pool_types)     ! To use in total mass conservation subroutine
-      real(r8)                    :: pool_N_start_for_mass_cons(nlevels,pool_types_N)   ! 
-      real(r8)                    :: pool_Ninorg_start_for_mass_cons(nlevels,inorg_N_pools)   ! 
+      
      !Shape of pool_matrixC/change_matrixC
      !|       LITm LITs SAPb SAPf EcM AM SOMp SOMa SOMc |
      !|level1   1   2    3    4   5   6   7   8    9    |
-     !|level2                                           |
+      !|level2                                           |
      !| .                                               |
-     !| .                                               |
+      !| .                                               |
      !|nlevels _________________________________________|
-
-     !Shape of the pool_matrixN/change_matrixN
+      
+      !Shape of the pool_matrixN/change_matrixN
      !|       LITm LITs SAPb SAPf EcM AM SOMp SOMa SOMc|
      !|level1   1   2    3    4   5   6   7   8    9   |
      !|level2                                          |
@@ -131,42 +127,88 @@ contains
      !|nlevels ________________________________________|
      
      !Shape of inorg_N_matrix
-     !|       NH4_sol NH4_sorp   NO3|
+      !|       NH4_sol NH4_sorp   NO3|
      !|level1    1       2       3  |
-     !|level2                       |
+      !|level2                       |
      !| .                           |
      !| .                           |
      !|nlevels _____________________|
      
       !LOCAL
-      character (len=4)              :: year_fmt
-      character (len=4)              :: year_char
-      logical                        :: isVertical                           ! True if we use vertical soil layers.
-      real(r8),dimension(nlevels) :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
-      real(r8)                       :: HR_mass_accumulated, HR_mass
-      real(r8),dimension(nlevels) :: HRb,HRf !For storing respiration separately for bacteria and fungi
-      real(r8),dimension(nlevels) :: HRe,HRa !For storing respiration separately for mycorrhiza
-      real(r8)                       :: pool_matrixC(nlevels,pool_types)     ! For storing C pool sizes [gC/m3]
-      real(r8)                       :: change_matrixC(nlevels,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
-      real(r8)                       :: pool_temporaryC(nlevels,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
-      real(r8)                       :: pool_matrixC_previous(nlevels,pool_types) !Used for checking mass conservation
-      real(r8)                       :: pool_matrixN_previous(nlevels,pool_types_N) !Used for checking mass conservation
-      real(r8)                       :: inorg_N_matrix_previous(nlevels,inorg_N_pools) !Used for checking mass conservation
-      real(r8)                       :: pool_temporaryN(nlevels,pool_types_N)! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
-      real(r8)                       :: pool_matrixN(nlevels,pool_types_N)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
-      real(r8)                       :: change_matrixN(nlevels,pool_types_N) ! For storing dC/dt for each time step [gN/(m3*hour)]
-      real(r8)                       :: inorg_N_matrix(nlevels, inorg_N_pools) ! Inorganic N pool sizes (gN/m3)
-      real(r8)                       :: inorg_Ntemporary_matrix(nlevels, inorg_N_pools) ! Inorganic N pool sizes (gN/m3)
+      real(r8)                        :: time                                 ! t*dt
+      character (len=4)               :: year_fmt
+      character (len=4)               :: year_char
+      logical                         :: isVertical                           ! True if we use vertical soil layers. TODO: Code need updates if isVertical=True should work
+      logical                         :: Spinup_run                            
+      integer,parameter               :: t_init=1
+      integer                         :: date
+      integer                         :: input_steps
+      integer                         :: j,i,t                                !for iterations
+
+      !Counters
+      integer                         :: ycounter, year,write_y
+      integer                         :: counter            !used for determining when to output results
+      integer                         :: month_counter      !for determining when to read new input values (Temp. litfall etc.)
+      integer                         :: day_counter
+      integer                         :: spinup_counter
+      integer                         :: current_month
+      integer                         :: current_day
+      integer                         :: total_months
+                 
+      !NetCDF identifier variables
+      integer :: ncid
+      integer :: writencid
+      integer :: spinupncid
       
-      real(r8),dimension(nlevels) :: ROI_EcM
-      real(r8),dimension(nlevels) :: ROI_AM
-      real(r8),dimension(nlevels,2)          :: f_alloc
-      real(r8)                       :: sum_consN(nlevels, pool_types_N) !g/m3 for calculating annual mean
-      real(r8)                       :: sum_consNinorg(nlevels, inorg_N_pools) !g/m3 for calculating annual mean
-      real(r8)                       :: sum_consC(nlevels, pool_types) !g/m3 for calculating annual mean
-      real(r8)                       :: monthly_sum_consN(nlevels, pool_types_N) !g/m3 for calculating monthly mean
-      real(r8)                       :: monthly_sum_consNinorg(nlevels, inorg_N_pools) !g/m3 for calculating monthly mean
-      real(r8)                       :: monthly_sum_consC(nlevels, pool_types) !g/m3 for calculating monthly mean
+      !Pool and respiration related variables:
+      real(r8)                        :: C_Loss, C_Gain, N_Gain, N_Loss
+      real(r8)                        :: pool_matrixC(nlevels,pool_types)     ! For storing C pool sizes [gC/m3]
+      real(r8)                        :: change_matrixC(nlevels,pool_types)   ! For storing dC/dt for each time step [gC/(m3*hour)]
+      real(r8)                        :: pool_temporaryC(nlevels,pool_types)  ! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
+      real(r8)                        :: pool_matrixC_previous(nlevels,pool_types) !Used for checking mass conservation
+      
+      real(r8)                        :: pool_matrixN_previous(nlevels,pool_types_N) !Used for checking mass conservation
+      real(r8)                        :: inorg_N_matrix_previous(nlevels,inorg_N_pools) !Used for checking mass conservation
+      real(r8)                        :: pool_temporaryN(nlevels,pool_types_N)! When isVertical is True, pool_temporaryC = pool_matrixC + change_matrixC*dt is used to calculate the vertical transport
+      real(r8)                        :: pool_matrixN(nlevels,pool_types_N)   ! For storing N pool sizes [gN/m3] parallell to C pools and  inorganic N
+      real(r8)                        :: change_matrixN(nlevels,pool_types_N) ! For storing dC/dt for each time step [gN/(m3*hour)]
+      real(r8)                        :: inorg_N_matrix(nlevels, inorg_N_pools) ! Inorganic N pool sizes (gN/m3)
+      real(r8)                        :: inorg_Ntemporary_matrix(nlevels, inorg_N_pools) ! Inorganic N pool sizes (gN/m3)
+      
+      real(r8),dimension(nlevels)     :: HR                                   ! For storing the C  that is lost to respiration [gC/m3h]
+      real(r8)                        :: HR_mass_accumulated, HR_mass
+      real(r8),dimension(nlevels)     :: HRb,HRf                              !For storing respiration separately for bacteria and fungi
+      real(r8),dimension(nlevels)     :: HRe,HRa                              !For storing respiration separately for mycorrhiza
+      real(r8)                        :: HR_mass_yearly
+
+      !For calculating means
+      real(r8)                       :: sum_consN(nlevels, pool_types_N)                !gN/m3 for calculating annual mean
+      real(r8)                       :: sum_consNinorg(nlevels, inorg_N_pools)          !gN/m3 for calculating annual mean
+      real(r8)                       :: sum_consC(nlevels, pool_types)                  !gC/m3 for calculating annual mean
+      real(r8)                       :: monthly_sum_consN(nlevels, pool_types_N)        !gN/m3 for calculating monthly mean
+      real(r8)                       :: monthly_sum_consNinorg(nlevels, inorg_N_pools)  !gN/m3 for calculating monthly mean
+      real(r8)                       :: monthly_sum_consC(nlevels, pool_types)          !gC/m3 for calculating monthly mean
+      
+      !For mass conservation
+      real(r8)                       :: sum_input_step          ! C, Used for checking mass conservation
+      real(r8)                       :: sum_input_total         ! C, Used for checking mass conservation
+      real(r8)                       :: sum_N_input_total       ! N
+      real(r8)                       :: sum_N_out_total         ! N
+      real(r8)                       :: sum_N_out_step          ! N
+      real(r8)                       :: sum_N_input_step        ! Used for checking mass conservation
+      real(r8)                       :: pool_C_start_for_mass_cons(nlevels,pool_types)           ! To use in total mass conservation subroutine
+      real(r8)                       :: pool_N_start_for_mass_cons(nlevels,pool_types_N)         ! To use in total mass conservation subroutine
+      real(r8)                       :: pool_Ninorg_start_for_mass_cons(nlevels,inorg_N_pools)   ! To use in total mass conservation subroutine
+
+      !Related to vertical transport
+      real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
+      real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
+      real(r8),allocatable           :: vert_inorgN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
+      real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion
+      real(r8)                       :: tot_diffN,upperN,lowerN                 ! For the call to vertical_diffusion
+      real(r8)                       :: tot_diffNinorg,upperNinorg,lowerNinorg  ! For the call to vertical_diffusion
+
+      !For storing input related variables
       real(r8)                       :: N_DEPinput
       real(r8)                       :: C_MYCinput
       real(r8)                       :: C_leaf_litter
@@ -176,59 +218,26 @@ contains
       real(r8)                       :: C_CWD_litter(nlevels)
       real(r8)                       :: N_CWD_litter(nlevels)
 
-      real(r8)                       :: time                          ! t*dt
-      real(r8)                       :: C_Loss, C_Gain, N_Gain, N_Loss
-      real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion
-      real(r8)                       :: tot_diffN,upperN,lowerN                 ! For the call to vertical_diffusion
-      real(r8)                       :: tot_diffNinorg,upperNinorg,lowerNinorg                 ! For the call to vertical_diffusion
-      
-      real(r8)                       :: sum_input_step         ! Used for checking mass conservation
-      real(r8)                       :: sum_input_total        ! Used for checking mass conservation
-      real(r8)                       :: sum_N_input_total
-      real(r8)                       :: sum_N_out_total
-      real(r8)                       :: sum_N_out_step
-      real(r8)                       :: sum_N_input_step       ! Used for checking mass conservation
-      real(r8)                       :: HR_mass_yearly
-      real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
-      real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
-      real(r8),allocatable           :: vert_inorgN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
-      !Counters
-      integer                        :: ycounter, year,write_y
-      integer                        :: counter            !used for determining when to output results
-      integer                        :: month_counter      !for determining when to read new input values (Temp. litfall etc.)
-      integer                        :: day_counter
-      integer                        :: spinup_counter
-      integer                        :: current_month
-      integer                        :: current_day
-      integer                        :: total_months
-      logical                        :: Spinup_run
-      integer,parameter              ::t_init=1
-      integer                        :: date
-      integer                        :: input_steps
-      real(r8)                       :: change_sum(nlevels, pool_types)
-      real(r8)                       :: vertC_change_sum(nlevels, pool_types)
-      real(r8),dimension(15)         :: PFT_distribution
-      real(r8),dimension(no_of_som_pools,no_of_sap_pools)        :: f_sapsom
-      real(r8)                       :: lflitcn_avg
       !For reading soil temperature and moisture from CLM output file
-      real(r8), dimension(nlevels)          :: TSOIL
-      real(r8), dimension(nlevels)          :: SOILLIQ
-      real(r8), dimension(nlevels)          :: SOILICE
-      real(r8), dimension(nlevels)          :: WATSAT
-      real(r8), dimension(nlevels)          :: W_SCALAR
-      real(r8), dimension(nlevels)          :: T_SCALAR
-      real(r8)                                 :: drain
-      real(r8)                                 :: h2o_liq_tot
-      real(r8)                              :: H2OSOI
-      real(r8),dimension(:),allocatable  :: norm_froot_prof
-      real(r8)                      :: fMET                        ![-] Fraction determining distribution of total litter production between LITm and LITs
+      real(r8), dimension(nlevels)    :: TSOIL
+      real(r8), dimension(nlevels)    :: SOILLIQ
+      real(r8), dimension(nlevels)    :: SOILICE
+      real(r8), dimension(nlevels)    :: WATSAT
+      real(r8), dimension(nlevels)    :: W_SCALAR
+      real(r8), dimension(nlevels)    :: T_SCALAR
+      real(r8)                        :: drain
+      real(r8)                        :: h2o_liq_tot
+      real(r8)                        :: H2OSOI
+      real(r8),dimension(15)          :: PFT_distribution
       
-      integer                        :: j,i,t              !for iterations
-          
-      integer :: ncid
-      integer :: writencid
-      integer :: spinupncid
-            
+      real(r8),dimension(:),allocatable :: norm_froot_prof
+      real(r8)                          :: fMET                        ![-] Fraction determining distribution of total litter production between LITm and LITs
+      real(r8)                          :: lflitcn_avg
+      real(r8), dimension(nlevels)      :: ROI_EcM
+      real(r8), dimension(nlevels)      :: ROI_AM
+      real(r8), dimension(nlevels,2)    :: f_alloc
+      real(r8), dimension(no_of_som_pools,no_of_sap_pools)        :: f_sapsom
+      
       call system_clock(count_rate=clock_rate) !Find the time rate
       call system_clock(count=clock_start)     !Start Timer  
       
@@ -251,8 +260,6 @@ contains
       CUE_fungi_vr=CUE_0b
       allocate(CUE_ecm_vr(nlevels))
       CUE_ecm_vr=CUE_myc_0
-      allocate(CUE_erm_vr(nlevels))
-      CUE_erm_vr=0.0
       allocate(CUE_am_vr(nlevels))
       CUE_am_vr=CUE_myc_0      
       allocate(r_moist(nlevels))
@@ -304,7 +311,6 @@ contains
       ROI_AM         = 0.0
       f_alloc        = 0.0
       
-      vertC_change_sum=0.0
       HR_mass_accumulated = 0
       sum_input_step   =0.0
       sum_input_total  =0.0
@@ -730,7 +736,6 @@ contains
                           date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa,vertC,vertN, write_hour,current_month, &
                           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,ROI_EcM=ROI_EcM,&
                           ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
-          change_sum = 0.0
         end if!writing
 
         !Write end values to terminal
@@ -774,7 +779,7 @@ contains
       call print_summary(save_N, save_C,c1a,c1b,c2,c3a,c3b,c4a,c4b,pool_C_final,pool_N_final,inorg_N_final)
       !deallocation
       deallocate(ndep_prof,leaf_prof,froot_prof,norm_froot_prof,r_moist, NH4_sorp_eq_vr)
-      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr, CUE_erm_vr,f_enzprod)    
+      deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr,f_enzprod)    
       !For timing
       call system_clock(count=clock_stop)      ! Stop Timer
       print*, "Total time for decomp subroutine in minutes: ", (real(clock_stop-clock_start)/real(clock_rate))/60

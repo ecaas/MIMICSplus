@@ -6,9 +6,11 @@ module readMod
   use paramMod,    only: sec_pr_hr,delta_z
   use writeMod,    only: check
   use initMod,     only: nlevels
+
   implicit none
-    private
-    public :: read_time,read_maxC,read_WATSAT_and_profiles,read_clay,read_PFTs,read_clm_model_input, &
+
+  private
+  public :: read_time,read_maxC,read_WATSAT_and_profiles,read_clay,read_PFTs,read_clm_model_input, &
             calc_PFT,read_namelist
 
   contains
@@ -27,7 +29,7 @@ module readMod
       call check(nf90_inquire_dimension(ncid, timeid, len = steps))
     end subroutine read_time
       
-    function read_maxC(ncid,time_steps) result(max_Cpay)
+    function read_maxC(ncid,time_steps) result(max_Cpay) !reads max C flux from plant to Myc. Used to determine myc_modifier
       !INput
       real(r8)              :: max_Cpay
       integer, intent(in)   :: ncid
@@ -49,7 +51,8 @@ module readMod
       max_Cpay = maxval(NPP_myc)        
     end function read_maxC
 
-    subroutine read_WATSAT_and_profiles(clm_history_file,WATSAT,NDEP_PROF,FROOT_PROF,LEAF_PROF) !Needed bc. WATSAT is only given in the first outputfile of the simulation.
+    subroutine read_WATSAT_and_profiles(clm_history_file,WATSAT,NDEP_PROF,FROOT_PROF,LEAF_PROF) !Needed bc. these vars is only given in the first outputfile of the simulation.
+      !TODO: Makes more sense to have one subroutine for profiles and one for WATSAT?
       !INPUT
       character (len = *),intent(in):: clm_history_file       
       !OUTPUT
@@ -75,7 +78,7 @@ module readMod
       call check(nf90_close(ncid))
     end subroutine read_WATSAT_and_profiles
     
-    subroutine calc_PFT(clm_history_file,lflitcn_avg) 
+    subroutine calc_PFT(clm_history_file,lflitcn_avg) !Used to calculate metabolic fraction of litter (f_met)
       !INPUT
       character (len = *),intent(in):: clm_history_file       
       !OUTPUT
@@ -114,7 +117,7 @@ module readMod
       mean_clay_content = (sum(pct_clay)/size(pct_clay))/100.0 !output as fraction
     end subroutine read_clay
     
-    subroutine read_PFTs(clm_surface_file,PFT_dist)
+    subroutine read_PFTs(clm_surface_file,PFT_dist) !only used if use_ROI = False, so that myc. association is determined by PFT dist.
       !INPUT
       character (len = *),intent(in):: clm_surface_file
       
@@ -135,36 +138,36 @@ module readMod
                                     LEAFC_TO_LITTER,FROOTC_TO_LITTER,mcdate,TSOI,SOILLIQ,SOILICE, &
                                     W_SCALAR,T_SCALAR,QDRAI,h2o_liq_tot,C_CWD,N_CWD)
       !INPUT
-      integer,intent(in)            :: ncid
-      integer,intent(in)            :: time_entry
+      integer,intent(in)                        :: ncid
+      integer,intent(in)                        :: time_entry
         
       !OUTPUT 
-      real(r8),intent(out)                                :: LEAFN_TO_LITTER !litterfall N from leaves  [gN/m^2/hour] (converted from [gN/m^2/s])      
-      real(r8),intent(out)                                :: FROOTN_TO_LITTER !litterfall N from leaves  [gN/m^2/hour] (converted from [gN/m^2/s])
-      real(r8),intent(out)                                :: NPP_MYC                    
-      real(r8),intent(out)                                :: NDEP_TO_SMINN   !atmospheric N deposition to soil mineral N [gN/m^2/hour] (converted from [gN/m^2/s]) 
-      real(r8),intent(out)                                :: LEAFC_TO_LITTER
-      real(r8),intent(out)                                :: FROOTC_TO_LITTER
-      integer ,intent(out)                                :: mcdate  !"Current date" , end of averaging interval
-      real(r8),intent(out),dimension(nlevels)          :: TSOI    !Celcius
-      real(r8),intent(out),dimension(nlevels)          :: SOILLIQ !m3/m3 (converted from kg/m2)
-      real(r8),intent(out),dimension(nlevels)          :: SOILICE !m3/m3 (converted from kg/m2)
-      real(r8),intent(out),dimension(nlevels)          :: W_SCALAR    
-      real(r8),intent(out),dimension(nlevels)          :: T_SCALAR      
-      real(r8),intent(out)                                :: QDRAI   !kgH2O/(m2 h) converted from kgH2O/(m2 s)
-      real(r8),intent(out)                                :: h2o_liq_tot
-      real(r8),intent(out)                                :: C_CWD(:) !gC/(m3 h)
-      real(r8),intent(out)                                :: N_CWD(:) !gN/(m3 h)
+      real(r8),intent(out)                      :: LEAFN_TO_LITTER !litterfall N from leaves  [gN/m^2/hour] (converted from [gN/m^2/s])      
+      real(r8),intent(out)                      :: FROOTN_TO_LITTER !litterfall N from leaves  [gN/m^2/hour] (converted from [gN/m^2/s])
+      real(r8),intent(out)                      :: NPP_MYC                    
+      real(r8),intent(out)                      :: NDEP_TO_SMINN   !atmospheric N deposition to soil mineral N [gN/m^2/hour] (converted from [gN/m^2/s]) 
+      real(r8),intent(out)                      :: LEAFC_TO_LITTER
+      real(r8),intent(out)                      :: FROOTC_TO_LITTER
+      integer ,intent(out)                      :: mcdate  !"Current date" , end of averaging interval
+      real(r8),intent(out),dimension(nlevels)   :: TSOI    !Celcius
+      real(r8),intent(out),dimension(nlevels)   :: SOILLIQ !m3/m3 (converted from kg/m2)
+      real(r8),intent(out),dimension(nlevels)   :: SOILICE !m3/m3 (converted from kg/m2)
+      real(r8),intent(out),dimension(nlevels)   :: W_SCALAR    
+      real(r8),intent(out),dimension(nlevels)   :: T_SCALAR      
+      real(r8),intent(out)                      :: QDRAI   !kgH2O/(m2 h) converted from kgH2O/(m2 s)
+      real(r8),intent(out)                      :: h2o_liq_tot
+      real(r8),intent(out)                      :: C_CWD(:) !gC/(m3 h)
+      real(r8),intent(out)                      :: N_CWD(:) !gN/(m3 h)
 
-        !Local
-      integer                   :: varid
-      integer                   :: i
-      real(r8)                    :: C_CWD2(nlevels)
-      real(r8)                    :: C_CWD3(nlevels)        
-      real(r8)                    :: N_CWD2(nlevels)
-      real(r8)                    :: N_CWD3(nlevels)       
-      real(r8)                    :: NPP_NACTIVE  !Mycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s]) 
-      real(r8)                    :: NPP_NNONMYC  !NONMycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s]) 
+      !Local
+      integer                                   :: varid
+      integer                                   :: i
+      real(r8)                                  :: C_CWD2(nlevels)
+      real(r8)                                  :: C_CWD3(nlevels)        
+      real(r8)                                  :: N_CWD2(nlevels)
+      real(r8)                                  :: N_CWD3(nlevels)       
+      real(r8)                                  :: NPP_NACTIVE  !Mycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s]) 
+      real(r8)                                  :: NPP_NNONMYC  !NONMycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s]) 
 
       ! C in Coarse Woody Debris
       call check(nf90_inq_varid(ncid, 'CWDC_TO_LITR2C_vr', varid))
@@ -175,15 +178,16 @@ module readMod
       C_CWD3=C_CWD3*sec_pr_hr !gC/(m3 s) to gC/(m3 h)
       
       C_CWD=C_CWD2+C_CWD3
+
       ! N in Coarse Woody Debris
       call check(nf90_inq_varid(ncid, 'CWDN_TO_LITR2N_vr', varid))
-      call check(nf90_get_var(ncid, varid, N_CWD2, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))
-      
+      call check(nf90_get_var(ncid, varid, N_CWD2, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))      
       N_CWD2=N_CWD2*sec_pr_hr !gN/(m3 s) to gN/(m3 h)
       call check(nf90_inq_varid(ncid, 'CWDN_TO_LITR3N_vr', varid))
       call check(nf90_get_var(ncid, varid, N_CWD3, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))
       N_CWD3=N_CWD3*sec_pr_hr !gN/(m3 s) to gN/(m3 h)        
       N_CWD=N_CWD2+N_CWD3
+
       !C and N litter from leafs and fine roots:
       call check(nf90_inq_varid(ncid, 'LEAFN_TO_LITTER', varid))
       call check(nf90_get_var(ncid, varid, LEAFN_TO_LITTER,start=(/1, time_entry/)))
@@ -192,7 +196,6 @@ module readMod
       call check(nf90_inq_varid(ncid, 'FROOTN_TO_LITTER', varid))
       call check(nf90_get_var(ncid, varid, FROOTN_TO_LITTER,start=(/1, time_entry/)))
       FROOTN_TO_LITTER = FROOTN_TO_LITTER*sec_pr_hr  ![gC/m^2/h]    
-
 
       call check(nf90_inq_varid(ncid, 'LEAFC_TO_LITTER', varid))
       call check(nf90_get_var(ncid, varid, LEAFC_TO_LITTER,start=(/1, time_entry/)))          
