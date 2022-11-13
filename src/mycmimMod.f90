@@ -338,18 +338,17 @@ contains
       end if
       
       allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels), norm_froot_prof(nlevels))   
-
       call read_WATSAT_and_profiles(adjustr(clm_input_path)//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof)         
       call moisture_func(SOILLIQ,WATSAT,SOILICE,r_moist)                   
       call read_clay(adjustr(clm_surf_path),fCLAY)
       call calc_PFT(adjustr(clm_input_path)//'all.'//"1901.nc",lflitcn_avg)
-            
+      
       if ( .not. use_ROI ) then !use static PFT determined fractionation between EcM and AM C input
         call read_PFTs(adjustr(clm_surf_path),PFT_distribution)
         f_alloc(:,1) = calc_EcMfrac(PFT_distribution)
         f_alloc(:,2) = 1-calc_EcMfrac(PFT_distribution)
       end if
-    
+      
       if (f_alloc(1,1)==1.0 ) then !To avoid writing errors when AM = 0
         pool_matrixC(:,6)=0.0
         pool_matrixN(:,6)=0.0
@@ -358,26 +357,26 @@ contains
         pool_C_start_for_mass_cons=pool_matrixC
         pool_N_start_for_mass_cons=pool_matrixN
       end if
-
+      
       if ( Spinup_run ) then
         call create_yearly_mean_netcdf(trim(out_path),run_name)  !open and prepare files to store results. Store initial values        
         max_mining = read_maxC(spinupncid,input_steps)
       else
         max_mining = read_maxC(ncid,input_steps)        
       end if
-
+      
       desorp          = calc_desorp(fCLAY)
       fMET            = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
       norm_froot_prof = (froot_prof-minval(froot_prof))/(maxval(froot_prof)-minval(froot_prof))
-
+      
       call create_netcdf(trim(out_path),run_name)
       call check(nf90_open(trim(out_path)//trim(run_name)//".nc", nf90_write, writencid))      
       call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN,inorg_N_matrix, &
-                      date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa, change_matrixC,&
-                      change_matrixN,write_hour,current_month,TSOIL, r_moist, &
-                      CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM, & 
-                      ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
-                
+      date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa, change_matrixC,&
+      change_matrixN,write_hour,current_month,TSOIL, r_moist, &
+      CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM, & 
+      ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
+      
       !print initial values to terminal      
       call disp("InitC", pool_matrixC)
       call disp("InitN", pool_matrixN)

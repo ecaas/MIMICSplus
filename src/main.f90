@@ -70,6 +70,7 @@ program main
   
   !1: INITIALIZE
   call initialize(C_matrix_init,N_matrix_init,N_inorg_matrix_init)
+  print*,trim(trim(site)//"_"//trim(description)//"_"//"Spunup")
 
   !2: SPINUP
   call decomp(nsteps=spinup_years*24*365, &

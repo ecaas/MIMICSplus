@@ -168,7 +168,7 @@ module readMod
       real(r8)                                  :: N_CWD3(nlevels)       
       real(r8)                                  :: NPP_NACTIVE  !Mycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s]) 
       real(r8)                                  :: NPP_NNONMYC  !NONMycorrhizal N uptake used C        [gC/m^2/hour] (converted from [gC/m^2/s]) 
-
+      
       ! C in Coarse Woody Debris
       call check(nf90_inq_varid(ncid, 'CWDC_TO_LITR2C_vr', varid))
       call check(nf90_get_var(ncid, varid, C_CWD2, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))
@@ -178,7 +178,7 @@ module readMod
       C_CWD3=C_CWD3*sec_pr_hr !gC/(m3 s) to gC/(m3 h)
       
       C_CWD=C_CWD2+C_CWD3
-
+      
       ! N in Coarse Woody Debris
       call check(nf90_inq_varid(ncid, 'CWDN_TO_LITR2N_vr', varid))
       call check(nf90_get_var(ncid, varid, N_CWD2, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))      
@@ -187,7 +187,7 @@ module readMod
       call check(nf90_get_var(ncid, varid, N_CWD3, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))
       N_CWD3=N_CWD3*sec_pr_hr !gN/(m3 s) to gN/(m3 h)        
       N_CWD=N_CWD2+N_CWD3
-
+      
       !C and N litter from leafs and fine roots:
       call check(nf90_inq_varid(ncid, 'LEAFN_TO_LITTER', varid))
       call check(nf90_get_var(ncid, varid, LEAFN_TO_LITTER,start=(/1, time_entry/)))
@@ -196,7 +196,7 @@ module readMod
       call check(nf90_inq_varid(ncid, 'FROOTN_TO_LITTER', varid))
       call check(nf90_get_var(ncid, varid, FROOTN_TO_LITTER,start=(/1, time_entry/)))
       FROOTN_TO_LITTER = FROOTN_TO_LITTER*sec_pr_hr  ![gC/m^2/h]    
-
+      
       call check(nf90_inq_varid(ncid, 'LEAFC_TO_LITTER', varid))
       call check(nf90_get_var(ncid, varid, LEAFC_TO_LITTER,start=(/1, time_entry/)))          
       LEAFC_TO_LITTER = LEAFC_TO_LITTER*sec_pr_hr  ![gC/m^2/h]
@@ -236,7 +236,6 @@ module readMod
       
       call check(nf90_inq_varid(ncid, 'T_SCALAR', varid))
       call check(nf90_get_var(ncid, varid, T_SCALAR, start=(/1,1,time_entry/), count=(/1,nlevels,1/)))
-
       call check(nf90_inq_varid(ncid, 'QDRAI', varid)) !mmH2O/s = kg H2O/(m2 s)
       call check(nf90_get_var(ncid, varid, QDRAI,start=(/1, time_entry/)))    
       QDRAI = QDRAI*sec_pr_hr !kgH2O/(m2 h)
