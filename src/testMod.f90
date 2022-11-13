@@ -1,6 +1,6 @@
 module testMod
   use shr_kind_mod   , only : r8 => shr_kind_r8
-  use paramMod, only : delta_z,pool_types,pool_types_N,inorg_N_pools
+  use paramMod, only : delta_z,pool_types,pool_types_N,inorg_N_pools,trunc_value
   use dispmodule, only: disp
   use initMod, only: nlevels
   implicit none
@@ -104,7 +104,7 @@ contains
     goal = sum_old + mass_input - mass_out
     diff = sum_new-goal
     
-    if (abs(diff) > 1e-10) then  
+    if (abs(diff) > trunc_value) then  
       print*, "Mass NOT conserved for CARBON"
       print*, '-----------------------------------------------------------'
       print*, '(mass at t+dt) - (mass at t + Input - out): ', diff
@@ -150,7 +150,7 @@ contains
     goal = sum_old + mass_input - mass_out
     diff = sum_new-goal
     
-    if (abs(diff) > 1e-10) then
+    if (abs(diff) > trunc_value) then
       print*, "Mass NOT conserved for NITROGEN"
       print*, '-----------------------------------------------------------'
       print*, '(mass at t+dt) - (mass at t + Input - out): ', diff

@@ -281,28 +281,42 @@ module writeMod
       end if
     end subroutine get_timestep
 
-    subroutine fluxes_netcdf(ncid,time, write_hour, depth_level)
+    subroutine fluxes_netcdf(ncid,time, write_hour, depth_level, &
+                            C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_AMSOMp, &
+                            C_LITmSAPf, C_LITsSAPf, C_AMSOMa,  C_AMSOMc,  C_SOMaSAPb,C_SOMaSAPf, &
+                            C_SOMpSOMa, C_SOMcSOMa, C_SAPbSOMa,C_SAPbSOMp,C_SAPbSOMc,C_SAPfSOMa, &
+                            C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp,C_PlantSOMa, &
+                            N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc,  N_AMSOMp, &
+                            N_AMSOMa,N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, &
+                            N_LITmSAPf, N_LITsSAPf, N_INPlant, N_INEcM,&
+                            N_INAM, N_EcMPlant, N_AMPlant,N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc, &
+                            N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc,N_SOMcEcM,N_SOMpEcM, &
+                            C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp, &
+                            C_EcMdecompSOMc,Leaching, Deposition,nitrif_rate, &
+                            N_INSAPb,N_INSAPf,N_PlantSOMp,C_EcMenz_prod, N_PlantLITs, N_PlantLITm,  N_PlantSOMa,N_PlantSOMc)
       integer,intent(in)  :: ncid
       integer, intent(in) :: time
       integer, intent(in) :: write_hour
       integer, intent(in) :: depth_level
-
+      real(r8),intent(in) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_AMSOMp, &
+                            C_LITmSAPf, C_LITsSAPf, C_AMSOMa,  C_AMSOMc,  C_SOMaSAPb,C_SOMaSAPf, &
+                            C_SOMpSOMa, C_SOMcSOMa, C_SAPbSOMa,C_SAPbSOMp,C_SAPbSOMc,C_SAPfSOMa, &
+                            C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp,C_PlantSOMa, &
+                            N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc,  N_AMSOMp, &
+                            N_AMSOMa,N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, &
+                            N_LITmSAPf, N_LITsSAPf, N_INPlant, N_INEcM,&
+                            N_INAM, N_EcMPlant, N_AMPlant,N_SAPbSOMa, N_SAPbSOMp, N_SAPbSOMc, &
+                            N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc,N_SOMcEcM,N_SOMpEcM, &
+                            C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp, &
+                            C_EcMdecompSOMc,Leaching, Deposition,nitrif_rate, &
+                            N_INSAPb,N_INSAPf,N_PlantSOMp, C_EcMenz_prod, N_PlantLITs, N_PlantLITm,  N_PlantSOMa,N_PlantSOMc
       !Local:
       integer :: timestep
+      integer :: varid
      !---------------------------------------------
       call get_timestep(time, write_hour, timestep)
-      call write_Nfluxes(ncid, timestep, depth_level)
-      call write_Cfluxes(ncid, timestep, depth_level)
-    end subroutine fluxes_netcdf
 
-    subroutine write_Cfluxes(ncid,timestep,depth_level)
-      
-      !INPUT:
-      integer, intent(in) :: ncid
-      integer, intent(in) :: timestep
-      integer, intent(in) :: depth_level
-
-
+      !C fluxes
       call check_and_write(ncid, "C_PlantLITm", C_PlantLITm,timestep,depth_level)
       call check_and_write(ncid, "C_PlantLITs",C_PlantLITs ,timestep,depth_level)
       call check_and_write(ncid, "C_PlantEcM", C_PlantEcM,timestep,depth_level)
@@ -333,7 +347,48 @@ module writeMod
       call check_and_write(ncid, "C_EcMdecoSOMp",C_EcMdecompSOMp ,timestep,depth_level)
       call check_and_write(ncid, "C_EcMdecoSOMc",C_EcMdecompSOMc ,timestep,depth_level)
       call check_and_write(ncid, "C_EcMenz_prod",C_EcMenz_prod ,timestep,depth_level)
-    end subroutine write_Cfluxes
+      !N fluxes:
+      call check_and_write(ncid, "N_LITmSAPb", N_LITmSAPb,timestep,depth_level)
+      call check_and_write(ncid, "N_LITsSAPb", N_LITsSAPb, timestep,depth_level)
+      call check_and_write(ncid, "N_LITmSAPf", N_LITmSAPf, timestep,depth_level)
+      call check_and_write(ncid, "N_LITsSAPf", N_LITsSAPf ,timestep,depth_level)
+      call check_and_write(ncid, "N_SOMpSOMa", N_SOMpSOMa ,timestep,depth_level)
+      call check_and_write(ncid, "N_SOMcSOMa", N_SOMcSOMa ,timestep,depth_level)
+      call check_and_write(ncid, "N_SAPbSOMa", N_SAPbSOMa,timestep,depth_level)
+      call check_and_write(ncid, "N_SAPfSOMa",N_SAPfSOMa ,timestep,depth_level)
+      call check_and_write(ncid, "N_EcMSOMa", N_EcMSOMa,timestep,depth_level)
+      call check_and_write(ncid, "N_EcMSOMc",N_EcMSOMc ,timestep,depth_level)
+      call check_and_write(ncid, "N_EcMSOMp", N_EcMSOMp,timestep,depth_level)
+      call check_and_write(ncid, "N_AMSOMa", N_AMSOMa,timestep,depth_level)
+      call check_and_write(ncid, "N_AMSOMc", N_AMSOMc,timestep,depth_level)
+      call check_and_write(ncid, "N_AMSOMp", N_AMSOMp,timestep,depth_level)
+      call check_and_write(ncid, "N_SOMaSAPb",N_SOMaSAPb ,timestep,depth_level)
+      call check_and_write(ncid, "N_SOMaSAPf", N_SOMaSAPf,timestep,depth_level)
+      call check_and_write(ncid, "N_SAPbSOMp", N_SAPbSOMp,timestep,depth_level)
+      call check_and_write(ncid, "N_SAPfSOMp", N_SAPfSOMp,timestep,depth_level)
+      call check_and_write(ncid, "N_SAPbSOMc", N_SAPbSOMc,timestep,depth_level)
+      call check_and_write(ncid, "N_SAPfSOMc",N_SAPfSOMc ,timestep,depth_level)
+      call check(nf90_inq_varid(ncid, "N_INSAPf", varid))
+      call check(nf90_put_var(ncid, varid, N_INSAPf, start = (/ timestep, depth_level /)))     
+      call check(nf90_inq_varid(ncid, "N_INSAPb", varid))
+      call check(nf90_put_var(ncid, varid, N_INSAPb, start = (/ timestep, depth_level /)))          
+      call check_and_write(ncid, "N_INAM", N_INAM,timestep,depth_level)
+      call check_and_write(ncid, "N_INEcM", N_INEcM,timestep,depth_level)
+      call check_and_write(ncid, "N_Deposition",Deposition ,timestep,depth_level)
+      call check_and_write(ncid, "N_Leaching",Leaching ,timestep,depth_level)
+      call check_and_write(ncid, "N_PlantLITm",N_PlantLITm ,timestep,depth_level)
+      call check_and_write(ncid, "N_PlantLITs", N_PlantLITs,timestep,depth_level)
+      call check_and_write(ncid, "N_PlantSOMp",N_PlantSOMp ,timestep,depth_level)
+      call check_and_write(ncid, "N_PlantSOMa", N_PlantSOMa,timestep,depth_level)
+      call check_and_write(ncid, "N_PlantSOMc",N_PlantSOMc ,timestep,depth_level)
+      call check_and_write(ncid, "N_EcMPlant", N_EcMPlant,timestep,depth_level)
+      call check_and_write(ncid, "N_AMPlant", N_AMPlant,timestep,depth_level)
+      call check_and_write(ncid, "N_InPlant",N_InPlant ,timestep,depth_level)
+      call check_and_write(ncid, "N_SOMpEcM", N_SOMpEcM,timestep,depth_level)
+      call check_and_write(ncid, "N_SOMcEcM",N_SOMcEcM ,timestep,depth_level)
+      call check_and_write(ncid, "N_nitrif_rate", nitrif_rate,timestep,depth_level)
+
+    end subroutine fluxes_netcdf
     
     subroutine check_and_write(ncid,name_of_var,var,time,depth) !NB; do not use on values that can be negative!
       integer, intent(in)      :: ncid
@@ -356,87 +411,6 @@ module writeMod
       call check(nf90_put_var(ncid, varid, used_var, start = (/ time, depth /)))
       
     end subroutine check_and_write
-    
-    subroutine write_Nfluxes(ncid,timestep,depth_level)
-      integer, intent(in) :: ncid
-      integer, intent(in) :: timestep
-      integer, intent(in) :: depth_level
-
-      !local
-      integer :: varid
-
-      call check_and_write(ncid, "N_LITmSAPb", N_LITmSAPb,timestep,depth_level)
-      call check_and_write(ncid, "N_LITsSAPb", N_LITsSAPb, timestep,depth_level)
-      call check_and_write(ncid, "N_LITmSAPf", N_LITmSAPf, timestep,depth_level)
-      call check_and_write(ncid, "N_LITsSAPf", N_LITsSAPf ,timestep,depth_level)
-      call check_and_write(ncid, "N_SOMpSOMa", N_SOMpSOMa ,timestep,depth_level)
-      call check_and_write(ncid, "N_SOMcSOMa", N_SOMcSOMa ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_SAPbSOMa", N_SAPbSOMa,timestep,depth_level)
-
-      call check_and_write(ncid, "N_SAPfSOMa",N_SAPfSOMa ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_EcMSOMa", N_EcMSOMa,timestep,depth_level)
-
-      call check_and_write(ncid, "N_EcMSOMc",N_EcMSOMc ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_EcMSOMp", N_EcMSOMp,timestep,depth_level)
-
-      call check_and_write(ncid, "N_AMSOMa", N_AMSOMa,timestep,depth_level)
-
-      call check_and_write(ncid, "N_AMSOMc", N_AMSOMc,timestep,depth_level)
-
-      call check_and_write(ncid, "N_AMSOMp", N_AMSOMp,timestep,depth_level)
-
-      call check_and_write(ncid, "N_SOMaSAPb",N_SOMaSAPb ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_SOMaSAPf", N_SOMaSAPf,timestep,depth_level)
-
-      call check_and_write(ncid, "N_SAPbSOMp", N_SAPbSOMp,timestep,depth_level)
-
-      call check_and_write(ncid, "N_SAPfSOMp", N_SAPfSOMp,timestep,depth_level)
-
-      call check_and_write(ncid, "N_SAPbSOMc", N_SAPbSOMc,timestep,depth_level)
-
-      call check_and_write(ncid, "N_SAPfSOMc",N_SAPfSOMc ,timestep,depth_level)
-
-      call check(nf90_inq_varid(ncid, "N_INSAPf", varid))
-      call check(nf90_put_var(ncid, varid, N_INSAPf, start = (/ timestep, depth_level /)))
-      
-      call check(nf90_inq_varid(ncid, "N_INSAPb", varid))
-      call check(nf90_put_var(ncid, varid, N_INSAPb, start = (/ timestep, depth_level /)))      
-      
-      call check_and_write(ncid, "N_INAM", N_INAM,timestep,depth_level)
-
-      call check_and_write(ncid, "N_INEcM", N_INEcM,timestep,depth_level)
-
-      call check_and_write(ncid, "N_Deposition",Deposition ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_Leaching",Leaching ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_PlantLITm",N_PlantLITm ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_PlantLITs", N_PlantLITs,timestep,depth_level)
-
-      call check_and_write(ncid, "N_PlantSOMp",N_PlantSOMp ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_PlantSOMa", N_PlantSOMa,timestep,depth_level)
-
-      call check_and_write(ncid, "N_PlantSOMc",N_PlantSOMc ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_EcMPlant", N_EcMPlant,timestep,depth_level)
-
-      call check_and_write(ncid, "N_AMPlant", N_AMPlant,timestep,depth_level)
-
-      call check_and_write(ncid, "N_InPlant",N_InPlant ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_SOMpEcM", N_SOMpEcM,timestep,depth_level)
-
-      call check_and_write(ncid, "N_SOMcEcM",N_SOMcEcM ,timestep,depth_level)
-
-      call check_and_write(ncid, "N_nitrif_rate", nitrif_rate,timestep,depth_level)
-
-    end subroutine write_Nfluxes
 
     subroutine create_yearly_mean_netcdf(output_path,run_name)
       character (len = *), intent(in):: run_name

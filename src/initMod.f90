@@ -63,9 +63,7 @@ contains
     !Out:
     real(r8),intent(out)            :: sol_eq  !g/m3, NH4 in soil solution at eq
     real(r8),intent(out)            :: sorp_eq !g/m3, NH4 sorbed to particles at eq
-    
-    
-    
+
     real(r8), parameter :: mg_pr_g = 1e3 !mg/g
     real(r8), parameter :: m3_pr_L = 1e-3 !m3/L
     real(r8), parameter :: BD_soil=1.6e6  !g/m3 (loam) soil from DOI: 10.3390/APP6100269 Table 1
