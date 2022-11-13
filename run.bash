@@ -10,6 +10,7 @@ mkdir ./results/${description}
 cp ./src/paramMod.f90 ./results/${description}/parameters_${description}_${site}.txt
 cp ./src/mycmimMod.f90  ./results/${description}/main_${description}_${site}.txt
 
+for site in 31464_Hurdal
 do
   cp options.nml ./results/${description}/options_${description}_${site}.txt
   clm_data_file='./test/'${site}'_historical/lnd/hist/'${site}'_historical.clm2.'
