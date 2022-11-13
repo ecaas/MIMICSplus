@@ -264,7 +264,7 @@ contains
     air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
     moist_mod = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
 
-    moist_mod = max(0.05, r_moist)
+    moist_mod = max(0.05, moist_mod)
   end subroutine moisture_func
 
   function calc_met_fraction(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lflitcn) result(fmetabolic)
