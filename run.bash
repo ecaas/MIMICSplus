@@ -8,9 +8,7 @@ only_spinup='False'
 
 mkdir ./results/${description}
 cp ./src/paramMod.f90 ./results/${description}/parameters_${description}_${site}.txt
-cp ./src/fluxMod.f90  ./results/${description}/flux_${description}_${site}.txt
-
-for site in 31539_Modum
+cp ./src/mycmimMod.f90  ./results/${description}/main_${description}_${site}.txt
 
 do
   cp options.nml ./results/${description}/options_${description}_${site}.txt
