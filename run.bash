@@ -3,7 +3,7 @@
 #Review these variables before running: 
 description='test_fixes2'
 namelist_file='options.nml'
-spinup_years=100
+spinup_years=10
 only_spinup='False'
 
 mkdir ./results/${description}
