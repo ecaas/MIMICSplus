@@ -19,7 +19,7 @@ ifneq ($(MODDIR),)
   FCFLAGS+= -J $(MODDIR)
 endif
 
-OBJ = $(BUILD_DIR)/main.o $(BUILD_DIR)/mycmimMod.o $(BUILD_DIR)/fluxMod.o $(BUILD_DIR)/initMod.o \
+OBJ = $(BUILD_DIR)/main.o $(BUILD_DIR)/mycmimMod.o $(BUILD_DIR)/initMod.o \
 	$(BUILD_DIR)/testMod.o $(BUILD_DIR)/writeMod.o $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o \
 	$(BUILD_DIR)/shr_kind_mod.o $(BUILD_DIR)/readMod.o
 #-------------------------------------------------------------------------------
@@ -38,12 +38,9 @@ $(PROG): $(OBJ)
 $(BUILD_DIR)/dispmodule.o: $(SRC_DIRS)/dispmodule.f90
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/dispmodule.f90 -o $@
 
-$(BUILD_DIR)/mycmimMod.o: $(SRC_DIRS)/mycmimMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o $(BUILD_DIR)/fluxMod.o $(BUILD_DIR)/initMod.o $(BUILD_DIR)/writeMod.o \
+$(BUILD_DIR)/mycmimMod.o: $(SRC_DIRS)/mycmimMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o $(BUILD_DIR)/initMod.o $(BUILD_DIR)/writeMod.o \
 $(BUILD_DIR)/testMod.o $(BUILD_DIR)/readMod.o
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/mycmimMod.f90 -o $@
-
-$(BUILD_DIR)/fluxMod.o: $(SRC_DIRS)/fluxMod.f90 $(BUILD_DIR)/paramMod.o $(BUILD_DIR)/dispmodule.o $(BUILD_DIR)/initMod.o
-	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/fluxMod.f90 -o $@
 
 $(BUILD_DIR)/initMod.o: $(SRC_DIRS)/initMod.f90
 	$(FC) $(FFLAGS) -c $(FINCLUDES) $(SRC_DIRS)/initMod.f90 -o $@
