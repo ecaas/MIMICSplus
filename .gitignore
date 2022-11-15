@@ -166,7 +166,8 @@ testbed/
 src/.tags*
 src/*.txt
 text_files/
-/results/*
+results/*
+!results/readme.txt
 /jupyter_notebooks
 31464_Hurdal_historical/lnd/hist/*
 unused/
