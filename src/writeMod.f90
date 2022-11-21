@@ -433,8 +433,7 @@ module writeMod
       call check(nf90_def_var(ncid, "N_NH4_sol", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "N_NH4_sorp", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
       call check(nf90_def_var(ncid, "N_NO3", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
-      call check(nf90_def_var(ncid, "HR_flux", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
-      
+      call check(nf90_def_var(ncid, "HR_flux", NF90_FLOAT, (/t_dimid /), varid))
       
       call check(nf90_def_var(ncid, "year_since_start", NF90_FLOAT, (/t_dimid /), varid))
       call check(nf90_enddef(ncid))
@@ -481,7 +480,7 @@ module writeMod
       character (len = *),intent(in) :: output_path
 
       integer,intent(in)            :: year
-      real(r8),intent(in)            :: HR_flux_yearly  
+      real(r8),intent(in)           :: HR_flux_yearly  
       real(r8), intent(in)          :: Cpool_yearly(nlevels,pool_types)  ! For storing C pool sizes [gC/m3]
       real(r8),intent(in)           :: Npool_yearly(nlevels,pool_types_N)  
       real(r8),intent(in)           :: Ninorg_pool_yearly(nlevels,inorg_N_pools)  
@@ -494,6 +493,9 @@ module writeMod
       call check(nf90_inq_varid(ncid, "year_since_start", varid))
       call check(nf90_put_var(ncid, varid, year , start = (/ year /)))
 
+      call check(nf90_inq_varid(ncid, "HR_flux", varid))
+      call check(nf90_put_var(ncid, varid, HR_flux_yearly, start = (/year/)))
+
       do j=1,nlevels
         call check(nf90_inq_varid(ncid, "N_NH4_sol", varid))
         call check(nf90_put_var(ncid, varid, Ninorg_pool_yearly(j,1), start = (/year, j/)))
@@ -504,8 +506,6 @@ module writeMod
         call check(nf90_inq_varid(ncid, "N_NO3", varid))
         call check(nf90_put_var(ncid, varid, Ninorg_pool_yearly(j,3), start = (/year, j/)))
 
-        call check(nf90_inq_varid(ncid, "HR_flux", varid))
-        call check(nf90_put_var(ncid, varid, HR_flux_yearly, start = (/year, j/)))
                 
         do i = 1,pool_types
           if ( Cpool_yearly(j,i) < epsilon(Cpool_yearly) ) then

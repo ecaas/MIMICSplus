@@ -65,21 +65,22 @@ contains
     REAL(r8), DIMENSION(nlevels,pool_types)  , intent(in):: yearly_sumC
     REAL(r8), DIMENSION(nlevels,pool_types_N), intent(in):: yearly_sumN
     REAL(r8), DIMENSION(nlevels,inorg_N_pools), intent(in):: yearly_sumNinorg
-    REAL(r8), intent(in):: sum_HR    
-    integer,  intent(in) :: year
+    REAL(r8), intent(in)  :: sum_HR    !NB: Sum over all layers
+    integer,  intent(in)  :: year
     CHARACTER (len = *), intent(in):: run_name
     character (len = *),intent(in) :: output_path
 
     !Local
-    REAL(r8), DIMENSION(nlevels,pool_types) :: yearly_meanC
-    REAL(r8), DIMENSION(nlevels,pool_types_N) :: yearly_meanN
-    REAL(r8), DIMENSION(nlevels,inorg_N_pools) :: yearly_meanNinorg
+    REAL(r8), DIMENSION(nlevels,pool_types)     :: yearly_meanC
+    REAL(r8), DIMENSION(nlevels,pool_types_N)   :: yearly_meanN
+    REAL(r8), DIMENSION(nlevels,inorg_N_pools)  :: yearly_meanNinorg
     real(r8) :: yearly_mean_HR
-    integer, parameter                         :: hr_in_year = 24*365
+    integer, parameter                          :: hr_in_year = 24*365
     
     yearly_meanC=yearly_sumC/hr_in_year
     yearly_meanN=yearly_sumN/hr_in_year
     yearly_meanNinorg=yearly_sumNinorg/hr_in_year
+    
     yearly_mean_HR = sum_HR/hr_in_year
     
     call fill_yearly_netcdf(output_path,run_name, year, yearly_meanC,yearly_meanN,yearly_meanNinorg,yearly_mean_HR)
@@ -687,7 +688,7 @@ contains
           write_y =write_y+1 !For writing to annual mean file
           
           if ( Spinup_run ) then 
-            call annual_mean(trim(out_path),sum_consC,sum_consN,sum_consNinorg,HR_mass,write_y , run_name) !calculates the annual mean and write the result to file
+            call annual_mean(trim(out_path),sum_consC,sum_consN,sum_consNinorg,HR_mass_yearly,write_y , run_name) !calculates the annual mean and write the result to file
           end if
           if (year == stop_year) then
             year = start_year         
