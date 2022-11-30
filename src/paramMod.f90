@@ -15,7 +15,7 @@ implicit none
   real(r8), parameter                           :: m3_pr_L        = 1e-3 !m3/L
   integer,  parameter, dimension(12)            :: days_in_month  = (/31,28,31,30,31,30,31,31,30,31,30,31/)
 
-  real(r8)                                      :: trunc_value    = 1.e-8_r8
+  real(r8), parameter                           :: trunc_value    = 1.e-8_r8
 
   !Pools: NOTE: This needs to be updated if pools are added to/removed from the system.
   integer, parameter                            :: no_of_litter_pools = 2         !Metabolic and structural
@@ -58,7 +58,7 @@ implicit none
   real(r8),parameter                            :: D_nitrogen= 1.14e-8![m2/h] Diffusivity. Based on Koven et al 2013, 1cm2/yr = 1e-4/(24*365)
 
   !Efficiencies
-  real(r8),parameter                            :: CUE_0b    = 0.3      ![-] Assumed
+  real(r8),parameter                            :: CUE_0b    = 0.4      ![-] Assumed
   real(r8),parameter                            :: CUE_0f    = 0.7      ![-] Assumed
   real(r8),parameter                            :: CUE_myc_0 = 0.25_r8  ![-] Baskaran
   real(r8),parameter                            :: CUE_slope = 0.0!-0.016 !From German et al 2012
@@ -66,7 +66,7 @@ implicit none
 
   !Fractions
   real(r8), parameter                           :: f_met_to_som   = 0.1_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-  real(r8), parameter                           :: f_struct_to_som= 0.4_r8 ! fraction of structural litter flux that goes directly to SOM pools
+  real(r8), parameter                           :: f_struct_to_som= 0.3_r8 ! fraction of structural litter flux that goes directly to SOM pools
   real(r8), parameter                           :: f_enzprod_0    = 0.1_r8
   real(r8), parameter                           :: f_growth       = 0.5_r8 !Fraction of mycorrhizal N uptake that needs to stay within the fungi (not given to plant) Assumed
   !New CUE are calculated based on this. NB: VERY ASSUMED!!
@@ -82,33 +82,31 @@ implicit none
   
   real(kind=r8),dimension(MM_eqs)               :: Km               ![mgC/cm3]*1e3=[gC/m3] (convert units in a_k) see function Km_function
   real(kind=r8),dimension(MM_eqs)               :: Vmax             ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. see function Vmax_function
-  real(r8)                                      :: soil_depth       ![m] 
   real(r8), dimension(no_of_sap_pools)          :: k_sapsom                        ![1/h] (tau in MIMICS)  !For calculating turnover from SAP & MYC to SOM (see mimics model for SAP expressions): https://doi.org/10.5194/gmd-8-1789-2015 and  https://github.com/wwieder/MIMICS)
   real(kind=r8),dimension(no_of_myc_pools)      :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
   real(r8), dimension(no_of_sap_pools)          :: fPHYS,fCHEM,fAVAIL              ![-]
   real(kind=r8)                                 :: fCLAY                           ![-] fraction of clay in soil (input)
   !Modifiers
   real(r8),dimension(:),allocatable             :: r_moist !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
-  real(r8)                                      :: max_mining 
-  real(r8)                                      :: input_mod 
-  real(r8),dimension(:),allocatable             :: CUE_bacteria_vr
-  real(r8),dimension(:),allocatable             :: CUE_fungi_vr
-  real(r8),dimension(:),allocatable             :: CUE_ecm_vr         !Growth efficiency of mycorrhiza 
-  real(r8),dimension(:),allocatable             :: CUE_am_vr         !Growth efficiency of mycorrhiza 
-  real(r8),dimension(:),allocatable             :: f_enzprod 
-  real(r8),dimension(:),allocatable             :: NH4_sorp_eq_vr
-  real(r8)                                      :: desorp ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
+  real(r8)                                      :: max_mining !Used in function EcM_modifier 
+  real(r8)                                      :: EcM_mod  ![-] Modifies EcM mining based on incoming C from plant
+  real(r8),dimension(:),allocatable             :: CUE_bacteria_vr  ![-] vertically resolved growth efficiency of bacteria
+  real(r8),dimension(:),allocatable             :: CUE_fungi_vr     ![-] vertically resolved Growth efficiency of fungi 
+  real(r8),dimension(:),allocatable             :: CUE_ecm_vr       ![-] vertically resolved Growth efficiency of ectomycorrhiza 
+  real(r8),dimension(:),allocatable             :: CUE_am_vr        ![-] vertically resolved Growth efficiency of arbuscular mycorrhiza 
+  real(r8),dimension(:),allocatable             :: f_enzprod        ![-] Fraction of C that EcM use to produce enzymes used for extracting N from SOM (mining)
+  real(r8),dimension(:),allocatable             :: NH4_sorp_eq_vr   !Only defined here for writing to file. see subroutine calc_NH4_sol_sorp
 
   !Public variables
-  real(r8), public                              :: dt
-  logical,  public                              :: use_ROI, use_Sulman, use_ENZ
+  real(r8), public                              :: dt !read from namelist in main.f90
+  logical,  public                              :: use_ROI, use_Sulman, use_ENZ !read from namelist in main.f90
 
-    !For timing purposes:
+  !For timing purposes:
   integer(r8)                                   :: clock_rate,clock_start,clock_stop
   integer(r8)                                   :: full_clock_rate,full_clock_start,full_clock_stop
 contains
   
-  function Km_function(temperature,clay_fraction) result(K_m)
+  function Km_function(temperature,clay_fraction) result(K_m) !As in early MIMICS versions. (Not used, use reverse_Km_function instead!)
     !IN:
     real(r8), intent(in)                    :: temperature
     real(r8), intent(in)                    :: clay_fraction
@@ -135,30 +133,30 @@ contains
     real(r8), dimension(MM_eqs) :: K_mod_rev
     
     p = 1.0/(2*exp(-2.0*sqrt(clay_fraction)))
-    !NOTE: from CTSM param file, multiplied w. 1000 to get units right. Combines a_k and Kmod 
+    !NOTE: from CTSM param file, multiplied w. 1000 to get units right. Combines a_k and Kmod (after discussion with Will W.)
     K_mod_rev =  [real(r8) :: 0.001953125, 0.0078125, 0.00390625*p, 0.0078125, 0.00390625, 0.002604167*p]*1000 !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
     K_m_reverse      = exp(Kslope*temperature + Kint)*K_mod_rev
   end function reverse_Km_function
 
-  function Vmax_function(temperature, moisture) result(V_max)
+  function Vmax_function(temperature, moisture) result(V_max) !As in MIMICS (the same for both forward and reverse MMK)
     real(r8),dimension(MM_eqs)             :: V_max
     real(r8), intent(in)                   :: temperature
     real(r8), intent(in)                   :: moisture
     V_max    = exp(Vslope*temperature + Vint)*a_v*Vmod*moisture   ![mgC/((mgSAP)h)] For use in Michaelis menten kinetics. TODO: Is mgSAP only carbon?
   end function Vmax_function
   
-  function calc_desorp(clay_fraction) result(d)
+  function calc_desorp(clay_fraction) result(d) !As in MIMICS (values may vary)
     !For transport from SOMp to SOMa
     real(r8)             :: d
     real(r8), intent(in) :: clay_fraction
     d = 1.5e-5*exp(-1.5*(clay_fraction))
   end function calc_desorp
   
-  function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) ! Based on Sulman et al 2019
+  function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) !Return Of Investment, Based on Sulman et al 2019
     !INPUT
-    real(r8),intent(in) :: N_aquired ![gN/m3 hr]
-    real(r8),intent(in) :: C_myc ![gC/m3]
-    real(r8),intent(in) :: loss_rate ![1/h]
+    real(r8),intent(in) :: N_aquired ![gN/m3 hr] 
+    real(r8),intent(in) :: C_myc ![gC/m3] mycorrhizal biomass
+    real(r8),intent(in) :: loss_rate ![1/h] Loss rate of mycorrhizal fungi
     
     !OUTPUT
     real(r8) :: ROI
@@ -168,18 +166,24 @@ contains
     real(r8) :: turnover ! [hour]
     
     turnover = 1/loss_rate 
-    if ( N_aquired < epsilon(N_aquired) ) then
+    if ( N_aquired < epsilon(N_aquired) ) then !If very little N is aquired, assume ROI = 0
       ROI=0.0
     else 
       ROI=(N_aquired/C_myc)*turnover*eps  
     end if
   end function ROI_function 
   
-  function calc_EcMfrac(PFT_dist) result(EcM_frac)
-    real(r8)                             :: EcM_frac
+  function calc_EcMfrac(PFT_dist) result(EcM_frac) !Used when ROI=False in namelist options
+    !In:
     real(r8),dimension(15)               :: PFT_dist
-    real(r8),dimension(15),parameter     :: EcM_fraction=(/1.,1.,1.,1.,0.,0.,0.,0.5,1.,1.,1.,1.,1.,0.,0./)
+    
+    !Out:
+    real(r8)                             :: EcM_frac
+    
+    !Local:
     integer                              :: i
+    real(r8),dimension(15),parameter     :: EcM_fraction=(/1.,1.,1.,1.,0.,0.,0.,0.5,1.,1.,1.,1.,1.,0.,0./) !from CLM param file
+
     EcM_frac = 0.0
     do i = 1, 15, 1
       EcM_frac = EcM_frac + PFT_dist(i)*EcM_fraction(i)
@@ -187,55 +191,63 @@ contains
     EcM_frac = EcM_frac/100.
   end function calc_EcMfrac
   
-  function r_input(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
+  function EcM_modifier(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
     !input
     real(r8) :: C_input
     real(r8) :: max_input
     !output
     real(r8) :: mod
-    !NOTE: Rename r_input and/or input_mod?
     !NOTE: max_input is from the input year of the current year. Should rather store value from last year?
     mod = C_input/(max_input)
-  end function r_input 
+  end function EcM_modifier 
       
-  function calc_sap_to_som_fractions(clay_frac,met_frac) result(f_saptosom)
+  function calc_sap_to_som_fractions(clay_frac,met_frac) result(f_saptosom) !AS in MIMICS (values may vary)
     !input
     real(r8),intent(in)      :: clay_frac
     real(r8),INTENT(IN)      :: met_frac
-    !NOTE: Kyker-Snowman et al: "Finally, we adjusted the partitioning of microbial turnover to stable soil pools in order to more closely match distributions at Harvard Forest." Can we adjust better to Norwegian forests?
+
+    !Out:
     real(r8),dimension(no_of_som_pools,no_of_sap_pools) :: f_saptosom
-    !NOTE: Kyker-Snowman et al: "Finally, we adjusted the partitioning of microbial turnover to stable soil pools in order to more closely match distributions at Harvard Forest." Can we adjust better to Norwegian forests?
+
+    !TODO: Kyker-Snowman et al: "Finally, we adjusted the partitioning of microbial turnover to stable soil pools in order to more closely match distributions at Harvard Forest." Can we adjust better to Norwegian forests?
     f_saptosom(1,:) = [real(r8) :: 0.3*exp(1.3*clay_frac), 0.2*exp(0.8*clay_frac)]!PHYS
     f_saptosom(2,:) = [real(r8) :: 0.1*exp(-3.0*met_frac), 0.3*exp(-3.0*met_frac)]!CHEM
     f_saptosom(3,:) = 1 - (f_saptosom(1,:)+f_saptosom(2,:))!AVAIL
   end function calc_sap_to_som_fractions
 
-  function calc_sap_turnover_rate(met_frac,temp,rprof) result(turnover_rate)
-    real(r8),INTENT(IN) :: met_frac
-    real(r8),INTENT(IN) :: temp
-    real(r8),INTENT(IN) :: rprof
+  function calc_sap_turnover_rate(met_frac,temp,rprof) result(turnover_rate) !As MIMICS but introduced depth modifier following rootprofile, and temp. dependence
+    !!IN:
+    real(r8),intent(in) :: met_frac
+    real(r8),intent(in) :: temp
+    real(r8),intent(in) :: rprof
     
+    !OUT:
     real(r8),dimension(no_of_sap_pools) :: turnover_rate
     
     !Local: 
-    real(r8), parameter :: min_modifier = 0.1
+    real(r8), parameter :: min_modifier = 0.1 !TODO: sensitivity test min_modifier
 
     if ( temp < 0 ) then
-      turnover_rate=[real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*min_modifier, 2.4e-4*exp(0.1_r8*met_frac)*min_modifier]
+      turnover_rate=  [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*min_modifier, 2.4e-4*exp(0.1_r8*met_frac)*min_modifier]
     else
       turnover_rate = [real(r8) ::  5.2e-4*exp(0.3_r8*met_frac)*max(rprof,min_modifier), 2.4e-4*exp(0.1_r8*met_frac)*max(rprof,min_modifier)]
     end if
   end function calc_sap_turnover_rate
   
   function calc_myc_mortality(rprof) result(myc_mortality)
-    !NOTE: Is it better to call it turnover rate? Is there a difference?    
-    real(r8),INTENT(IN) :: rprof  
-    !NOTE: introduced root modifier after NCAR stay. Determine if it should be normalized or not. Also, temperature dependence?  
+    !TODO: Is it better to call it turnover rate? Is there a difference?    
+    !TODO: introduced root modifier after NCAR stay. Determine if it should be normalized or not. Also, temperature dependence?  
+
+    !IN:
+    real(r8),intent(in):: rprof  
+
+    !OUT:
     real(r8), dimension(no_of_myc_pools) :: myc_mortality
-    myc_mortality=(/1.14_r8,1.14_r8/)*1e-4*sqrt(rprof)  ![1/h]  1/yr  
+
+    myc_mortality=(/1.14_r8,1.14_r8/)*1e-4*sqrt(rprof)  ![1/h]  
   end function calc_myc_mortality
   
-  subroutine moisture_func(theta_l,theta_sat, theta_f,moist_mod) 
+  subroutine moisture_func(theta_l,theta_sat, theta_f,moist_mod) !As in testbed (and CLM) version of MIMICS
     !IN:
     real(r8), intent(in), dimension(nlevels)  :: theta_l
     real(r8), intent(in), dimension(nlevels)  :: theta_sat
@@ -260,19 +272,19 @@ contains
     !    fW = max(0.05, fW)
     theta_liq  = min(1.0, theta_l/theta_sat)     ! fraction of liquid water-filled pore space (0.0 - 1.0)
     theta_frzn = min(1.0, theta_f/theta_sat)     ! fraction of frozen water-filled pore space (0.0 - 1.0)
-
     air_filled_porosity = max(0.0, 1.0-theta_liq-theta_frzn)
-    moist_mod = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
 
+    moist_mod = ((theta_liq**3)*air_filled_porosity**2.5)/0.022600567942709
     moist_mod = max(0.05, moist_mod)
   end subroutine moisture_func
 
-  function calc_met_fraction(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lflitcn) result(fmetabolic)
+  function calc_met_fraction(leaf_to_lit,froot_to_lit,cwd_to_lit_vr,lflitcn) result(fmetabolic) !Based on CLM routine 
+    !https://github.com/ESCOMP/CTSM/blob/master/src/soilbiogeochem/SoilBiogeochemDecompCascadeMIMICSMod.F90#L1187
     !In: 
     real(r8), intent(in) :: leaf_to_lit
     real(r8), intent(in) :: froot_to_lit
     real(r8), intent(in) :: cwd_to_lit_vr(:)
-    real(r8), intent(in) :: lflitcn
+    real(r8), intent(in) :: lflitcn ! calculated in subroutine calc_PFT
 
     !out:
     real(r8)            :: fmetabolic
@@ -288,14 +300,13 @@ contains
     real(r8), parameter :: cwd_flig = 0.24
     real(r8), parameter :: frootcn = 42.
     real(r8), parameter :: cwdcn = 481.
-    !  real(r8), parameter :: lflitcn = 50 !NOTE: Change with PFT!
 
     real(r8) :: cwd_to_lit
     real(r8) :: lignNleaf
     real(r8) :: lignNfroot
     real(r8) :: lignNcwd
 
-    cwd_to_lit = sum(cwd_to_lit_vr*delta_z(1:nlevels))
+    cwd_to_lit = sum(cwd_to_lit_vr*delta_z(1:nlevels)) ![gC/m2 h] 
     
     lignNleaf  = lf_flig*lflitcn*leaf_to_lit
     lignNfroot = fr_flig*frootcn*froot_to_lit

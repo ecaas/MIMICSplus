@@ -72,7 +72,7 @@ module writeMod
       call check(nf90_def_var(ncid,"HRe", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"HRa", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       
-      call check(nf90_def_var(ncid,"r_input", NF90_FLOAT, (/t_dimid /), varid ))
+      call check(nf90_def_var(ncid,"EcM_modifier", NF90_FLOAT, (/t_dimid /), varid ))
       call check(nf90_def_var(ncid,"f_ecm", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"f_am", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"CUEb", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
@@ -173,8 +173,8 @@ module writeMod
       call check(nf90_put_var(ncid, varid, month, start = (/ timestep /)))
       call check(nf90_inq_varid(ncid, "HR_sum", varid))
       call check(nf90_put_var(ncid, varid, HR_sum, start = (/ timestep /)))
-      call check(nf90_inq_varid(ncid, "r_input", varid))
-      call check(nf90_put_var(ncid, varid, input_mod, start = (/ timestep /)))
+      call check(nf90_inq_varid(ncid, "EcM_modifier", varid))
+      call check(nf90_put_var(ncid, varid, EcM_mod, start = (/ timestep /)))
       
       do j=1,nlevels
         
@@ -240,29 +240,34 @@ module writeMod
       end do ! levels
     end subroutine fill_netcdf
 
-   subroutine store_parameters(ncid)
-     integer :: clayID, desorpID, k_sapsomID, depthID, fphysID, fchemID, favailID
-     integer,intent(in):: ncid
+    subroutine store_parameters(ncid, soil_depth,desorp)
+      !IN:
+      integer,intent(in):: ncid
+      real(r8),intent(in):: soil_depth
+      real(r8),intent(in):: desorp
+    
+      !Local:
+      integer :: clayID, desorpID, k_sapsomID, depthID, fphysID, fchemID, favailID
 
-     call check(nf90_def_var(ncid, "f_clay", NF90_FLOAT, clayID))
-     call check(nf90_def_var(ncid, "desorp", NF90_FLOAT, desorpID))
-     call check(nf90_def_var(ncid, "k_sapsom", NF90_FLOAT,fracid,k_sapsomID))
-     call check(nf90_def_var(ncid, "f_phys", NF90_FLOAT,fracid,fphysID))
-     call check(nf90_def_var(ncid, "f_avail", NF90_FLOAT,fracid,favailID))
-     call check(nf90_def_var(ncid, "f_chem", NF90_FLOAT,fracid,fchemID))
-     call check(nf90_def_var(ncid, "depth", NF90_FLOAT,depthID))
-     
+      call check(nf90_def_var(ncid, "f_clay", NF90_FLOAT, clayID))
+      call check(nf90_def_var(ncid, "desorp", NF90_FLOAT, desorpID))
+      call check(nf90_def_var(ncid, "k_sapsom", NF90_FLOAT,fracid,k_sapsomID))
+      call check(nf90_def_var(ncid, "f_phys", NF90_FLOAT,fracid,fphysID))
+      call check(nf90_def_var(ncid, "f_avail", NF90_FLOAT,fracid,favailID))
+      call check(nf90_def_var(ncid, "f_chem", NF90_FLOAT,fracid,fchemID))
+      call check(nf90_def_var(ncid, "depth", NF90_FLOAT,depthID))
+      
 
-     call check(nf90_enddef(ncid))
+      call check(nf90_enddef(ncid))
 
-     call check(nf90_put_var(ncid, clayID, fCLAY))
-     call check(nf90_put_var(ncid, desorpID, desorp))
-     call check(nf90_put_var(ncid, fphysID, fPHYS))
-     call check(nf90_put_var(ncid, fchemID, fCHEM))
-     call check(nf90_put_var(ncid, favailID, fAVAIL))
-     call check(nf90_put_var(ncid, depthID, soil_depth))
-     call check(nf90_put_var(ncid, k_sapsomID, k_sapsom))
-   end subroutine store_parameters
+      call check(nf90_put_var(ncid, clayID, fCLAY))
+      call check(nf90_put_var(ncid, desorpID, desorp))
+      call check(nf90_put_var(ncid, fphysID, fPHYS))
+      call check(nf90_put_var(ncid, fchemID, fCHEM))
+      call check(nf90_put_var(ncid, favailID, fAVAIL))
+      call check(nf90_put_var(ncid, depthID, soil_depth))
+      call check(nf90_put_var(ncid, k_sapsomID, k_sapsom))
+    end subroutine store_parameters
 
     subroutine get_timestep(time, write_hour, timestep)
       integer, intent(in) :: time

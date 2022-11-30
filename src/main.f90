@@ -24,8 +24,12 @@ program main
     
   real(r8), dimension (:,:), allocatable   :: C_matrix_1987    
   real(r8), dimension (:,:), allocatable   :: N_matrix_1987    
-  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_1987    
+  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_1987   
 
+  real(r8), dimension (:,:), allocatable   :: C_matrix_2009
+  real(r8), dimension (:,:), allocatable   :: N_matrix_2009    
+  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_2009   
+  
   real(r8), dimension (:,:), allocatable   :: C_matrix_final   
   real(r8), dimension (:,:), allocatable   :: N_matrix_final   
   real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_final   
@@ -83,7 +87,7 @@ program main
   
   if ( .not. spinup_only ) then
     allocate(C_matrix_1970(nlevels,pool_types),N_matrix_1970(nlevels,pool_types_N),N_inorg_matrix_1970(nlevels,inorg_N_pools))
-    allocate(C_matrix_1987(nlevels,pool_types),N_matrix_1987(nlevels,pool_types_N),N_inorg_matrix_1987(nlevels,inorg_N_pools))
+    allocate(C_matrix_2009(nlevels,pool_types),N_matrix_2009(nlevels,pool_types_N),N_inorg_matrix_2009(nlevels,inorg_N_pools))
     allocate(C_matrix_final(nlevels,pool_types),N_matrix_final(nlevels,pool_types_N),N_inorg_matrix_final(nlevels,inorg_N_pools))  
 
     ! | Use output of last timestep of spinup to initialize step 2
@@ -99,21 +103,21 @@ program main
     !| Use output of last timestep to initialize step 4
     !V
     !4: DAILY inputdata, output every year:
-    call decomp(nsteps=17*24*365, &
-                run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1987"), &
+    call decomp(nsteps=38*24*365, &
+                run_name=trim(trim(site)//"_"//trim(description)//"_"//"to2010"), &
                 write_hour=1*24*365,&
                 pool_C_start=C_matrix_1970,pool_N_start=N_matrix_1970,inorg_N_start=N_inorg_matrix_1970,&
-                pool_C_final=C_matrix_1987,pool_N_final=N_matrix_1987,inorg_N_final=N_inorg_matrix_1987,&
-                start_year=1971,stop_year=1987,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
+                pool_C_final=C_matrix_2009,pool_N_final=N_matrix_2009,inorg_N_final=N_inorg_matrix_2009,&
+                start_year=1971,stop_year=2009,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
   
     !5: RUN WITH DAILY UPDATES of inputdata,output every day:
-    call decomp(nsteps=5*24*365, &
-                run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1992"), &
+    call decomp(nsteps=4*24*365, &
+                run_name=trim(trim(site)//"_"//trim(description)//"_"//"to2014"), &
                 write_hour=1*24,&
-                pool_C_start=C_matrix_1987,pool_N_start=N_matrix_1987,inorg_N_start=N_inorg_matrix_1987,&
+                pool_C_start=C_matrix_2009,pool_N_start=N_matrix_2009,inorg_N_start=N_inorg_matrix_2009,&
                 pool_C_final=C_matrix_final,pool_N_final=N_matrix_final,inorg_N_final=N_inorg_matrix_final,&
-                start_year=1988,stop_year=1992,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
-    deallocate (C_matrix_1970,N_matrix_1970,N_inorg_matrix_1970,C_matrix_1987,N_matrix_1987,N_inorg_matrix_1987)
+                start_year=2010,stop_year=2014,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
+    deallocate (C_matrix_1970,N_matrix_1970,N_inorg_matrix_1970,C_matrix_2009,N_matrix_2009,N_inorg_matrix_2009)
     deallocate (C_matrix_final,N_matrix_final,N_inorg_matrix_final)
   endif
 
