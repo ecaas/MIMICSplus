@@ -100,6 +100,7 @@ implicit none
   !Public variables
   real(r8), public                              :: dt !read from namelist in main.f90
   logical,  public                              :: use_ROI, use_Sulman, use_ENZ !read from namelist in main.f90
+  character (len=3),public                      :: CLM_version
 
   !For timing purposes:
   integer(r8)                                   :: clock_rate,clock_start,clock_stop

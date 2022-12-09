@@ -145,7 +145,7 @@ contains
     integer                         :: date
     character (len=4)               :: year_fmt                             ! For printing/writing
     character (len=4)               :: year_char                            ! For printing/writing.
-    logical                         :: isVertical                           ! True if we use vertical soil layers. TODO: Code need updates if isVertical=True should work
+    logical                         :: isVertical                           ! True if we use vertical soil layers. NOTE: Code need updates if isVertical=True should work
     logical                         :: Spinup_run                           ! Based on starting year (not ideal..) 
     integer                         :: input_steps                          ! Number of time entries in CLM infile
     integer                         :: j,i,t                                !for iterations
@@ -322,14 +322,14 @@ contains
       day_counter   = 0
       write_counter       = 0
       ycounter      = 0
-
+ 
       !read data from CLM file
       if ( start_year == 1850 ) then
         Spinup_run = .True.
         spinup_counter =1
         call check(nf90_open(trim(adjustr(clm_input_path)//'for_spinup.1850-1869.nc'), nf90_nowrite, spinupncid))  
         call read_time(spinupncid,input_steps) !Check if inputdata is daily or monthly ("steps" is output)         
-        call read_clm_model_input(spinupncid,Spinup_counter, &
+        call read_clm_model_input(spinupncid,Spinup_counter,CLM_version, &
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
         C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
         W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)        
@@ -337,7 +337,7 @@ contains
         Spinup_run = .False. 
         call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) 
         call read_time(ncid,input_steps) !Check if inputdata is daily or monthly ("steps" is output) 
-        call read_clm_model_input(ncid,1, &
+        call read_clm_model_input(ncid,1, CLM_version,&
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
         C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
         W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
@@ -368,7 +368,6 @@ contains
       
       if ( Spinup_run ) then
         call create_yearly_mean_netcdf(trim(out_path),run_name)  !open and prepare files to store results. Store initial values    
-        print*, input_steps    
         max_mining = read_maxC(spinupncid,input_steps)          !TODO ASAP: This is reading only the highest value of the 30 years..!
       else
         max_mining = read_maxC(ncid,input_steps)        
@@ -412,7 +411,7 @@ contains
           end if   
 
           if (input_steps==12) then  !Input is given as monthly values
-            call read_clm_model_input(ncid,current_month, &
+            call read_clm_model_input(ncid,current_month,CLM_version, &
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
             W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
@@ -423,7 +422,7 @@ contains
           
           if (input_steps==240) then !Input is monthly values in the "spinup forcing file"
             spinup_counter = spinup_counter+1
-            call read_clm_model_input(spinupncid,spinup_counter, &
+            call read_clm_model_input(spinupncid,spinup_counter, CLM_version,&
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
             W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
@@ -443,7 +442,7 @@ contains
           end if
           
           if (input_steps==365) then  !Input is given as daily values
-            call read_clm_model_input(ncid,current_day, &
+            call read_clm_model_input(ncid,current_day,CLM_version, &
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
             W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
@@ -454,11 +453,11 @@ contains
         end if         
         !-----------------------------------------------------------------------------------
 
-        if ( year == 2012 .and. ycounter == 181*24 ) then !IF test for litter bag experiments. Add litter at certain date.
-          pool_matrixC(3,1) = pool_matrixC(3,1) + 10/delta_z(3) !Add 10gC to layer 3 
-          pool_matrixN(3,1) = pool_matrixN(3,1) + 10*(pool_matrixN(3,1)/pool_matrixC(3,1))/delta_z(3) !Add N to layer
-          print*, "Added litter; ", 10/delta_z(3), "gC/m3, and ",  10*(pool_matrixN(3,1)/pool_matrixC(3,1))/delta_z(3), "gN/m3 to LITm, layer 3."
-        end if
+        ! if ( year == 2012 .and. ycounter == 181*24 ) then !IF test for litter bag experiments. Add litter at certain date.
+        !   pool_matrixC(3,1) = pool_matrixC(3,1) + 10/delta_z(3) !Add 10gC to layer 3 
+        !   pool_matrixN(3,1) = pool_matrixN(3,1) + 10*(pool_matrixN(3,1)/pool_matrixC(3,1))/delta_z(3) !Add N to layer
+        !   print*, "Added litter; ", 10/delta_z(3), "gC/m3, and ",  10*(pool_matrixN(3,1)/pool_matrixC(3,1))/delta_z(3), "gN/m3 to LITm, layer 3."
+        ! end if
 
         EcM_mod = EcM_modifier(C_MYCinput,max_mining) !calculate factor that scales mycorrhizal activity based on C "payment" from plant
         if ( abs(EcM_mod) > 1.0 ) then
@@ -549,7 +548,7 @@ contains
                             N_INSAPb,N_INSAPf,N_PlantSOMp,C_EcMenz_prod, N_PlantLITs, N_PlantLITm,  N_PlantSOMa,N_PlantSOMc)
           end if !write fluxes
 
-          do i = 1,pool_types !loop over all the pool types, i, in depth level j . !TODO: This does not really need to be in a do-loop..consider using fortran types.
+          do i = 1,pool_types !loop over all the pool types, i, in depth level j . !NOTE: This does not really need to be in a do-loop..consider using fortran types.
             !This if-loop calculates dC/dt and dN/dt for the different carbon pools.
 
             if (i==1) then !LITm
