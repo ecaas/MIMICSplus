@@ -6,7 +6,7 @@
 from netCDF4 import Dataset
 import numpy as np
 import pandas as pd
-import mpld3
+#import mpld3
 import xarray as xr
 import datetime
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ import math
 import scipy
 import scipy.cluster.hierarchy as sch
 from math import fsum
-from varname import nameof
+#from varname import nameof
 from datetime import date
 from scipy import stats
 import os
@@ -486,9 +486,26 @@ def total_mass_pool(data, pool, depth):
         pool_mass_sum += pool_mass  # sum mass
     pool_mass_sum.attrs['units'] = 'g/(m2)'
     return pool_mass_sum
+    
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+# sums up total mass (g/m2). 
+def total_mass(data, pool_list, depth):
+    # empty arrays to fill:
+    pool_mass_sum = np.zeros(len(data.time))
+    tot_mass_sum = np.zeros(len(data.time))
+    for pool in pool_list:
+        for i in range(no_of_layers(data)):  # Compute mass
+            # array of masses in layer i of pool for each timestep
+            pool_mass = data[pool][i]*depth[i]
+            pool_mass_sum += pool_mass  # sum mass
+        tot_mass_sum += pool_mass_sum  # sum mass
+        pool_mass_sum = np.zeros(len(data.time))
+        
+    tot_mass_sum.attrs['units'] = 'g/(m2)'
+    return tot_mass_sum
 
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 # returns a time series of the total deposited N in g/m2 h
 
 

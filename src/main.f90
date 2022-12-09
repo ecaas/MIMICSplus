@@ -4,7 +4,7 @@ program main
   use initMod,      only: read_nlayers,nlevels, initialize
   use paramMod,     only: full_clock_rate,full_clock_stop,full_clock_start, &
                           pool_types, pool_types_N,inorg_N_pools, &
-                          use_ROI, use_ENZ, use_Sulman, dt
+                          use_ROI, use_ENZ, use_Sulman, dt,CLM_version
   use readMod,      only: read_namelist  
   use dispmodule,   only: disp !External module to pretty print matrices (mainly for testing purposes)
                       
@@ -24,8 +24,12 @@ program main
     
   real(r8), dimension (:,:), allocatable   :: C_matrix_1987    
   real(r8), dimension (:,:), allocatable   :: N_matrix_1987    
-  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_1987    
+  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_1987   
 
+  real(r8), dimension (:,:), allocatable   :: C_matrix_2009
+  real(r8), dimension (:,:), allocatable   :: N_matrix_2009   
+  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_2009 
+  
   real(r8), dimension (:,:), allocatable   :: C_matrix_final   
   real(r8), dimension (:,:), allocatable   :: N_matrix_final   
   real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_final   
@@ -40,23 +44,26 @@ program main
   integer              :: spinup_years
   character (len=20)   :: spinup_only_char
   logical              :: spinup_only
+  !character (len=3)    :: CLM_version
   
   call system_clock(count_rate=full_clock_rate) !Find the time rate
   call system_clock(count=full_clock_start)     !Start Timer 
   
   !Information from run.bash script: 
-  call GET_COMMAND_ARGUMENT(number=1,value=site)
-  call GET_COMMAND_ARGUMENT(number=2,value=description)
-  call GET_COMMAND_ARGUMENT(number=3,value=clm_data_file)
-  call GET_COMMAND_ARGUMENT(number=4,value=clm_surface_file)
-  call GET_COMMAND_ARGUMENT(number=5,value=namelist_file)
+  call get_command_argument(number=1,value=site)
+  call get_command_argument(number=2,value=description)
+  call get_command_argument(number=3,value=clm_data_file)
+  call get_command_argument(number=4,value=clm_surface_file)
+  call get_command_argument(number=5,value=namelist_file)
   call get_command_argument(number=6,value=output_path)
   call get_command_argument(number=7,value=spinup_char)
   call get_command_argument(number=8,value=spinup_only_char)
+  call get_command_argument(number=9,value=CLM_version)
+
   spinup_char=trim(spinup_char)
   read(spinup_char,*) spinup_years 
   read(spinup_only_char,*) spinup_only
-
+  
   !Get number of active soil layers from CLM file:
   call read_nlayers(trim(adjustr(clm_data_file)//'all.1901.nc'))
 
@@ -71,7 +78,6 @@ program main
   !1: INITIALIZE
   call initialize(C_matrix_init,N_matrix_init,N_inorg_matrix_init)
   print*,trim(trim(site)//"_"//trim(description)//"_"//"Spunup")
-
   !2: SPINUP
   call decomp(nsteps=spinup_years*24*365, &
   run_name=trim(trim(site)//"_"//trim(description)//"_"//"Spunup"), &
