@@ -293,7 +293,7 @@ contains
       pool_Ninorg_start_for_mass_cons=inorg_N_start
       pool_temporaryC           = pool_C_start
       pool_temporaryN           = pool_N_start
-      inorg_Ntemporary_matrix   = inorg_N_start
+      inorg_Ntemporary_matrix   = 0.0
 
       !Make sure things start from zero
       sum_consN = 0;sum_consNinorg = 0; sum_consC = 0
@@ -379,10 +379,10 @@ contains
       
       !Create file and write initial vallues to it:
       call create_netcdf(trim(out_path),run_name)
-      call check(nf90_open(trim(out_path)//trim(run_name)//".nc", nf90_write, writencid))      
+      call check(nf90_open(trim(out_path)//trim(run_name)//".nc", nf90_write, writencid))  
       call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN,inorg_N_matrix, &
       date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa, change_matrixC,&
-      change_matrixN,write_hour,current_month,TSOIL, r_moist, &
+      change_matrixN,inorg_Ntemporary_matrix, write_hour,current_month,TSOIL, r_moist, &
       CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM, & 
       ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
       
@@ -498,9 +498,14 @@ contains
 
           !Calculate inorganic N rates: 
           Leaching    = calc_Leaching(drain,h2o_liq_tot,inorg_N_matrix(j,3)) !N32
-          Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
-          nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton from current timestep !N35
           
+          Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
+          ! if ( year == 1980 .and. ycounter == 181*24 ) then !IF test for litter bag experiments. Add litter at certain date.
+            
+          !   Deposition = set_N_dep(CLMdep= (N_DEPinput+15)*ndep_prof(j))
+          ! else
+          ! end if
+          nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton from current timestep !N35
           !Calculate fluxes between pools in level j at timestep:
           call calculate_fluxes(j,TSOIL(j),H2OSOI, pool_matrixC, pool_matrixN,inorg_N_matrix,Deposition, Leaching, nitrif_rate,soil_depth,desorp) 
 
@@ -732,7 +737,7 @@ contains
         if (write_counter == write_hour/dt) then
           write_counter = 0        
           call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,inorg_N_matrix,&
-                          date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa,vertC,vertN, write_hour,current_month, &
+                          date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa,vertC,vertN,vert_inorgN, write_hour,current_month, &
                           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,ROI_EcM=ROI_EcM,&
                           ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
         end if!writing
@@ -881,8 +886,8 @@ contains
 
   function calc_Leaching(drain,h2o_tot, N_NO3) result(Leach) !TODO: Review this
     !IN:
-    real(r8),intent(in)           :: drain       !mmH20/h = kgH20/m2 h, From CLM
-    real(r8),intent(in)           :: h2o_tot     !kgH20/m2, FROM CLM
+    real(r8),intent(in)           :: drain       !mmH2O/h = kgH2O/m2 h, From CLM
+    real(r8),intent(in)           :: h2o_tot     !kgH2O/m2, FROM CLM
     real(r8),intent(in)           :: N_NO3       !gN/m3
 
     !Out

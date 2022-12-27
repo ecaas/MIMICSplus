@@ -71,7 +71,12 @@ module writeMod
       call check(nf90_def_var(ncid,"HRf", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"HRe", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"HRa", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
-      
+      call check(nf90_def_var(ncid, "NH4sol_vert_change",NF90_FLOAT,(/t_dimid,lev_dimid/), varid))
+      call check(nf90_def_var(ncid, "NH4sorp_vert_change",NF90_FLOAT,(/t_dimid,lev_dimid/), varid))
+      call check(nf90_def_var(ncid, "NO3_vert_change",NF90_FLOAT,(/t_dimid,lev_dimid/), varid))
+
+
+
       call check(nf90_def_var(ncid,"EcM_modifier", NF90_FLOAT, (/t_dimid /), varid ))
       call check(nf90_def_var(ncid,"f_ecm", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"f_am", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
@@ -128,7 +133,7 @@ module writeMod
     end subroutine fill_MMK
       
     subroutine fill_netcdf(ncid, time, pool_matrix, Npool_matrix,inorganic_N_matrix, &
-      mcdate,HR_sum, HR_flux, HRb,HRf,HRe,HRa,vert_sum,Nvert_sum, write_hour,month, &
+      mcdate,HR_sum, HR_flux, HRb,HRf,HRe,HRa,vert_sum,Nvert_sum,Ninorg_vert_sum, write_hour,month, &
       TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,ROI_EcM,ROI_AM,enz_frac,f_met,f_alloc, NH4_eq)
       !INPUT:
       integer,intent(in)               :: ncid 
@@ -136,7 +141,8 @@ module writeMod
       real(r8), intent(in)             :: pool_matrix(nlevels,pool_types), Npool_matrix(nlevels,pool_types_N)   ! For storing pool concentrations [gC/m3]
       real(r8), intent(in)             :: inorganic_N_matrix(nlevels,inorg_N_pools)
       real(r8), intent(in)             :: vert_sum(nlevels,pool_types)
-      real(r8), intent(in)             :: Nvert_sum(nlevels,pool_types)
+      real(r8), intent(in)             :: Nvert_sum(nlevels,pool_types_N)
+      real(r8), intent(in)             :: Ninorg_vert_sum(nlevels,inorg_N_pools)
       integer, intent(in)              :: mcdate
       integer, intent(in)              :: write_hour
       integer, intent(in)              :: month
@@ -180,6 +186,13 @@ module writeMod
         
         call check(nf90_inq_varid(ncid, "Temp", varid))
         call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/ timestep, j /)))
+
+        call check(nf90_inq_varid(ncid, "NH4sol_vert_change", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_vert_sum(j,1), start = (/ timestep, j /)))
+        call check(nf90_inq_varid(ncid, "NH4sorp_vert_change", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_vert_sum(j,2), start = (/ timestep, j /)))
+        call check(nf90_inq_varid(ncid, "NO3_vert_change", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_vert_sum(j,3), start = (/ timestep, j /)))
         
         call check_and_write(ncid, "Moisture", MOIST(j),timestep,j)
 
@@ -226,7 +239,6 @@ module writeMod
 
           !N:
           call check_and_write(ncid,"N_"//trim(variables(i)),Npool_matrix(j,i),timestep,j)
-
 
           !C change:
           call check(nf90_inq_varid(ncid,"vert_change"//trim(variables(i)), varid))
