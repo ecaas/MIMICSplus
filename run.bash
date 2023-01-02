@@ -6,9 +6,10 @@ namelist_file='options.nml'
 spinup_years=10
 only_spinup='False'
 CLM_version='old' #"old" or "new", "old" uses old variable names.
-
+mkdir Spinup_values
 mkdir ./results/${description}
 mkdir ./results/${description}/nml_options
+mkdir ./results/${description}/Spinup_values
 cp ./src/paramMod.f90 ./results/${description}/parameters_${description}_${site}.txt
 cp ./src/mycmimMod.f90  ./results/${description}/main_${description}_${site}.txt
 
@@ -20,3 +21,6 @@ do
   clm_surface_file='./test/surfdata_'${site}'_simyr2000.nc'
   ./run_script_dev $site $description $clm_data_file $clm_surface_file $namelist_file "./results/"${description}"/" $spinup_years $only_spinup $CLM_version
 done
+mv Spinup_values/* ./results/${description}/Spinup_values/
+rm -r Spinup_values
+

@@ -164,6 +164,7 @@ contains
     integer :: writencid
     integer :: spinupncid
     
+    logical :: result_file_exist
     !Pool and respiration related variables:
     real(r8)                        :: C_Loss, C_Gain, N_Gain, N_Loss
     real(r8)                        :: pool_matrixC(nlevels,pool_types)     ! For storing C pool sizes [gC/m3]
@@ -746,6 +747,22 @@ contains
           pool_C_final  = pool_matrixC
           pool_N_final  = pool_matrixN    
           inorg_N_final = inorg_N_matrix              
+          if (Spinup_run) then !Write to file
+            inquire(file="Spinup_values/"//run_name//".dat", exist=result_file_exist)
+            if (result_file_exist) then
+              open(12, file="Spinup_values/"//run_name//".dat", status="old", action="write")
+            else
+              open(12, file="Spinup_values/"//run_name//".dat", status="new", action="write")
+            end if
+            write(12, *) "Simulation finished at year",year_char, " Spinup status: ", Spinup_run
+            write(12, *) "pool_C_final: "
+            write(12, *) pool_C_final
+            write(12, *) "pool_N_final: "
+            write(12, *) pool_N_final
+            write(12, *) "inorg_N_final: "
+            write(12, *) inorg_N_final
+            close(12)
+          end if
           call store_parameters(writencid,soil_depth,desorp)    
         end if
         
