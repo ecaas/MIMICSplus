@@ -209,9 +209,6 @@ contains
     real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
     real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixN
     real(r8),allocatable           :: vert_inorgN(:,:)         !Stores the vertical change in a time step, same shape as change_inorgN
-    real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion subroutine
-    real(r8)                       :: tot_diffN,upperN,lowerN                 ! For the call to vertical_diffusion
-    real(r8)                       :: tot_diffNinorg,upperNinorg,lowerNinorg  ! For the call to vertical_diffusion
     real(r8)                       :: soil_depth       ![m] 
 
     !For storing input related variables
@@ -500,8 +497,8 @@ contains
           !Calculate inorganic N rates: 
           Leaching    = calc_Leaching(drain,h2o_liq_tot,inorg_N_matrix(j,3)) !N32
           Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
-            
-          ! if ( year == 1972 .and. ycounter == 181*24 ) then !IF test for NDEP experiments. Add N at certain date.
+          
+          ! if ( year == 1980 .and. ycounter == 181*24 ) then !IF test for NDEP experiments. Add N at certain date.
           !   Deposition = set_N_dep(CLMdep= (N_DEPinput+15)*ndep_prof(j))
           !   print*, "ADDED extra N deposition ",(N_DEPinput+15)*ndep_prof(j),"gN/m3 at ", year,current_month, days_in_month(current_month),t,time
             
@@ -661,7 +658,8 @@ contains
               !stop
               save_C=save_C+pool_temporaryC(j,i)
               pool_temporaryC(j,i)=0._r8
-            end if   
+            end if  
+
             if ( pool_temporaryN(j,i) < trunc_value ) then  
               save_N=save_N + pool_temporaryN(j,i)*dt*delta_z(j)
               pool_temporaryN(j,i)=0._r8                
@@ -704,13 +702,15 @@ contains
 
         !TODO: tot_diffC, upperC, lowerC is not used and can be removed!
         if (isVertical) then
-          call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC,D_carbon)
-          call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN,D_nitrogen)
-          call vertical_diffusion(tot_diffNinorg,upperNinorg,lowerNinorg,inorg_Ntemporary_matrix,vert_inorgN,D_nitrogen)
+          call vertical_diffusion(pool_temporaryC,vertC,D_carbon)
+          call vertical_diffusion(pool_temporaryN,vertN,D_nitrogen)
+          call vertical_diffusion(inorg_Ntemporary_matrix,vert_inorgN,D_nitrogen)
+
+          vert_inorgN(:,2) = 0.0 !NH4_sorp does not move vertically
 
           pool_matrixC    = vertC*dt        + pool_temporaryC
           pool_matrixN    = vertN*dt        + pool_temporaryN
-          inorg_N_matrix  = vert_inorgN*dt  + inorg_Ntemporary_matrix          
+          inorg_N_matrix  = vert_inorgN*dt  + inorg_Ntemporary_matrix   
         else
           pool_matrixC    = pool_temporaryC
           pool_matrixN    = pool_temporaryN
@@ -1369,18 +1369,18 @@ contains
     end if
   end subroutine calc_NH4_sol_sorp
 
-  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,D) !This subroutine calculates the vertical transport of carbon through the soil layers.
+  subroutine vertical_diffusion(pool_matrix,vert,D) !This subroutine calculates the vertical transport of carbon through the soil layers.
     !IN 
     real(r8), intent(in)   :: pool_matrix(:,:)
     real(r8), intent(in)   :: D ![m2/h] Diffusivity
     !OUT
-    real(r8), intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
-    real(r8), intent(out)  :: tot_diffusion_dummy ![gC/h]
     real(r8), allocatable, intent(out)  :: vert(:,:)
     
     !Local
     integer                :: depth, pool !For iteration
     integer,dimension(1)   :: max_pool, max_depth !For iteration
+    real(r8)  :: upper_diffusion_flux, lower_diffusion_flux
+    real(r8)  :: tot_diffusion_dummy ![gC/h]
 
     allocate (vert, mold = pool_matrix)
 
