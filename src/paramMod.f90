@@ -28,10 +28,10 @@ implicit none
 
   !For calculating the Km parameter in Michaelis Menten kinetics (expressions based on mimics model: https://doi.org/10.5194/gmd-8-1789-2015 and https://github.com/wwieder/MIMICS)
   integer,                        parameter     :: MM_eqs  = 6                     !Number of Michaelis-Menten parameters
-  real(kind=r8),dimension(MM_eqs),parameter     :: Kslope  = (/0.017,0.027,0.017,0.017,0.027,0.017/)!(/0.034, 0.040, 0.034, 0.034, 0.040, 0.034/) !Alaska 0.034!!LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-  real(kind=r8),dimension(MM_eqs),parameter     :: Vslope  = 0.063! (/0.063, 0.063, 0.063, 0.063, 0.063, 0.063/) !Alaska: 0.055 !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+  real(kind=r8),dimension(MM_eqs),parameter     :: Kslope  = (/0.017,0.027,0.017,0.017,0.027,0.017/)! Alaska:(/0.034, 0.040, 0.034, 0.034, 0.040, 0.034/) !!LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+  real(kind=r8),dimension(MM_eqs),parameter     :: Vslope  = 0.063!Alaska: 0.055 !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
   real(kind=r8),dimension(MM_eqs),parameter     :: Kint    = 3.19 !Alaska value:2.88      !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
-  real(kind=r8),dimension(MM_eqs),parameter     :: Vint    = 5.47 ! Alaska value    !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
+  real(kind=r8),dimension(MM_eqs),parameter     :: Vint    = 5.47 ! Alaska value:585    !LITm, LITs, SOMa entering SAPb, LITm, LITs, SOMa entering SAPf
   real(kind=r8),                  parameter     :: a_k     = 5*1E3 !Tuning parameter g/m3 (1000g/mg*cm3/m3 * 10 mg/cm3 from german et al 2012)
   real(kind=r8),                  parameter     :: a_v     = 1.25e-8 !Tuning parameter
   real(kind=r8),dimension(2),     parameter     :: KO      =  6              ![-]Increases Km (the half saturation constant for oxidation of chemically protected SOM, SOM_c) from mimics
@@ -235,17 +235,14 @@ contains
     end if
   end function calc_sap_turnover_rate
   
-  function calc_myc_mortality(rprof) result(myc_mortality)
+  function calc_myc_mortality() result(myc_mortality)
     !TODO: Is it better to call it turnover rate? Is there a difference?    
     !TODO: introduced root modifier after NCAR stay. Determine if it should be normalized or not. Also, temperature dependence?  
-
-    !IN:
-    real(r8),intent(in):: rprof  
 
     !OUT:
     real(r8), dimension(no_of_myc_pools) :: myc_mortality
 
-    myc_mortality=(/1.14_r8,1.14_r8/)*1e-4 !*sqrt(rprof)  ![1/h]  
+    myc_mortality=(/1.14_r8,1.14_r8/)*1e-4  ![1/h]  
   end function calc_myc_mortality
   
   subroutine moisture_func(theta_l,theta_sat, theta_f,moist_mod) !As in testbed (and CLM) version of MIMICS

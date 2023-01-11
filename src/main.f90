@@ -26,11 +26,7 @@ program main
   real(r8), dimension (:,:), allocatable   :: C_matrix_1987    
   real(r8), dimension (:,:), allocatable   :: N_matrix_1987    
   real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_1987   
-
-  real(r8), dimension (:,:), allocatable   :: C_matrix_2009
-  real(r8), dimension (:,:), allocatable   :: N_matrix_2009   
-  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_2009 
-  
+ 
   real(r8), dimension (:,:), allocatable   :: C_matrix_final   
   real(r8), dimension (:,:), allocatable   :: N_matrix_final   
   real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_final   

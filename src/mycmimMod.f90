@@ -481,7 +481,7 @@ contains
 
           ![1/h] Microbial turnover rate (SAP to SOM)
           k_sapsom  = calc_sap_turnover_rate(fMET, TSOIL(j), norm_froot_prof(j)) 
-          k_mycsom  = calc_myc_mortality(froot_prof(j))  
+          k_mycsom  = calc_myc_mortality()  
           
           !Initialize CUEs for timestep
           CUE_bacteria_vr(j)= (CUE_slope*TSOIL(j)+CUE_0b)
@@ -499,13 +499,30 @@ contains
 
           !Calculate inorganic N rates: 
           Leaching    = calc_Leaching(drain,h2o_liq_tot,inorg_N_matrix(j,3)) !N32
-          
           Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
-          ! if ( year == 1980 .and. ycounter == 181*24 ) then !IF test for litter bag experiments. Add litter at certain date.
             
+          ! if ( year == 1972 .and. ycounter == 181*24 ) then !IF test for NDEP experiments. Add N at certain date.
           !   Deposition = set_N_dep(CLMdep= (N_DEPinput+15)*ndep_prof(j))
+          !   print*, "ADDED extra N deposition ",(N_DEPinput+15)*ndep_prof(j),"gN/m3 at ", year,current_month, days_in_month(current_month),t,time
+            
           ! else
           ! end if
+
+          ! if (year > 1971 .and. t > 13104 .and. t < 13104+10*365*24 .and. year < 1983) then
+
+          !   C_PlantLITm = 1.05*C_PlantLITm
+          !   N_PlantLITm = 1.05*N_PlantLITm
+          !   C_PlantLITs = 1.05*C_PlantLITs
+          !   N_PlantLITs = 1.05*N_PlantLITs
+          !   C_PlantSOMp=1.05*C_PlantSOMp
+          !   C_PlantSOMc=1.05*C_PlantSOMc
+          !   C_PlantSOMa=1.05*C_PlantSOMa
+          !   N_PlantSOMp=1.05*N_PlantSOMp
+          !   N_PlantSOMc=1.05*N_PlantSOMc
+          !   N_PlantSOMa=1.05*N_PlantSOMa
+          ! end if
+
+
           nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton from current timestep !N35
           !Calculate fluxes between pools in level j at timestep:
           call calculate_fluxes(j,TSOIL(j),H2OSOI, pool_matrixC, pool_matrixN,inorg_N_matrix,Deposition, Leaching, nitrif_rate,soil_depth,desorp) 
