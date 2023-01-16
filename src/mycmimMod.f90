@@ -228,8 +228,9 @@ contains
     real(r8), dimension(nlevels)    :: WATSAT
     real(r8), dimension(nlevels)    :: W_SCALAR
     real(r8), dimension(nlevels)    :: T_SCALAR
-    real(r8)                        :: drain
-    real(r8)                        :: h2o_liq_tot
+    real(r8)                        :: qdrain
+    real(r8)                        :: qrunoff
+    real(r8), dimension(nlevels)    :: h2osoi_liq
     real(r8)                        :: H2OSOI
     real(r8),dimension(15)          :: PFT_distribution
     
@@ -330,7 +331,7 @@ contains
         call read_clm_model_input(spinupncid,Spinup_counter,CLM_version, &
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
         C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-        W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)        
+        W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)        
       else
         Spinup_run = .False. 
         call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) 
@@ -338,7 +339,7 @@ contains
         call read_clm_model_input(ncid,1, CLM_version,&
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
         C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-        W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
+        W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)
       end if
       
       allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels), norm_froot_prof(nlevels))
@@ -382,7 +383,7 @@ contains
       date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa, change_matrixC,&
       change_matrixN,inorg_Ntemporary_matrix, write_hour,current_month,TSOIL, r_moist, &
       CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM, & 
-      ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
+      ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=inorg_N_matrix(:,2))
       
       !print initial values to terminal      
       call disp("InitC", pool_matrixC)
@@ -412,7 +413,7 @@ contains
             call read_clm_model_input(ncid,current_month,CLM_version, &
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-            W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
+            W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)  
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
             max_mining = read_maxC(ncid,input_steps)
             fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
@@ -423,7 +424,7 @@ contains
             call read_clm_model_input(spinupncid,spinup_counter, CLM_version,&
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-            W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
+            W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)  
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
             max_mining = read_maxC(spinupncid,input_steps)           
             fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
@@ -443,7 +444,7 @@ contains
             call read_clm_model_input(ncid,current_day,CLM_version, &
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-            W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
+            W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)        
             max_mining = read_maxC(ncid,input_steps)                
             fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
@@ -495,7 +496,7 @@ contains
                                       N_PlantSOMp,N_PlantSOMa,N_PlantSOMc)
 
           !Calculate inorganic N rates: 
-          Leaching    = calc_Leaching(drain,h2o_liq_tot,inorg_N_matrix(j,3)) !N32
+          Leaching    = calc_Leaching_Runoff(qdrain,qrunoff,h2osoi_liq,inorg_N_matrix(j,3),j) !N32 !TODO: Call this Leaching_runoff or something, as it also contains RUNOFF
           Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
           
           ! if ( year == 1980 .and. ycounter == 181*24 ) then !IF test for NDEP experiments. Add N at certain date.
@@ -507,20 +508,9 @@ contains
 
           ! if (year > 1971 .and. t > 13104 .and. t < 13104+10*365*24 .and. year < 1983) then
 
-          !   C_PlantLITm = 1.05*C_PlantLITm
-          !   N_PlantLITm = 1.05*N_PlantLITm
-          !   C_PlantLITs = 1.05*C_PlantLITs
-          !   N_PlantLITs = 1.05*N_PlantLITs
-          !   C_PlantSOMp=1.05*C_PlantSOMp
-          !   C_PlantSOMc=1.05*C_PlantSOMc
-          !   C_PlantSOMa=1.05*C_PlantSOMa
-          !   N_PlantSOMp=1.05*N_PlantSOMp
-          !   N_PlantSOMc=1.05*N_PlantSOMc
-          !   N_PlantSOMa=1.05*N_PlantSOMa
-          ! end if
-
 
           nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton from current timestep !N35
+       
           !Calculate fluxes between pools in level j at timestep:
           call calculate_fluxes(j,TSOIL(j),H2OSOI, pool_matrixC, pool_matrixN,inorg_N_matrix,Deposition, Leaching, nitrif_rate,soil_depth,desorp) 
 
@@ -852,7 +842,7 @@ contains
   end subroutine print_summary
 
   function calc_nitrification(nh4,t_scalar,w_scalar,soil_temp) result(f_nit)
-
+    ! Based on /CTSM/blob/master/src/soilbiogeochem/SoilBiogeochemNitrifDenitrifMod.F90
     !IN:
     real(r8),intent(in) :: nh4 !gN/m3
     real(r8),intent(in) :: t_scalar !From CLM
@@ -884,7 +874,6 @@ contains
     ! nitrification constant is a set scalar * temp, moisture, and ph scalars
     ! note that k_nitr_max_perday is converted from 1/day to 1/s
     k_nitr = k_nitr_max * k_nitr_t_vr * k_nitr_h2o_vr * k_nitr_ph_vr
-
     ! first-order decay of ammonium pool with scalar defined above
     f_nit = max(nh4 * k_nitr, 0._r8) !g/m3 h
 
@@ -918,17 +907,56 @@ contains
     end if
   end function set_N_dep
 
-  function calc_Leaching(drain,h2o_tot, N_NO3) result(Leach) !TODO: Review this
+  function calc_Leaching_Runoff(qdrain,qrunoff,h2osoi_liq, N_NO3,layer_nr) result(Leach_Run) 
+    !Based on CTSM/src/soilbiogeochem/SoilBiogeochemNLeachingMod.F90
+
     !IN:
-    real(r8),intent(in)           :: drain       !mmH2O/h = kgH2O/m2 h, From CLM
-    real(r8),intent(in)           :: h2o_tot     !kgH2O/m2, FROM CLM
+    real(r8),intent(in)           :: qdrain      !mmH2O/h = kgH2O/m2 h, From CLM, converted to 1/h from 1/s
+    real(r8),intent(in)           :: qrunoff     !mmH2O/h = kgH2O/m2 h, From CLM, converted to 1/h from 1/s
+    real(r8),dimension(:),intent(in):: h2osoi_liq !kgH2O/m2, FROM CLM
     real(r8),intent(in)           :: N_NO3       !gN/m3
+    integer,intent(in)            :: layer_nr   ! -
 
     !Out
+    real(r8)           :: Leach_Run       !gN/m3 h, NO3 leaching and runoff 
+    
+    !Local: 
+    real(r8)           :: DIN       !gN/m3 (=disn_conc)
     real(r8)           :: Leach       !gN/m3 h
+    real(r8)           :: Runoff       !gN/m3 h
+    real(r8),parameter :: depth_runoff_Nloss = 0.05 ! (m) depth over which runoff mixes with soil water for N loss to runoff
+    real(r8)           :: h2o_tot     !kgH2O/m2, 
+    real(r8)           :: h2o_surface     !kgH2O/m2, 
+    integer            :: i !counter
 
-    Leach = N_NO3*drain/h2o_tot
-  end function calc_Leaching
+    h2o_tot=0.0
+    do i = 1, nlevels ! Total liquid water in column, used for calculating leaching
+      h2o_tot=h2o_tot+h2osoi_liq(i) !kg/m2 !TODO: Unneccecary to run this loop every timestep
+    end do  
+    h2o_surface = h2osoi_liq(1)+0.75*h2osoi_liq(2) !Liquid Water in the top 5cm
+
+    DIN = 0._r8
+    if (h2osoi_liq(layer_nr) > 0._r8) then 
+      DIN = (N_NO3 * delta_z(layer_nr) )/(h2osoi_liq(layer_nr) )
+    end if
+    !TODO: Can be shortened to N_NO3*qdrain/H2o_tot. Is that better with regards to round off errors etc?
+    Leach = min(DIN*qdrain*h2osoi_liq(layer_nr)/(h2o_tot*delta_z(layer_nr)), N_NO3/dt) !Cannot be higher than the amount of NO3 in layer
+    Leach = max(Leach, 0._r8) ! limit the leaching flux to a positive value
+
+    !Calculate runoff: 
+    if (layer_nr == 1 ) then 
+      Runoff = DIN*qrunoff*h2osoi_liq(layer_nr)/(h2o_surface*delta_z(layer_nr))
+    elseif (layer_nr == 2 ) then
+      Runoff = DIN*qrunoff*h2osoi_liq(layer_nr)*((depth_runoff_Nloss-0.02)/delta_z(layer_nr))/(h2o_surface*(depth_runoff_Nloss-0.02))
+    else
+      Runoff = 0.0
+    end if 
+
+    Runoff = min(Runoff,N_NO3/dt - Leach)  ! ensure that runoff rate isn't larger than soil N pool
+    Runoff = max(Runoff, 0._r8)  ! limit the runoff flux to a positive value
+
+    Leach_Run = Leach + Runoff
+  end function calc_Leaching_Runoff
 
   function forward_MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
     !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
