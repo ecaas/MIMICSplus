@@ -145,7 +145,7 @@ program main
     !4: DAILY inputdata, output every year:
     call decomp(nsteps=17*24*365, &
                 run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1987"), &
-                write_hour=1*24*365,&
+                write_hour=1*24,&
                 pool_C_start=C_matrix_1970,pool_N_start=N_matrix_1970,inorg_N_start=N_inorg_matrix_1970,&
                 pool_C_final=C_matrix_1987,pool_N_final=N_matrix_1987,inorg_N_final=N_inorg_matrix_1987,&
                 start_year=1971,stop_year=1987,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)

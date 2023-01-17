@@ -499,15 +499,15 @@ contains
           Leaching    = calc_Leaching_Runoff(qdrain,qrunoff,h2osoi_liq,inorg_N_matrix(j,3),j) !N32 !TODO: Call this Leaching_runoff or something, as it also contains RUNOFF
           Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
           
-          ! if ( year == 1980 .and. ycounter == 181*24 ) then !IF test for NDEP experiments. Add N at certain date.
-          !   Deposition = set_N_dep(CLMdep= (N_DEPinput+15)*ndep_prof(j))
-          !   print*, "ADDED extra N deposition ",(N_DEPinput+15)*ndep_prof(j),"gN/m3 at ", year,current_month, days_in_month(current_month),t,time
-            
-          ! else
+          ! if ( year == 1980 ) then !IF test for NDEP experiments. Add N at certain date.
+          !   Deposition = Deposition + (15./hr_pr_yr)*ndep_prof(j)
           ! end if
 
-          ! if (year > 1971 .and. t > 13104 .and. t < 13104+10*365*24 .and. year < 1983) then
-
+          ! if (year >= 1980. .and. year <= 1990. ) then !Increase metabolic litter production with 20% following added N
+          !   C_PlantLITm = 1.2*C_PlantLITm
+          !   N_PlantLITm = 1.2*N_PlantLITm
+          ! end if
+ 
 
           nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton from current timestep !N35
        
