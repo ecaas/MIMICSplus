@@ -88,8 +88,8 @@ implicit none
   real(kind=r8)                                 :: fCLAY                           ![-] fraction of clay in soil (input)
   !Modifiers
   real(r8),dimension(:),allocatable             :: r_moist !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
-  real(r8)                                      :: max_mining !Used in function EcM_modifier 
-  real(r8)                                      :: EcM_mod  ![-] Modifies EcM mining based on incoming C from plant
+  real(r8)                                      :: max_myc_alloc !Used in function myc_modifier 
+  real(r8)                                      :: r_myc  ![-] Modifies mycorrhizal N aquisition based on incoming C from plant
   real(r8),dimension(:),allocatable             :: CUE_bacteria_vr  ![-] vertically resolved growth efficiency of bacteria
   real(r8),dimension(:),allocatable             :: CUE_fungi_vr     ![-] vertically resolved Growth efficiency of fungi 
   real(r8),dimension(:),allocatable             :: CUE_ecm_vr       ![-] vertically resolved Growth efficiency of ectomycorrhiza 
@@ -192,7 +192,7 @@ contains
     EcM_frac = EcM_frac/100.
   end function calc_EcMfrac
   
-  function EcM_modifier(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
+  function myc_modifier(C_input, max_input) result(mod) !Modifies N mining/scavegeing fluxes to avoid that mycorriza provides the plant with free N 
     !input
     real(r8) :: C_input
     real(r8) :: max_input
@@ -200,7 +200,7 @@ contains
     real(r8) :: mod
     !NOTE: max_input is from the input year of the current year. Should rather store value from last year?
     mod = C_input/(max_input)
-  end function EcM_modifier 
+  end function myc_modifier 
       
   function calc_sap_to_som_fractions(clay_frac,met_frac) result(f_saptosom) !AS in MIMICS (values may vary)
     !input
