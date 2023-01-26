@@ -1264,7 +1264,8 @@ contains
     if ( N_INSAPb >= 0. .and. N_INSAPf >= 0. ) then !immobilization
       if ( N_IN < (N_INSAPb + N_INSAPf)*dt) then !Not enough inorganic N to meet demand
         
-        f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
+        f_b = C_SAPb/(C_SAPb + C_SAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
+        !f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
         if ( U_sb ==0._r8 ) then !To avoid division by zero 
           N_INSAPb =0._r8
         else
@@ -1372,7 +1373,7 @@ contains
     real(r8), parameter :: BD_soil      =1.6e6  !g/m3 (loam) soil from DOI: 10.3390/APP6100269 Table 1
     real(r8), parameter :: NH4_sorp_max = 0.09*BD_soil/mg_pr_g    !mg NH4 /g soil
     real(r8), parameter :: KL           = 0.4      !L/mg
-    real(r8), parameter :: K_pseudo     = 0.0167*mg_pr_g*60./BD_soil !m3/(g hour)
+    real(r8), parameter :: K_pseudo     = 0.0167*mg_pr_g*60./BD_soil !m3/(g hour) (60min/hr)
     real(r8)            :: KL_prime       !m3/g
 
     !1) Calculate NH4_sorp_eq 

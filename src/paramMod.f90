@@ -60,7 +60,7 @@ implicit none
   !Efficiencies
   real(r8),parameter                            :: CUE_0b    = 0.4      ![-] Assumed
   real(r8),parameter                            :: CUE_0f    = 0.7      ![-] Assumed
-  real(r8),parameter                            :: CUE_myc_0 = 0.25_r8  ![-] Baskaran
+  real(r8),parameter                            :: CUE_myc_0 = 0.5      ![-] Sulman, eps_mine
   real(r8),parameter                            :: CUE_slope = 0.0!-0.016 !From German et al 2012
   real(r8),parameter                            :: NUE       = 0.7_r8   ![-] Assumed
 
