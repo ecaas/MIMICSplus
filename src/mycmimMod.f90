@@ -688,8 +688,6 @@ contains
           call vertical_diffusion(pool_temporaryN,vertN,D_nitrogen)
           call vertical_diffusion(inorg_Ntemporary_matrix,vert_inorgN,D_nitrogen)
 
-          vert_inorgN(:,2) = 0.0 !NH4_sorp does not move vertically
-
           pool_matrixC    = vertC*dt        + pool_temporaryC
           pool_matrixN    = vertN*dt        + pool_temporaryN
           inorg_N_matrix  = vert_inorgN*dt  + inorg_Ntemporary_matrix   
@@ -1390,10 +1388,10 @@ contains
     end if
   end subroutine calc_NH4_sol_sorp
 
-  subroutine vertical_diffusion(pool_matrix,vert,D) !This subroutine calculates the vertical transport of carbon through the soil layers.
+  subroutine vertical_diffusion(pool_matrix,vert,Diffusivity) !This subroutine calculates the vertical transport of carbon through the soil layers.
     !IN 
     real(r8), intent(in)   :: pool_matrix(:,:)
-    real(r8), intent(in)   :: D ![m2/h] Diffusivity
+    real(r8), intent(in)   :: Diffusivity ![m2/h] Diffusivity
     !OUT
     real(r8), allocatable, intent(out)  :: vert(:,:)
     
@@ -1402,17 +1400,21 @@ contains
     integer,dimension(1)   :: max_pool, max_depth !For iteration
     real(r8)  :: upper_diffusion_flux, lower_diffusion_flux
     real(r8)  :: tot_diffusion_dummy ![gC/h]
+    real(r8)  :: D
 
     allocate (vert, mold = pool_matrix)
 
     !Get how many depth levels and pools we will loop over.
     max_depth=shape(pool_matrix(:,1)) !TODO: Easier way to do this?
     max_pool=shape(pool_matrix(1,:))
-
     !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
     !pool_matrix is used here to calculate the diffusion.
     do depth = 1,max_depth(1)
       do pool =1, max_pool(1)
+        D = Diffusivity
+        if ( max_pool(1)==3 .and. pool ==2 ) then
+          D = Diffusivity/3
+        end if
         !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
         if (depth == 1) then
           upper_diffusion_flux= 0._r8
