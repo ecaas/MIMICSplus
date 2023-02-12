@@ -18,14 +18,14 @@ module writeMod
   "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
   "EcMSOMp ", "EcMSOMa ","EcMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ", &
   "SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm", "PlantLITs", &
-  "PlantEcM","PlantAM","PlantSOMc  ","PlantSOMp  ","PlantSOMa  ", &
+  "PlantEcM","PlantAM","PlantSOMc  ","PlantSOMp  ", &
   "EcMdecoSOMp","EcMdecoSOMc","EcMenz_prod"]
   character (len=*), dimension(*), parameter ::  N_name_fluxes = &
   [character(len=11) ::"LITmSAPb","LITmSAPf","LITsSAPb","LITsSAPf", &
   "SAPbSOMp","SAPfSOMp", "SAPbSOMa","SAPfSOMa", "SAPbSOMc","SAPfSOMc", &
   "EcMSOMp ", "EcMSOMa ","EcMSOMc ","AMSOMp  ","AMSOMa  ","AMSOMc  ", &
   "SOMaSAPb","SOMaSAPf","SOMpSOMa","SOMcSOMa","PlantLITm", "PlantLITs", &
-  "PlantSOMp","PlantSOMa","PlantSOMc","EcMPlant","AMPlant", "Deposition",&
+  "PlantSOMp","PlantSOMc","EcMPlant","AMPlant", "Deposition",&
   "Leaching", "INEcM","INAM","SOMpEcM","SOMcEcM","nitrif_rate",'INSAPf','INSAPb']
 
   contains
@@ -71,8 +71,13 @@ module writeMod
       call check(nf90_def_var(ncid,"HRf", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"HRe", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"HRa", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
-      
-      call check(nf90_def_var(ncid,"EcM_modifier", NF90_FLOAT, (/t_dimid /), varid ))
+      call check(nf90_def_var(ncid, "NH4sol_vert_change",NF90_FLOAT,(/t_dimid,lev_dimid/), varid))
+      call check(nf90_def_var(ncid, "NH4sorp_vert_change",NF90_FLOAT,(/t_dimid,lev_dimid/), varid))
+      call check(nf90_def_var(ncid, "NO3_vert_change",NF90_FLOAT,(/t_dimid,lev_dimid/), varid))
+
+
+
+      call check(nf90_def_var(ncid,"r_myc", NF90_FLOAT, (/t_dimid /), varid ))
       call check(nf90_def_var(ncid,"f_ecm", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"f_am", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
       call check(nf90_def_var(ncid,"CUEb", NF90_FLOAT, (/t_dimid, lev_dimid /), varid ))
@@ -128,7 +133,7 @@ module writeMod
     end subroutine fill_MMK
       
     subroutine fill_netcdf(ncid, time, pool_matrix, Npool_matrix,inorganic_N_matrix, &
-      mcdate,HR_sum, HR_flux, HRb,HRf,HRe,HRa,vert_sum,Nvert_sum, write_hour,month, &
+      mcdate,HR_sum, HR_flux, HRb,HRf,HRe,HRa,vert_sum,Nvert_sum,Ninorg_vert_sum, write_hour,month, &
       TSOIL, MOIST,CUE_bacteria,CUE_fungi,CUE_ecm,CUE_am,ROI_EcM,ROI_AM,enz_frac,f_met,f_alloc, NH4_eq)
       !INPUT:
       integer,intent(in)               :: ncid 
@@ -136,7 +141,8 @@ module writeMod
       real(r8), intent(in)             :: pool_matrix(nlevels,pool_types), Npool_matrix(nlevels,pool_types_N)   ! For storing pool concentrations [gC/m3]
       real(r8), intent(in)             :: inorganic_N_matrix(nlevels,inorg_N_pools)
       real(r8), intent(in)             :: vert_sum(nlevels,pool_types)
-      real(r8), intent(in)             :: Nvert_sum(nlevels,pool_types)
+      real(r8), intent(in)             :: Nvert_sum(nlevels,pool_types_N)
+      real(r8), intent(in)             :: Ninorg_vert_sum(nlevels,inorg_N_pools)
       integer, intent(in)              :: mcdate
       integer, intent(in)              :: write_hour
       integer, intent(in)              :: month
@@ -173,13 +179,20 @@ module writeMod
       call check(nf90_put_var(ncid, varid, month, start = (/ timestep /)))
       call check(nf90_inq_varid(ncid, "HR_sum", varid))
       call check(nf90_put_var(ncid, varid, HR_sum, start = (/ timestep /)))
-      call check(nf90_inq_varid(ncid, "EcM_modifier", varid))
-      call check(nf90_put_var(ncid, varid, EcM_mod, start = (/ timestep /)))
+      call check(nf90_inq_varid(ncid, "r_myc", varid))
+      call check(nf90_put_var(ncid, varid, r_myc, start = (/ timestep /)))
       
       do j=1,nlevels
         
         call check(nf90_inq_varid(ncid, "Temp", varid))
         call check(nf90_put_var(ncid, varid, TSOIL(j), start = (/ timestep, j /)))
+
+        call check(nf90_inq_varid(ncid, "NH4sol_vert_change", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_vert_sum(j,1), start = (/ timestep, j /)))
+        call check(nf90_inq_varid(ncid, "NH4sorp_vert_change", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_vert_sum(j,2), start = (/ timestep, j /)))
+        call check(nf90_inq_varid(ncid, "NO3_vert_change", varid))
+        call check(nf90_put_var(ncid, varid, Ninorg_vert_sum(j,3), start = (/ timestep, j /)))
         
         call check_and_write(ncid, "Moisture", MOIST(j),timestep,j)
 
@@ -226,7 +239,6 @@ module writeMod
 
           !N:
           call check_and_write(ncid,"N_"//trim(variables(i)),Npool_matrix(j,i),timestep,j)
-
 
           !C change:
           call check(nf90_inq_varid(ncid,"vert_change"//trim(variables(i)), varid))
@@ -290,7 +302,7 @@ module writeMod
                             C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_AMSOMp, &
                             C_LITmSAPf, C_LITsSAPf, C_AMSOMa,  C_AMSOMc,  C_SOMaSAPb,C_SOMaSAPf, &
                             C_SOMpSOMa, C_SOMcSOMa, C_SAPbSOMa,C_SAPbSOMp,C_SAPbSOMc,C_SAPfSOMa, &
-                            C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp,C_PlantSOMa, &
+                            C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp, &
                             N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc,  N_AMSOMp, &
                             N_AMSOMa,N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, &
                             N_LITmSAPf, N_LITsSAPf, N_INPlant, N_INEcM,&
@@ -298,7 +310,7 @@ module writeMod
                             N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc,N_SOMcEcM,N_SOMpEcM, &
                             C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp, &
                             C_EcMdecompSOMc,Leaching, Deposition,nitrif_rate, &
-                            N_INSAPb,N_INSAPf,N_PlantSOMp,C_EcMenz_prod, N_PlantLITs, N_PlantLITm,  N_PlantSOMa,N_PlantSOMc)
+                            N_INSAPb,N_INSAPf,N_PlantSOMp,C_EcMenz_prod, N_PlantLITs, N_PlantLITm,N_PlantSOMc)
       integer,intent(in)  :: ncid
       integer, intent(in) :: time
       integer, intent(in) :: write_hour
@@ -306,7 +318,7 @@ module writeMod
       real(r8),intent(in) :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_AMSOMp, &
                             C_LITmSAPf, C_LITsSAPf, C_AMSOMa,  C_AMSOMc,  C_SOMaSAPb,C_SOMaSAPf, &
                             C_SOMpSOMa, C_SOMcSOMa, C_SAPbSOMa,C_SAPbSOMp,C_SAPbSOMc,C_SAPfSOMa, &
-                            C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp,C_PlantSOMa, &
+                            C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp, &
                             N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc,  N_AMSOMp, &
                             N_AMSOMa,N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, &
                             N_LITmSAPf, N_LITsSAPf, N_INPlant, N_INEcM,&
@@ -314,7 +326,7 @@ module writeMod
                             N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc,N_SOMcEcM,N_SOMpEcM, &
                             C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp, &
                             C_EcMdecompSOMc,Leaching, Deposition,nitrif_rate, &
-                            N_INSAPb,N_INSAPf,N_PlantSOMp, C_EcMenz_prod, N_PlantLITs, N_PlantLITm,  N_PlantSOMa,N_PlantSOMc
+                            N_INSAPb,N_INSAPf,N_PlantSOMp, C_EcMenz_prod, N_PlantLITs, N_PlantLITm,  N_PlantSOMc
       !Local:
       integer :: timestep
       integer :: varid
@@ -328,7 +340,6 @@ module writeMod
       call check_and_write(ncid, "C_PlantAM", C_PlantAM,timestep,depth_level)
       call check_and_write(ncid, "C_PlantSOMc", C_PlantSOMc,timestep,depth_level)
       call check_and_write(ncid, "C_PlantSOMp",C_PlantSOMp ,timestep,depth_level)
-      call check_and_write(ncid, "C_PlantSOMa", C_PlantSOMa,timestep,depth_level)
       call check_and_write(ncid, "C_LITmSAPb",C_LITmSAPb ,timestep,depth_level)
       call check_and_write(ncid, "C_LITsSAPb",C_LITsSAPb ,timestep,depth_level)
       call check_and_write(ncid, "C_LITmSAPf", C_LITmSAPf,timestep,depth_level)
@@ -384,7 +395,6 @@ module writeMod
       call check_and_write(ncid, "N_PlantLITm",N_PlantLITm ,timestep,depth_level)
       call check_and_write(ncid, "N_PlantLITs", N_PlantLITs,timestep,depth_level)
       call check_and_write(ncid, "N_PlantSOMp",N_PlantSOMp ,timestep,depth_level)
-      call check_and_write(ncid, "N_PlantSOMa", N_PlantSOMa,timestep,depth_level)
       call check_and_write(ncid, "N_PlantSOMc",N_PlantSOMc ,timestep,depth_level)
       call check_and_write(ncid, "N_EcMPlant", N_EcMPlant,timestep,depth_level)
       call check_and_write(ncid, "N_AMPlant", N_AMPlant,timestep,depth_level)

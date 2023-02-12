@@ -33,7 +33,7 @@ module mycmimMod
     real(r8)              :: C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_AMSOMp, &
     C_LITmSAPf, C_LITsSAPf, C_AMSOMa,  C_AMSOMc,  C_SOMaSAPb,C_SOMaSAPf, &
     C_SOMpSOMa, C_SOMcSOMa, C_SAPbSOMa,C_SAPbSOMp,C_SAPbSOMc,C_SAPfSOMa, &
-    C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp,C_PlantSOMa, &
+    C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp, &
     N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc,  N_AMSOMp, &
     N_AMSOMa,N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, &
     N_LITmSAPf, N_LITsSAPf, N_INPlant, N_INEcM,&
@@ -42,7 +42,7 @@ module mycmimMod
     C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp, &
     C_EcMdecompSOMc,Leaching, Deposition,nitrif_rate, &
     N_demand_SAPf,N_demand_SAPb,N_INSAPb,N_INSAPf,N_PlantSOMp, &
-    C_EcMenz_prod, N_PlantLITs, N_PlantLITm,  N_PlantSOMa,N_PlantSOMc
+    C_EcMenz_prod, N_PlantLITs, N_PlantLITm,N_PlantSOMc
 
     real(r8) :: NH4_sol_final, NH4_sorp_final,NO3_final
 
@@ -164,6 +164,7 @@ contains
     integer :: writencid
     integer :: spinupncid
     
+    logical :: result_file_exist
     !Pool and respiration related variables:
     real(r8)                        :: C_Loss, C_Gain, N_Gain, N_Loss
     real(r8)                        :: pool_matrixC(nlevels,pool_types)     ! For storing C pool sizes [gC/m3]
@@ -208,9 +209,6 @@ contains
     real(r8),allocatable           :: vertC(:,:)         !Stores the vertical change in a time step, same shape as change_matrixC
     real(r8),allocatable           :: vertN(:,:)         !Stores the vertical change in a time step, same shape as change_matrixN
     real(r8),allocatable           :: vert_inorgN(:,:)         !Stores the vertical change in a time step, same shape as change_inorgN
-    real(r8)                       :: tot_diffC,upperC,lowerC                 ! For the call to vertical_diffusion subroutine
-    real(r8)                       :: tot_diffN,upperN,lowerN                 ! For the call to vertical_diffusion
-    real(r8)                       :: tot_diffNinorg,upperNinorg,lowerNinorg  ! For the call to vertical_diffusion
     real(r8)                       :: soil_depth       ![m] 
 
     !For storing input related variables
@@ -230,20 +228,21 @@ contains
     real(r8), dimension(nlevels)    :: WATSAT
     real(r8), dimension(nlevels)    :: W_SCALAR
     real(r8), dimension(nlevels)    :: T_SCALAR
-    real(r8)                        :: drain
-    real(r8)                        :: h2o_liq_tot
+    real(r8)                        :: qdrain
+    real(r8)                        :: qrunoff
+    real(r8), dimension(nlevels)    :: h2osoi_liq
     real(r8)                        :: H2OSOI
     real(r8),dimension(15)          :: PFT_distribution
     
     !Used in different functions/subroutines related to fluxes
+    real(r8)                          :: desorp           ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
     real(r8),dimension(:),allocatable :: norm_froot_prof             !Normalized root profile used for turnover depth dependence.
     real(r8)                          :: fMET                        ![-] Fraction determining distribution of total litter production between LITm and LITs
     real(r8)                          :: lflitcn_avg                 !Used in function calc_met_fraction
     real(r8), dimension(nlevels)      :: ROI_EcM
     real(r8), dimension(nlevels)      :: ROI_AM
-    real(r8), dimension(nlevels,2)    :: f_alloc                   !fraction of incoming C from plant that is allocated to EcM(1) and AM(2)
+    real(r8), dimension(nlevels,no_of_myc_pools)                :: f_alloc  !fraction of incoming C from plant that is allocated to EcM(1) and AM(2)
     real(r8), dimension(no_of_som_pools,no_of_sap_pools)        :: f_sapsom !Fraction of dead saprotrophic biomass to the different SOM pools.
-    real(r8)                          :: desorp           ![1/h]From Mimics, used for the transport from physically protected SOM to available SOM pool
 
       call system_clock(count_rate=clock_rate) !Find the time rate
       call system_clock(count=clock_start)     !Start Timer  
@@ -275,7 +274,7 @@ contains
       allocate(NH4_sorp_eq_vr(nlevels))
       NH4_sorp_eq_vr=10.0 
 
-      EcM_mod=1.0 !Initialize EcM input modifier
+      r_myc=1.0 !Initialize EcM input modifier
 
       !For counting mineralization/immobilization occurences:
       c1a=0;c1b=0;c2=0;c3a=0;c3b=0;c4a=0;c4b=0
@@ -293,7 +292,7 @@ contains
       pool_Ninorg_start_for_mass_cons=inorg_N_start
       pool_temporaryC           = pool_C_start
       pool_temporaryN           = pool_N_start
-      inorg_Ntemporary_matrix   = inorg_N_start
+      inorg_Ntemporary_matrix   = 0.0
 
       !Make sure things start from zero
       sum_consN = 0;sum_consNinorg = 0; sum_consC = 0
@@ -332,7 +331,7 @@ contains
         call read_clm_model_input(spinupncid,Spinup_counter,CLM_version, &
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
         C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-        W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)        
+        W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)        
       else
         Spinup_run = .False. 
         call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) 
@@ -340,7 +339,7 @@ contains
         call read_clm_model_input(ncid,1, CLM_version,&
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
         C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-        W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
+        W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)
       end if
       
       allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels), norm_froot_prof(nlevels))
@@ -368,9 +367,9 @@ contains
       
       if ( Spinup_run ) then
         call create_yearly_mean_netcdf(trim(out_path),run_name)  !open and prepare files to store results. Store initial values    
-        max_mining = read_maxC(spinupncid,input_steps)          !TODO ASAP: This is reading only the highest value of the 30 years..!
+        max_myc_alloc = read_maxC(spinupncid,input_steps) 
       else
-        max_mining = read_maxC(ncid,input_steps)        
+        max_myc_alloc = read_maxC(ncid,input_steps)        
       end if
       
       desorp          = calc_desorp(fCLAY)
@@ -379,12 +378,12 @@ contains
       
       !Create file and write initial vallues to it:
       call create_netcdf(trim(out_path),run_name)
-      call check(nf90_open(trim(out_path)//trim(run_name)//".nc", nf90_write, writencid))      
+      call check(nf90_open(trim(out_path)//trim(run_name)//".nc", nf90_write, writencid))  
       call fill_netcdf(writencid,t_init, pool_matrixC, pool_matrixN,inorg_N_matrix, &
       date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa, change_matrixC,&
-      change_matrixN,write_hour,current_month,TSOIL, r_moist, &
+      change_matrixN,inorg_Ntemporary_matrix, write_hour,current_month,TSOIL, r_moist, &
       CUE_bacteria_vr,CUE_fungi_vr,CUE_EcM_vr,CUE_am_vr,ROI_EcM=ROI_EcM, & 
-      ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
+      ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=inorg_N_matrix(:,2))
       
       !print initial values to terminal      
       call disp("InitC", pool_matrixC)
@@ -414,9 +413,9 @@ contains
             call read_clm_model_input(ncid,current_month,CLM_version, &
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-            W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
+            W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)  
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
-            max_mining = read_maxC(ncid,input_steps)
+            max_myc_alloc = read_maxC(ncid,input_steps)
             fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
           end if     
           
@@ -425,9 +424,9 @@ contains
             call read_clm_model_input(spinupncid,spinup_counter, CLM_version,&
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-            W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)  
+            W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)  
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
-            max_mining = read_maxC(spinupncid,input_steps)           
+            max_myc_alloc = read_maxC(spinupncid,input_steps)           
             fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
           end if  
 
@@ -445,9 +444,9 @@ contains
             call read_clm_model_input(ncid,current_day,CLM_version, &
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-            W_SCALAR,T_SCALAR,drain,h2o_liq_tot,C_CWD_litter,N_CWD_litter)
+            W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)        
-            max_mining = read_maxC(ncid,input_steps)                
+            max_myc_alloc = read_maxC(ncid,input_steps)                
             fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
           end if        
         end if         
@@ -459,9 +458,9 @@ contains
         !   print*, "Added litter; ", 10/delta_z(3), "gC/m3, and ",  10*(pool_matrixN(3,1)/pool_matrixC(3,1))/delta_z(3), "gN/m3 to LITm, layer 3."
         ! end if
 
-        EcM_mod = EcM_modifier(C_MYCinput,max_mining) !calculate factor that scales mycorrhizal activity based on C "payment" from plant
-        if ( abs(EcM_mod) > 1.0 ) then
-          print*, "EcM_mod, :", EcM_mod,"time: ", time !for checking
+        r_myc = myc_modifier(C_MYCinput,max_myc_alloc) !calculate factor that scales mycorrhizal activity based on C "payment" from plant
+        if ( abs(r_myc) > 1.0 ) then
+          print*, "r_myc, :", r_myc,"time: ", time !for checking
         end if
         
         ! Fracions of SAP that goes to different SOM pools
@@ -480,7 +479,7 @@ contains
 
           ![1/h] Microbial turnover rate (SAP to SOM)
           k_sapsom  = calc_sap_turnover_rate(fMET, TSOIL(j), norm_froot_prof(j)) 
-          k_mycsom  = calc_myc_mortality(froot_prof(j))  
+          k_mycsom  = calc_myc_mortality()  
           
           !Initialize CUEs for timestep
           CUE_bacteria_vr(j)= (CUE_slope*TSOIL(j)+CUE_0b)
@@ -493,14 +492,17 @@ contains
                                       N_root_litter,N_CWD_litter,C_CWD_litter,&
                                       C_PlantLITm,C_PlantLITs, &
                                       N_PlantLITm,N_PlantLITs, &
-                                      C_PlantSOMp,C_PlantSOMa,C_PlantSOMc, &
-                                      N_PlantSOMp,N_PlantSOMa,N_PlantSOMc)
+                                      C_PlantSOMp,C_PlantSOMc, &
+                                      N_PlantSOMp,N_PlantSOMc)
 
           !Calculate inorganic N rates: 
-          Leaching    = calc_Leaching(drain,h2o_liq_tot,inorg_N_matrix(j,3)) !N32
+          Leaching    = calc_Leaching_Runoff(qdrain,qrunoff,h2osoi_liq,inorg_N_matrix(j,3),j) !N32 !TODO: Call this Leaching_runoff or something, as it also contains RUNOFF
           Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
+
+ 
+
           nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton from current timestep !N35
-          
+       
           !Calculate fluxes between pools in level j at timestep:
           call calculate_fluxes(j,TSOIL(j),H2OSOI, pool_matrixC, pool_matrixN,inorg_N_matrix,Deposition, Leaching, nitrif_rate,soil_depth,desorp) 
 
@@ -524,11 +526,11 @@ contains
             end if
           end if    
 
-          C_PlantEcM = f_alloc(j, 1)*C_MYCinput*froot_prof(j) !C29
-          C_PlantAM  = f_alloc(j, 2)*C_MYCinput*froot_prof(j) !C30    
+          C_PlantEcM = f_alloc(j, 1)*C_MYCinput*froot_prof(j) !C28
+          C_PlantAM  = f_alloc(j, 2)*C_MYCinput*froot_prof(j) !C29    
                
           
-          call myc_to_plant(CUE_EcM_vr(j),CUE_AM_vr(j),f_enzprod(j),N_AMPlant,N_EcMPlant) !N30,N31
+          call myc_to_plant(CUE_EcM_vr(j),CUE_AM_vr(j),f_enzprod(j),N_AMPlant,N_EcMPlant) !N29,N30
           
           C_EcMenz_prod=CUE_ecm_vr(j)*C_PlantEcM*f_enzprod(j) !C28
 
@@ -537,7 +539,7 @@ contains
                             C_LITmSAPb, C_LITsSAPb, C_EcMSOMp, C_EcMSOMa, C_EcMSOMc, C_AMSOMp, &
                             C_LITmSAPf, C_LITsSAPf, C_AMSOMa,  C_AMSOMc,  C_SOMaSAPb,C_SOMaSAPf, &
                             C_SOMpSOMa, C_SOMcSOMa, C_SAPbSOMa,C_SAPbSOMp,C_SAPbSOMc,C_SAPfSOMa, &
-                            C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp,C_PlantSOMa, &
+                            C_SAPfSOMp, C_SAPfSOMc, C_PlantSOMc,C_PlantSOMp, &
                             N_LITmSAPb, N_LITsSAPb, N_EcMSOMp, N_EcMSOMa, N_EcMSOMc,  N_AMSOMp, &
                             N_AMSOMa,N_AMSOMc, N_SOMaSAPb,N_SOMaSAPf, N_SOMpSOMa, N_SOMcSOMa, &
                             N_LITmSAPf, N_LITsSAPf, N_INPlant, N_INEcM,&
@@ -545,7 +547,7 @@ contains
                             N_SAPfSOMa, N_SAPfSOMp, N_SAPfSOMc,N_SOMcEcM,N_SOMpEcM, &
                             C_PlantEcM,  C_PlantAM, C_PlantLITm, C_PlantLITs, C_EcMdecompSOMp, &
                             C_EcMdecompSOMc,Leaching, Deposition,nitrif_rate, &
-                            N_INSAPb,N_INSAPf,N_PlantSOMp,C_EcMenz_prod, N_PlantLITs, N_PlantLITm,  N_PlantSOMa,N_PlantSOMc)
+                            N_INSAPb,N_INSAPf,N_PlantSOMp,C_EcMenz_prod, N_PlantLITs, N_PlantLITm,N_PlantSOMc)
           end if !write fluxes
 
           do i = 1,pool_types !loop over all the pool types, i, in depth level j . !NOTE: This does not really need to be in a do-loop..consider using fortran types.
@@ -608,10 +610,10 @@ contains
 
             elseif (i==8) then !SOMa
               C_Gain = C_SAPbSOMa + C_SAPfSOMa + C_EcMSOMa + C_EcMdecompSOMp + C_EcMdecompSOMc + &
-              C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_PlantSOMa+ C_EcMenz_prod
+              C_AMSOMa + C_SOMpSOMa + C_SOMcSOMa + C_EcMenz_prod
               C_Loss = C_SOMaSAPb + C_SOMaSAPf 
               N_Gain = N_SAPbSOMa + N_SAPfSOMa + N_EcMSOMa + &
-              N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa +N_PlantSOMa
+              N_AMSOMa + N_SOMpSOMa + N_SOMcSOMa 
               N_Loss = N_SOMaSAPb + N_SOMaSAPf
 
             elseif (i==9) then !SOMc
@@ -638,7 +640,8 @@ contains
               !stop
               save_C=save_C+pool_temporaryC(j,i)
               pool_temporaryC(j,i)=0._r8
-            end if   
+            end if  
+
             if ( pool_temporaryN(j,i) < trunc_value ) then  
               save_N=save_N + pool_temporaryN(j,i)*dt*delta_z(j)
               pool_temporaryN(j,i)=0._r8                
@@ -668,8 +671,8 @@ contains
           end if
 
           !Summarize in and out print timestep to check mass balance
-          sum_input_step  = sum_input_step  +(C_PlantLITm+C_PlantLITs+C_PlantEcM+C_PlantAM+C_PlantSOMc+C_PlantSOMp+C_PlantSOMa)*dt*delta_z(j) !g/m2  
-          sum_N_input_step= sum_N_input_step+(N_PlantLITm+N_PlantLITs+N_PlantSOMc+N_PlantSOMp+N_PlantSOMa+Deposition)*dt*delta_z(j) !g/m2
+          sum_input_step  = sum_input_step  +(C_PlantLITm+C_PlantLITs+C_PlantEcM+C_PlantAM+C_PlantSOMc+C_PlantSOMp)*dt*delta_z(j) !g/m2  
+          sum_N_input_step= sum_N_input_step+(N_PlantLITm+N_PlantLITs+N_PlantSOMc+N_PlantSOMp+Deposition)*dt*delta_z(j) !g/m2
           sum_N_out_step  = sum_N_out_step  +(N_EcMPlant+N_AMPlant+N_INPlant+Leaching)*dt*delta_z(j)
 
         end do !j, depth_level
@@ -681,13 +684,13 @@ contains
 
         !TODO: tot_diffC, upperC, lowerC is not used and can be removed!
         if (isVertical) then
-          call vertical_diffusion(tot_diffC,upperC,lowerC, pool_temporaryC,vertC,D_carbon)
-          call vertical_diffusion(tot_diffN,upperN,lowerN, pool_temporaryN,vertN,D_nitrogen)
-          call vertical_diffusion(tot_diffNinorg,upperNinorg,lowerNinorg,inorg_Ntemporary_matrix,vert_inorgN,D_nitrogen)
+          call vertical_diffusion(pool_temporaryC,vertC,D_carbon)
+          call vertical_diffusion(pool_temporaryN,vertN,D_nitrogen)
+          call vertical_diffusion(inorg_Ntemporary_matrix,vert_inorgN,D_nitrogen)
 
           pool_matrixC    = vertC*dt        + pool_temporaryC
           pool_matrixN    = vertN*dt        + pool_temporaryN
-          inorg_N_matrix  = vert_inorgN*dt  + inorg_Ntemporary_matrix          
+          inorg_N_matrix  = vert_inorgN*dt  + inorg_Ntemporary_matrix   
         else
           pool_matrixC    = pool_temporaryC
           pool_matrixN    = pool_temporaryN
@@ -732,7 +735,7 @@ contains
         if (write_counter == write_hour/dt) then
           write_counter = 0        
           call fill_netcdf(writencid, int(time), pool_matrixC, pool_matrixN,inorg_N_matrix,&
-                          date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa,vertC,vertN, write_hour,current_month, &
+                          date, HR_mass_accumulated,HR,HRb,HRf,HRe,HRa,vertC,vertN,vert_inorgN, write_hour,current_month, &
                           TSOIL, r_moist,CUE_bacteria_vr,CUE_fungi_vr,CUE_ecm_vr,CUE_am_vr,ROI_EcM=ROI_EcM,&
                           ROI_AM=ROI_AM,enz_frac=f_enzprod,f_met = fMET,f_alloc=f_alloc, NH4_eq=NH4_sorp_eq_vr)
         end if!writing
@@ -741,6 +744,22 @@ contains
           pool_C_final  = pool_matrixC
           pool_N_final  = pool_matrixN    
           inorg_N_final = inorg_N_matrix              
+          if (Spinup_run) then !Write to file
+            inquire(file="Spinup_values/"//run_name//".dat", exist=result_file_exist)
+            if (result_file_exist) then
+              open(12, file="Spinup_values/"//run_name//".dat", status="old", action="write")
+            else
+              open(12, file="Spinup_values/"//run_name//".dat", status="new", action="write")
+            end if
+            write(12, *) "Simulation finished at year",year_char, " Spinup status: ", Spinup_run
+            write(12, *) "pool_C_final: "
+            write(12, *) pool_C_final
+            write(12, *) "pool_N_final: "
+            write(12, *) pool_N_final
+            write(12, *) "inorg_N_final: "
+            write(12, *) inorg_N_final
+            close(12)
+          end if
           call store_parameters(writencid,soil_depth,desorp)    
         end if
         
@@ -813,7 +832,7 @@ contains
   end subroutine print_summary
 
   function calc_nitrification(nh4,t_scalar,w_scalar,soil_temp) result(f_nit)
-
+    ! Based on /CTSM/blob/master/src/soilbiogeochem/SoilBiogeochemNitrifDenitrifMod.F90
     !IN:
     real(r8),intent(in) :: nh4 !gN/m3
     real(r8),intent(in) :: t_scalar !From CLM
@@ -845,7 +864,6 @@ contains
     ! nitrification constant is a set scalar * temp, moisture, and ph scalars
     ! note that k_nitr_max_perday is converted from 1/day to 1/s
     k_nitr = k_nitr_max * k_nitr_t_vr * k_nitr_h2o_vr * k_nitr_ph_vr
-
     ! first-order decay of ammonium pool with scalar defined above
     f_nit = max(nh4 * k_nitr, 0._r8) !g/m3 h
 
@@ -879,17 +897,56 @@ contains
     end if
   end function set_N_dep
 
-  function calc_Leaching(drain,h2o_tot, N_NO3) result(Leach) !TODO: Review this
+  function calc_Leaching_Runoff(qdrain,qrunoff,h2osoi_liq, N_NO3,layer_nr) result(Leach_Run) 
+    !Based on CTSM/src/soilbiogeochem/SoilBiogeochemNLeachingMod.F90
+
     !IN:
-    real(r8),intent(in)           :: drain       !mmH20/h = kgH20/m2 h, From CLM
-    real(r8),intent(in)           :: h2o_tot     !kgH20/m2, FROM CLM
+    real(r8),intent(in)           :: qdrain      !mmH2O/h = kgH2O/m2 h, From CLM, converted to 1/h from 1/s
+    real(r8),intent(in)           :: qrunoff     !mmH2O/h = kgH2O/m2 h, From CLM, converted to 1/h from 1/s
+    real(r8),dimension(:),intent(in):: h2osoi_liq !kgH2O/m2, FROM CLM
     real(r8),intent(in)           :: N_NO3       !gN/m3
+    integer,intent(in)            :: layer_nr   ! -
 
     !Out
+    real(r8)           :: Leach_Run       !gN/m3 h, NO3 leaching and runoff 
+    
+    !Local: 
+    real(r8)           :: DIN       !gN/m3 (=disn_conc)
     real(r8)           :: Leach       !gN/m3 h
+    real(r8)           :: Runoff       !gN/m3 h
+    real(r8),parameter :: depth_runoff_Nloss = 0.05 ! (m) depth over which runoff mixes with soil water for N loss to runoff
+    real(r8)           :: h2o_tot     !kgH2O/m2, 
+    real(r8)           :: h2o_surface     !kgH2O/m2, 
+    integer            :: i !counter
 
-    Leach = N_NO3*drain/h2o_tot
-  end function calc_Leaching
+    h2o_tot=0.0
+    do i = 1, nlevels ! Total liquid water in column, used for calculating leaching
+      h2o_tot=h2o_tot+h2osoi_liq(i) !kg/m2 !TODO: Unneccecary to run this loop every timestep
+    end do  
+    h2o_surface = h2osoi_liq(1)+0.75*h2osoi_liq(2) !Liquid Water in the top 5cm
+
+    DIN = 0._r8
+    if (h2osoi_liq(layer_nr) > 0._r8) then 
+      DIN = (N_NO3 * delta_z(layer_nr) )/(h2osoi_liq(layer_nr) )
+    end if
+    !TODO: Can be shortened to N_NO3*qdrain/H2o_tot. Is that better with regards to round off errors etc?
+    Leach = min(DIN*qdrain*h2osoi_liq(layer_nr)/(h2o_tot*delta_z(layer_nr)), N_NO3/dt) !Cannot be higher than the amount of NO3 in layer
+    Leach = max(Leach, 0._r8) ! limit the leaching flux to a positive value
+
+    !Calculate runoff: 
+    if (layer_nr == 1 ) then 
+      Runoff = DIN*qrunoff*h2osoi_liq(layer_nr)/(h2o_surface*delta_z(layer_nr))
+    elseif (layer_nr == 2 ) then
+      Runoff = DIN*qrunoff*h2osoi_liq(layer_nr)*((depth_runoff_Nloss-0.02)/delta_z(layer_nr))/(h2o_surface*(depth_runoff_Nloss-0.02))
+    else
+      Runoff = 0.0
+    end if 
+
+    Runoff = min(Runoff,N_NO3/dt - Leach)  ! ensure that runoff rate isn't larger than soil N pool
+    Runoff = max(Runoff, 0._r8)  ! limit the runoff flux to a positive value
+
+    Leach_Run = Leach + Runoff
+  end function calc_Leaching_Runoff
 
   function forward_MMK_flux(C_SAP,C_SUBSTRATE,MMK_nr) result(flux)
     !Compute C flux from substrate pool to saprotroph pool by using Michaelis Menten Kinetics.
@@ -922,7 +979,7 @@ contains
     flux = C_SAP*Vmax(MMK_nr)*C_SUBSTRATE/(Km(MMK_nr)+C_SAP)
   end function reverse_MMK_flux
 
-  subroutine mining_rates_Sulman(C_EcM,C_substrate,N_substrate,moisture_function,T,mining_mod, D_Cmine,D_Nmine) !Sulman et al 2019 eq 34-35 + max_mining modifier
+  subroutine mining_rates_Sulman(C_EcM,C_substrate,N_substrate,moisture_function,T,mining_mod, D_Cmine,D_Nmine) !Sulman et al 2019 eq 34-35 + max modifier
     !NOTE: T dependence (Arrhenius) seems a bit weird, makes flux very low...
     !NOTE: V_max(T) in article, but not sure how this temperature dependence is?
     !INPUT
@@ -948,7 +1005,7 @@ contains
 
   end subroutine mining_rates_Sulman
 
-  subroutine mining_rates_Baskaran(C_EcM,C_substrate,N_substrate,mining_mod,soil_depth,D_Cmine,D_Nmine) !Baskaran + max_mining modifier
+  subroutine mining_rates_Baskaran(C_EcM,C_substrate,N_substrate,mining_mod,soil_depth,D_Cmine,D_Nmine) !Baskaran + max_myc_alloc modifier
     !INPUT
     real(r8),intent(in) :: C_EcM
     real(r8),intent(in) :: C_substrate
@@ -1085,78 +1142,78 @@ contains
     !------------------CARBON FLUXES----------------------------:
     !Decomposition of LIT and SOMa by SAP:
     !On the way, a fraction 1-CUE is lost as respiration. This is handeled in the "decomp" subroutine.
-    C_LITmSAPb=reverse_MMK_flux(C_SAPb,C_LITm,1) !C6
-    C_LITsSAPb=reverse_MMK_flux(C_SAPb,C_LITs,2) !C7
-    C_SOMaSAPb=reverse_MMK_flux(C_SAPb,C_SOMa,3) !C8
-    C_LITmSAPf=reverse_MMK_flux(C_SAPf,C_LITm,4) !C9
-    C_LITsSAPf=reverse_MMK_flux(C_SAPf,C_LITs,5) !C10
-    C_SOMaSAPf=reverse_MMK_flux(C_SAPf,C_SOMa,6) !C11
+    C_LITmSAPb=reverse_MMK_flux(C_SAPb,C_LITm,1) !C5
+    C_LITsSAPb=reverse_MMK_flux(C_SAPb,C_LITs,2) !C6
+    C_SOMaSAPb=reverse_MMK_flux(C_SAPb,C_SOMa,3) !C7
+    C_LITmSAPf=reverse_MMK_flux(C_SAPf,C_LITm,4) !C8
+    C_LITsSAPf=reverse_MMK_flux(C_SAPf,C_LITs,5) !C9
+    C_SOMaSAPf=reverse_MMK_flux(C_SAPf,C_SOMa,6) !C10
     
     !Oxidation from SOMc to SOMa
     !From equations for decomposing structural litter in mimics,eq. A10
     !KO modifies Km which is used in the litter->SAP equations.
     C_SOMcSOMa =  ( C_SAPb * Vmax(2) * C_SOMc / (KO(1)*Km(2) + C_SAPb)) + &
-                  ( C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SAPf)) !C12
+                  ( C_SAPf * Vmax(5) * C_SOMc / (KO(2)*Km(5) + C_SAPf)) !C11
     
     !Desorbtion controls transport from physically protected to available SOM
-    C_SOMpSOMa=C_SOMp*desorp !C13
+    C_SOMpSOMa=C_SOMp*desorp !C12
     
     !Turnover from SAP to SOM. Based on the turnover equations used in mimics for flux from microbial pools to SOM pools (correspond to eq A4,A8 in Wieder 2015)
-    C_SAPbSOMp=C_SAPb*k_sapsom(1)*fPHYS(1)   !gC/m3h !C14
-    C_SAPbSOMc=C_SAPb*k_sapsom(1)*fCHEM(1) !C15
-    C_SAPbSOMa=C_SAPb*k_sapsom(1)*fAVAIL(1)!C16
+    C_SAPbSOMp=C_SAPb*k_sapsom(1)*fPHYS(1)   !gC/m3h !C13
+    C_SAPbSOMc=C_SAPb*k_sapsom(1)*fCHEM(1) !C14
+    C_SAPbSOMa=C_SAPb*k_sapsom(1)*fAVAIL(1)!C15
     
-    C_SAPfSOMp=C_SAPf*k_sapsom(2)*fPHYS(2) !C17 
-    C_SAPfSOMc=C_SAPf*k_sapsom(2)*fCHEM(2) !C18
-    C_SAPfSOMa=C_SAPf*k_sapsom(2)*fAVAIL(2)!C19
+    C_SAPfSOMp=C_SAPf*k_sapsom(2)*fPHYS(2) !C16 
+    C_SAPfSOMc=C_SAPf*k_sapsom(2)*fCHEM(2) !C17
+    C_SAPfSOMa=C_SAPf*k_sapsom(2)*fAVAIL(2)!C18
     
     !Dead mycorrhizal biomass enters the SOM pools:  gC/m3h
-    C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp !C20
-    C_EcMSOMc=C_EcM*k_mycsom(1)*fEcMSOM(2)!somc !C21
-    C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(3)!soma !C22
+    C_EcMSOMp=C_EcM*k_mycsom(1)*fEcMSOM(1)!somp !C19
+    C_EcMSOMc=C_EcM*k_mycsom(1)*fEcMSOM(2)!somc !C20
+    C_EcMSOMa=C_EcM*k_mycsom(1)*fEcMSOM(3)!soma !C21
     
-    C_AMSOMp=C_AM*k_mycsom(2)*fAMSOM(1) !C23
-    C_AMSOMc=C_AM*k_mycsom(2)*fAMSOM(2) !C24
-    C_AMSOMa=C_AM*k_mycsom(2)*fAMSOM(3) !C25
+    C_AMSOMp=C_AM*k_mycsom(2)*fAMSOM(1) !C22
+    C_AMSOMc=C_AM*k_mycsom(2)*fAMSOM(2) !C23
+    C_AMSOMa=C_AM*k_mycsom(2)*fAMSOM(3) !C24
 
-    !Ectomycorrhizal mining options:
+    !Ectomycorrhizal mining options (use Baskaran) :
     if ( use_Sulman ) then
-      call mining_rates_Sulman(C_EcM,C_SOMc,N_SOMc,r_moist(depth),Temp_Kelvin,EcM_mod, minedSOMc,N_SOMcEcM)
-      call mining_rates_Sulman(C_EcM,C_SOMp,N_SOMp,r_moist(depth),Temp_Kelvin, EcM_mod, minedSOMp,N_SOMpEcM)
+      call mining_rates_Sulman(C_EcM,C_SOMc,N_SOMc,r_moist(depth),Temp_Kelvin,r_myc, minedSOMc,N_SOMcEcM)
+      call mining_rates_Sulman(C_EcM,C_SOMp,N_SOMp,r_moist(depth),Temp_Kelvin, r_myc, minedSOMp,N_SOMpEcM)
     else
-      call mining_rates_Baskaran(C_EcM,C_SOMp,N_SOMp,EcM_mod,soil_depth,minedSOMp,N_SOMpEcM) !N26
-      call mining_rates_Baskaran(C_EcM,C_SOMc,N_SOMc,EcM_mod,soil_depth,minedSOMc,N_SOMcEcM) !N27              
+      call mining_rates_Baskaran(C_EcM,C_SOMp,N_SOMp,r_myc,soil_depth,minedSOMp,N_SOMpEcM) !N25
+      call mining_rates_Baskaran(C_EcM,C_SOMc,N_SOMc,r_myc,soil_depth,minedSOMc,N_SOMcEcM) !N26              
     end if
     
-    C_EcMdecompSOMp = minedSOMp   ![gC/m3h] !C26 !NOTE Can drop minedSOMx and define C_EcMdecompSOMx directly
-    C_EcMdecompSOMc = minedSOMc   ![gC/m3h] !C27
+    C_EcMdecompSOMp = minedSOMp   ![gC/m3h] !C25 !NOTE Can drop minedSOMx and define C_EcMdecompSOMx directly
+    C_EcMdecompSOMc = minedSOMc   ![gC/m3h] !C26
     
     !-----------------------------------NITROGEN FLUXES----------------------------:
     !Decomposition of LIT and SOMa by SAP
-    N_LITmSAPb = calc_parallel_Nrates(C_LITmSAPb,N_LITm,C_LITm) !N6
-    N_LITsSAPb = calc_parallel_Nrates(C_LITsSAPb,N_LITs,C_LITs) !N7
-    N_SOMaSAPb = calc_parallel_Nrates(C_SOMaSAPb,N_SOMa,C_SOMa) !N8
-    N_LITmSAPf = calc_parallel_Nrates(C_LITmSAPf,N_LITm,C_LITm) !N9
-    N_LITsSAPf = calc_parallel_Nrates(C_LITsSAPf,N_LITs,C_LITs) !N10
-    N_SOMaSAPf = calc_parallel_Nrates(C_SOMaSAPf,N_SOMa,C_SOMa) !N11
+    N_LITmSAPb = calc_parallel_Nrates(C_LITmSAPb,N_LITm,C_LITm) !N5
+    N_LITsSAPb = calc_parallel_Nrates(C_LITsSAPb,N_LITs,C_LITs) !N6
+    N_SOMaSAPb = calc_parallel_Nrates(C_SOMaSAPb,N_SOMa,C_SOMa) !N7
+    N_LITmSAPf = calc_parallel_Nrates(C_LITmSAPf,N_LITm,C_LITm) !N8
+    N_LITsSAPf = calc_parallel_Nrates(C_LITsSAPf,N_LITs,C_LITs) !N9
+    N_SOMaSAPf = calc_parallel_Nrates(C_SOMaSAPf,N_SOMa,C_SOMa) !N10
     !Transport from SOMc to SOMa:
-    N_SOMcSOMa = calc_parallel_Nrates(C_SOMcSOMa,N_SOMc,C_SOMc) !N12
+    N_SOMcSOMa = calc_parallel_Nrates(C_SOMcSOMa,N_SOMc,C_SOMc) !N11
     !Desorption of SOMp to SOMa
-    N_SOMpSOMa = calc_parallel_Nrates(C_SOMpSOMa,N_SOMp,C_SOMp) !N13
+    N_SOMpSOMa = calc_parallel_Nrates(C_SOMpSOMa,N_SOMp,C_SOMp) !N12
     !Dead saphrotroph biomass enters SOM pools
-    N_SAPbSOMp = calc_parallel_Nrates(C_SAPbSOMp,N_SAPb,C_SAPb) !N14
-    N_SAPbSOMc = calc_parallel_Nrates(C_SAPbSOMc,N_SAPb,C_SAPb) !N15
-    N_SAPbSOMa = calc_parallel_Nrates(C_SAPbSOMa,N_SAPb,C_SAPb) !N16
-    N_SAPfSOMp = calc_parallel_Nrates(C_SAPfSOMp,N_SAPf,C_SAPf) !N17
-    N_SAPfSOMc = calc_parallel_Nrates(C_SAPfSOMc,N_SAPf,C_SAPf) !N18
-    N_SAPfSOMa = calc_parallel_Nrates(C_SAPfSOMa,N_SAPf,C_SAPf) !N19
+    N_SAPbSOMp = calc_parallel_Nrates(C_SAPbSOMp,N_SAPb,C_SAPb) !N13
+    N_SAPbSOMc = calc_parallel_Nrates(C_SAPbSOMc,N_SAPb,C_SAPb) !N14
+    N_SAPbSOMa = calc_parallel_Nrates(C_SAPbSOMa,N_SAPb,C_SAPb) !N15
+    N_SAPfSOMp = calc_parallel_Nrates(C_SAPfSOMp,N_SAPf,C_SAPf) !N16
+    N_SAPfSOMc = calc_parallel_Nrates(C_SAPfSOMc,N_SAPf,C_SAPf) !N17
+    N_SAPfSOMa = calc_parallel_Nrates(C_SAPfSOMa,N_SAPf,C_SAPf) !N18
     !Dead mycorrhizal biomass enters SOM pools
-    N_EcMSOMp = calc_parallel_Nrates(C_EcMSOMp,N_EcM,C_EcM) !N20
-    N_EcMSOMa = calc_parallel_Nrates(C_EcMSOMa,N_EcM,C_EcM) !N21
+    N_EcMSOMp = calc_parallel_Nrates(C_EcMSOMp,N_EcM,C_EcM) !N19
+    N_EcMSOMa = calc_parallel_Nrates(C_EcMSOMa,N_EcM,C_EcM) !N20
     N_EcMSOMc = calc_parallel_Nrates(C_EcMSOMc,N_EcM,C_EcM) !N22
-    N_AMSOMp = calc_parallel_Nrates(C_AMSOMp,N_AM,C_AM) !N23
-    N_AMSOMa = calc_parallel_Nrates(C_AMSOMa,N_AM,C_AM) !N24
-    N_AMSOMc = calc_parallel_Nrates(C_AMSOMc,N_AM,C_AM) !N25
+    N_AMSOMp = calc_parallel_Nrates(C_AMSOMp,N_AM,C_AM) !N22
+    N_AMSOMa = calc_parallel_Nrates(C_AMSOMa,N_AM,C_AM) !N23
+    N_AMSOMc = calc_parallel_Nrates(C_AMSOMc,N_AM,C_AM) !N24
 
     !******************************Calculating fluxes related to inorganic N: ***********************************************
 
@@ -1174,8 +1231,8 @@ contains
     call update_inorganic_N(NO3_tmp,NH4_sol_tmp,N_IN,nh4_sol_frac)
      
     !(3) Inorganic N taken up by mycorrhiza 
-    N_INEcM  = calc_myc_uptake(N_IN,C_EcM,soil_depth) !N28
-    N_INAM   = calc_myc_uptake(N_IN,C_AM,soil_depth) !N29
+    N_INEcM  = calc_myc_uptake(N_IN,C_EcM,soil_depth) !N27
+    N_INAM   = calc_myc_uptake(N_IN,C_AM,soil_depth) !N28
     
     !Update inorganic pools to account for uptake by mycorrhizal fungi
     NH4_sol_tmp = NH4_sol_tmp - nh4_sol_frac*(N_INEcM+N_INAM)*dt
@@ -1205,7 +1262,8 @@ contains
     if ( N_INSAPb >= 0. .and. N_INSAPf >= 0. ) then !immobilization
       if ( N_IN < (N_INSAPb + N_INSAPf)*dt) then !Not enough inorganic N to meet demand
         
-        f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
+        f_b = C_SAPb/(C_SAPb + C_SAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
+        !f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
         if ( U_sb ==0._r8 ) then !To avoid division by zero 
           N_INSAPb =0._r8
         else
@@ -1313,7 +1371,7 @@ contains
     real(r8), parameter :: BD_soil      =1.6e6  !g/m3 (loam) soil from DOI: 10.3390/APP6100269 Table 1
     real(r8), parameter :: NH4_sorp_max = 0.09*BD_soil/mg_pr_g    !mg NH4 /g soil
     real(r8), parameter :: KL           = 0.4      !L/mg
-    real(r8), parameter :: K_pseudo     = 0.0167*mg_pr_g*60./BD_soil !m3/(g hour)
+    real(r8), parameter :: K_pseudo     = 0.0167*mg_pr_g*60./BD_soil !m3/(g hour) (60min/hr)
     real(r8)            :: KL_prime       !m3/g
 
     !1) Calculate NH4_sorp_eq 
@@ -1330,29 +1388,33 @@ contains
     end if
   end subroutine calc_NH4_sol_sorp
 
-  subroutine vertical_diffusion(tot_diffusion_dummy,upper_diffusion_flux,lower_diffusion_flux,pool_matrix,vert,D) !This subroutine calculates the vertical transport of carbon through the soil layers.
+  subroutine vertical_diffusion(pool_matrix,vert,Diffusivity) !This subroutine calculates the vertical transport of carbon through the soil layers.
     !IN 
     real(r8), intent(in)   :: pool_matrix(:,:)
-    real(r8), intent(in)   :: D ![m2/h] Diffusivity
+    real(r8), intent(in)   :: Diffusivity ![m2/h] Diffusivity
     !OUT
-    real(r8), intent(out)  :: upper_diffusion_flux, lower_diffusion_flux
-    real(r8), intent(out)  :: tot_diffusion_dummy ![gC/h]
     real(r8), allocatable, intent(out)  :: vert(:,:)
     
     !Local
     integer                :: depth, pool !For iteration
     integer,dimension(1)   :: max_pool, max_depth !For iteration
+    real(r8)  :: upper_diffusion_flux, lower_diffusion_flux
+    real(r8)  :: tot_diffusion_dummy ![gC/h]
+    real(r8)  :: D
 
     allocate (vert, mold = pool_matrix)
 
     !Get how many depth levels and pools we will loop over.
     max_depth=shape(pool_matrix(:,1)) !TODO: Easier way to do this?
     max_pool=shape(pool_matrix(1,:))
-
     !In a timestep, the fluxes between pools in the same layer is calculated before the vertical diffusion. Therefore, a loop over all the entries in
     !pool_matrix is used here to calculate the diffusion.
     do depth = 1,max_depth(1)
       do pool =1, max_pool(1)
+        D = Diffusivity
+        if ( max_pool(1)==3 .and. pool ==2 ) then
+          D = Diffusivity/3
+        end if
         !eq. 6.18 and 6.20 from Soetaert & Herman, A practical guide to ecological modelling.
         if (depth == 1) then
           upper_diffusion_flux= 0._r8
@@ -1374,8 +1436,8 @@ contains
                         N_CWD,C_CWD, &
                         C_inLITm,C_inLITs,&
                         N_inLITm,N_inLITs, &
-                        C_inSOMp,C_inSOMa,C_inSOMc, &
-                        N_inSOMp,N_inSOMa,N_inSOMc)
+                        C_inSOMp,C_inSOMc, &
+                        N_inSOMp,N_inSOMc)
                         
     !in:
     integer,  intent(in) :: layer_nr
@@ -1393,10 +1455,8 @@ contains
     real(r8), intent(out) :: N_inLITm
     real(r8), intent(out) :: N_inLITs
     real(r8), intent(out) :: C_inSOMp
-    real(r8), intent(out) :: C_inSOMa
     real(r8), intent(out) :: C_inSOMc
     real(r8), intent(out) :: N_inSOMp
-    real(r8), intent(out) :: N_inSOMa
     real(r8), intent(out) :: N_inSOMc
     
     !local:
@@ -1412,13 +1472,11 @@ contains
     C_inLITs = ((1-met_fraction)*leaf_root_inputC + C_CWD(layer_nr))*(1-f_struct_to_som) !C2
     N_inLITs = ((1-met_fraction)*leaf_root_inputN + N_CWD(layer_nr))*(1-f_struct_to_som) !N2
     
-    C_inSOMp = met_fraction*leaf_root_inputC*f_met_to_som !C5
-    C_inSOMc = ((1-met_fraction)*leaf_root_inputC + C_CWD(layer_nr))*f_struct_to_som !C3
-    C_inSOMa = 0.0!met_fraction*leaf_root_inputC*f_met_to_som*fAVAIL(1) !C4
+    C_inSOMp = met_fraction*leaf_root_inputC*f_met_to_som !C3
+    C_inSOMc = ((1-met_fraction)*leaf_root_inputC + C_CWD(layer_nr))*f_struct_to_som !C4
     
-    N_inSOMp = met_fraction*leaf_root_inputN*f_met_to_som
-    N_inSOMc = ((1-met_fraction)*leaf_root_inputN + N_CWD(layer_nr))*f_struct_to_som
-    N_inSOMa = 0.0!met_fraction*leaf_root_inputN*f_met_to_som*fAVAIL(1)     
+    N_inSOMp = met_fraction*leaf_root_inputN*f_met_to_som !N3
+    N_inSOMc = ((1-met_fraction)*leaf_root_inputN + N_CWD(layer_nr))*f_struct_to_som !N4
     
   end subroutine input_rates
 
@@ -1472,7 +1530,7 @@ contains
     !OUT 
     real(r8) :: N_INMYC
 
-    N_INMYC = V_max_myc*N_inorganic*(C_MYC/(C_MYC + Km_myc/soil_depth))*EcM_mod
+    N_INMYC = V_max_myc*N_inorganic*(C_MYC/(C_MYC + Km_myc/soil_depth))*r_myc
     !NOTE: MMK parameters should maybe be specific to mycorrhizal type?
   end function calc_myc_uptake
   

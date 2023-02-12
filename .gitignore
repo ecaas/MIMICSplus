@@ -179,3 +179,7 @@ fort.7
 fort.8
 fort.9
 test_files/*
+tools/Nadd_exp.ipynb
+tools/myfunction.py
+run_test.bash
+run.bash

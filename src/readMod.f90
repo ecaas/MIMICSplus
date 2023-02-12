@@ -137,7 +137,7 @@ module readMod
     subroutine read_clm_model_input(ncid,time_entry,CLM_version, &
                                     LEAFN_TO_LITTER,FROOTN_TO_LITTER, NPP_MYC,NDEP_TO_SMINN, &
                                     LEAFC_TO_LITTER,FROOTC_TO_LITTER,mcdate,TSOI,SOILLIQ,SOILICE, &
-                                    W_SCALAR,T_SCALAR,QDRAI,h2o_liq_tot,C_CWD,N_CWD)
+                                    W_SCALAR,T_SCALAR,QDRAI,QOVER,H2OSOI_LIQ,C_CWD,N_CWD)
       !INPUT
       integer,intent(in)                        :: ncid
       integer,intent(in)                        :: time_entry
@@ -152,12 +152,14 @@ module readMod
       real(r8),intent(out)                      :: FROOTC_TO_LITTER
       integer ,intent(out)                      :: mcdate  !"Current date" , end of averaging interval
       real(r8),intent(out),dimension(nlevels)   :: TSOI    !Celcius
-      real(r8),intent(out),dimension(nlevels)   :: SOILLIQ !m3/m3 (converted from kg/m2)
+      real(r8),intent(out),dimension(nlevels)   :: H2OSOI_LIQ !kg/m2 TODO: Name this something else, to avoid confusion with CLM var H2OSOI!
+      real(r8),intent(out),dimension(nlevels)   :: SOILLIQ !m3/m3 (converted from kg/m2) !TODO: Take in H2OSOI instead?
       real(r8),intent(out),dimension(nlevels)   :: SOILICE !m3/m3 (converted from kg/m2)
       real(r8),intent(out),dimension(nlevels)   :: W_SCALAR    
       real(r8),intent(out),dimension(nlevels)   :: T_SCALAR      
       real(r8),intent(out)                      :: QDRAI   !kgH2O/(m2 h) converted from kgH2O/(m2 s)
-      real(r8),intent(out)                      :: h2o_liq_tot
+      real(r8),intent(out)                      :: QOVER   !kgH2O/(m2 h) converted from kgH2O/(m2 s)
+      
       real(r8),intent(out)                      :: C_CWD(:) !gC/(m3 h)
       real(r8),intent(out)                      :: N_CWD(:) !gN/(m3 h)
 
@@ -253,14 +255,16 @@ module readMod
       
       call check(nf90_inq_varid(ncid, 'T_SCALAR', varid))
       call check(nf90_get_var(ncid, varid, T_SCALAR, start=(/1,1,time_entry/), count=(/1,nlevels,1/)))
+
       call check(nf90_inq_varid(ncid, 'QDRAI', varid)) !mmH2O/s = kg H2O/(m2 s)
       call check(nf90_get_var(ncid, varid, QDRAI,start=(/1, time_entry/)))    
       QDRAI = QDRAI*sec_pr_hr !kgH2O/(m2 h)
 
-      h2o_liq_tot=0.0
-      do i = 1, nlevels ! Total liquid water in column, used for calculating leaching
-        h2o_liq_tot=h2o_liq_tot+SOILLIQ(i) !kg/m2
-      end do          
+      call check(nf90_inq_varid(ncid, 'QOVER', varid)) !mmH2O/s = kg H2O/(m2 s)
+      call check(nf90_get_var(ncid, varid, QOVER,start=(/1, time_entry/)))    
+      QOVER = QOVER*sec_pr_hr !kgH2O/(m2 h)
+      
+      H2OSOI_LIQ = SOILLIQ  
       do i = 1, nlevels ! Unit conversion
         SOILICE(i) = SOILICE(i)/(delta_z(i)*917) !kg/m2 to m3/m3 rho_ice=917kg/m3
         SOILLIQ(i) = SOILLIQ(i)/(delta_z(i)*1000) !kg/m2 to m3/m3 rho_liq=1000kg/m3
