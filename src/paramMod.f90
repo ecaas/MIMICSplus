@@ -86,14 +86,16 @@ implicit none
   real(kind=r8),dimension(no_of_myc_pools)      :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
   real(r8), dimension(no_of_sap_pools)          :: fPHYS,fCHEM,fAVAIL              ![-]
   real(kind=r8)                                 :: fCLAY                           ![-] fraction of clay in soil (input)
-  !Modifiers
+  !Modifiers:
   real(r8),dimension(:),allocatable             :: r_moist !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
   real(r8)                                      :: max_myc_alloc !Used in function myc_modifier 
   real(r8)                                      :: r_myc  ![-] Modifies mycorrhizal N aquisition based on incoming C from plant
+  !CUE:
   real(r8),dimension(:),allocatable             :: CUE_bacteria_vr  ![-] vertically resolved growth efficiency of bacteria
   real(r8),dimension(:),allocatable             :: CUE_fungi_vr     ![-] vertically resolved Growth efficiency of fungi 
   real(r8),dimension(:),allocatable             :: CUE_ecm_vr       ![-] vertically resolved Growth efficiency of ectomycorrhiza 
   real(r8),dimension(:),allocatable             :: CUE_am_vr        ![-] vertically resolved Growth efficiency of arbuscular mycorrhiza 
+
   real(r8),dimension(:),allocatable             :: f_enzprod        ![-] Fraction of C that EcM use to produce enzymes used for extracting N from SOM (mining)
   real(r8),dimension(:),allocatable             :: NH4_sorp_eq_vr   !Only defined here for writing to file. see subroutine calc_NH4_sol_sorp
 
