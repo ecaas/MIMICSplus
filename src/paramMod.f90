@@ -62,11 +62,11 @@ implicit none
   real(r8),parameter                            :: CUE_0f    = 0.7      ![-] Assumed
   real(r8),parameter                            :: CUE_myc_0 = 0.5      ![-] Sulman, eps_mine
   real(r8),parameter                            :: CUE_slope = 0.0!-0.016 !From German et al 2012
-  real(r8),parameter                            :: NUE       = 0.7_r8   ![-] Assumed
+  real(r8),parameter                            :: NUE       = 0.8_r8   ![-] Mooshammer et al. 2015, Nat. Com.
 
   !Fractions
-  real(r8), parameter                           :: f_met_to_som   = 0.1_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-  real(r8), parameter                           :: f_struct_to_som= 0.3_r8 ! fraction of structural litter flux that goes directly to SOM pools
+  real(r8), parameter                           :: f_met_to_som   = 0.5_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
+  real(r8), parameter                           :: f_struct_to_som= 0.5_r8 ! fraction of structural litter flux that goes directly to SOM pools
   real(r8), parameter                           :: f_enzprod_0    = 0.1_r8
   real(r8), parameter                           :: f_growth       = 0.5_r8 !Fraction of mycorrhizal N uptake that needs to stay within the fungi (not given to plant) Assumed
   !New CUE are calculated based on this. NB: VERY ASSUMED!!
@@ -152,7 +152,7 @@ contains
     !For transport from SOMp to SOMa
     real(r8)             :: d
     real(r8), intent(in) :: clay_fraction
-    d = 1.5e-5*exp(-1.5*(clay_fraction))
+    d = 1e-6*exp(-4.5*(clay_fraction))
   end function calc_desorp
   
   function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) !Return Of Investment, Based on Sulman et al 2019
