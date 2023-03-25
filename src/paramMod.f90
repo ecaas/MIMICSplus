@@ -62,11 +62,11 @@ implicit none
   real(r8),parameter                            :: CUE_0f    = 0.7      ![-] Assumed
   real(r8),parameter                            :: CUE_myc_0 = 0.5      ![-] Sulman, eps_mine
   real(r8),parameter                            :: CUE_slope = 0.0!-0.016 !From German et al 2012
-  real(r8),parameter                            :: NUE       = 0.7_r8   ![-] Assumed
+  real(r8),parameter                            :: NUE       = 0.8_r8   ![-] Mooshammer et al. 2015, Nat. Com.
 
   !Fractions
-  real(r8), parameter                           :: f_met_to_som   = 0.1_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
-  real(r8), parameter                           :: f_struct_to_som= 0.3_r8 ! fraction of structural litter flux that goes directly to SOM pools
+  real(r8), parameter                           :: f_met_to_som   = 0.5_r8 ! fraction of metabolic litter flux that goes directly to SOM pools
+  real(r8), parameter                           :: f_struct_to_som= 0.5_r8 ! fraction of structural litter flux that goes directly to SOM pools
   real(r8), parameter                           :: f_enzprod_0    = 0.1_r8
   real(r8), parameter                           :: f_growth       = 0.5_r8 !Fraction of mycorrhizal N uptake that needs to stay within the fungi (not given to plant) Assumed
   !New CUE are calculated based on this. NB: VERY ASSUMED!!
@@ -86,14 +86,16 @@ implicit none
   real(kind=r8),dimension(no_of_myc_pools)      :: k_mycsom                        ![1/h] decay constants, MYC to SOM pools
   real(r8), dimension(no_of_sap_pools)          :: fPHYS,fCHEM,fAVAIL              ![-]
   real(kind=r8)                                 :: fCLAY                           ![-] fraction of clay in soil (input)
-  !Modifiers
+  !Modifiers:
   real(r8),dimension(:),allocatable             :: r_moist !Moisture dependence (based on function used for MIMICS in the CASA-CNP testbed)
   real(r8)                                      :: max_myc_alloc !Used in function myc_modifier 
   real(r8)                                      :: r_myc  ![-] Modifies mycorrhizal N aquisition based on incoming C from plant
+  !CUE:
   real(r8),dimension(:),allocatable             :: CUE_bacteria_vr  ![-] vertically resolved growth efficiency of bacteria
   real(r8),dimension(:),allocatable             :: CUE_fungi_vr     ![-] vertically resolved Growth efficiency of fungi 
   real(r8),dimension(:),allocatable             :: CUE_ecm_vr       ![-] vertically resolved Growth efficiency of ectomycorrhiza 
   real(r8),dimension(:),allocatable             :: CUE_am_vr        ![-] vertically resolved Growth efficiency of arbuscular mycorrhiza 
+
   real(r8),dimension(:),allocatable             :: f_enzprod        ![-] Fraction of C that EcM use to produce enzymes used for extracting N from SOM (mining)
   real(r8),dimension(:),allocatable             :: NH4_sorp_eq_vr   !Only defined here for writing to file. see subroutine calc_NH4_sol_sorp
 
@@ -150,7 +152,7 @@ contains
     !For transport from SOMp to SOMa
     real(r8)             :: d
     real(r8), intent(in) :: clay_fraction
-    d = 1.5e-5*exp(-1.5*(clay_fraction))
+    d = 1e-6*exp(-4.5*(clay_fraction))
   end function calc_desorp
   
   function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) !Return Of Investment, Based on Sulman et al 2019
