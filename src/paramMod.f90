@@ -152,7 +152,7 @@ contains
     !For transport from SOMp to SOMa
     real(r8)             :: d
     real(r8), intent(in) :: clay_fraction
-    d = 1e-6*exp(-4.5*(clay_fraction))
+    d = 2e-6*exp(-4.5*(clay_fraction))
   end function calc_desorp
   
   function ROI_function(N_aquired,C_myc, loss_rate) result(ROI) !Return Of Investment, Based on Sulman et al 2019
