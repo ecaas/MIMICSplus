@@ -34,6 +34,7 @@ program main
   logical :: file_exist
 
   character (len=200)  :: clm_data_file 
+  character (len=200)  :: clm_mortality_file 
   character (len=200)  :: clm_surface_file
   character (len=200)  :: namelist_file
   character (len=200)  :: output_path
@@ -52,12 +53,13 @@ program main
   call get_command_argument(number=1,value=site)
   call get_command_argument(number=2,value=description)
   call get_command_argument(number=3,value=clm_data_file)
-  call get_command_argument(number=4,value=clm_surface_file)
-  call get_command_argument(number=5,value=namelist_file)
-  call get_command_argument(number=6,value=output_path)
-  call get_command_argument(number=7,value=spinup_char)
-  call get_command_argument(number=8,value=spinup_only_char)
-  call get_command_argument(number=9,value=CLM_version)
+  call get_command_argument(number=4,value=clm_mortality_file)
+  call get_command_argument(number=5,value=clm_surface_file)
+  call get_command_argument(number=6,value=namelist_file)
+  call get_command_argument(number=7,value=output_path)
+  call get_command_argument(number=8,value=spinup_char)
+  call get_command_argument(number=9,value=spinup_only_char)
+  call get_command_argument(number=10,value=CLM_version)
 
   spinup_char=trim(spinup_char)
   read(spinup_char,*) spinup_years 
@@ -88,7 +90,7 @@ program main
     write_hour=24*365*100+100*24,&
     pool_C_start=C_matrix_init,pool_N_start=N_matrix_init,inorg_N_start=N_inorg_matrix_init,&
     pool_C_final=C_matrix_Spunup,pool_N_final=N_matrix_Spunup,inorg_N_final=N_inorg_matrix_Spunup,&
-    start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
+    start_year=1850,stop_year=1869,clm_input_path=clm_data_file,clm_mortality_path = clm_mortality_file,clm_surf_path=clm_surface_file, out_path = output_path)
   end if
 
   if ( .not. spinup_only ) then
@@ -138,7 +140,9 @@ program main
                 write_hour=1*24*365*10+1+100*24,&
                 pool_C_start=C_matrix_Spunup,pool_N_start=N_matrix_Spunup,inorg_N_start=N_inorg_matrix_Spunup,&
                 pool_C_final=C_matrix_1970,pool_N_final=N_matrix_1970,inorg_N_final=N_inorg_matrix_1970,&
-                start_year=1900,stop_year=1970,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
+                start_year=1900,stop_year=1970,clm_input_path=clm_data_file, &
+                clm_mortality_path = clm_mortality_file, &
+                clm_surf_path=clm_surface_file, out_path = output_path)
     !|
     !| Use output of last timestep to initialize step 4
     !V
@@ -148,7 +152,9 @@ program main
                 write_hour=1*24,&
                 pool_C_start=C_matrix_1970,pool_N_start=N_matrix_1970,inorg_N_start=N_inorg_matrix_1970,&
                 pool_C_final=C_matrix_1987,pool_N_final=N_matrix_1987,inorg_N_final=N_inorg_matrix_1987,&
-                start_year=1971,stop_year=1987,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
+                start_year=1971,stop_year=1987,clm_input_path=clm_data_file, &
+                clm_mortality_path = clm_mortality_file, & 
+                clm_surf_path=clm_surface_file, out_path = output_path)
   
     !5: RUN WITH DAILY UPDATES of inputdata,output every day:
     call decomp(nsteps=5*24*365, &
@@ -156,7 +162,8 @@ program main
                 write_hour=1*24,&
                 pool_C_start=C_matrix_1987,pool_N_start=N_matrix_1987,inorg_N_start=N_inorg_matrix_1987,&
                 pool_C_final=C_matrix_final,pool_N_final=N_matrix_final,inorg_N_final=N_inorg_matrix_final,&
-                start_year=1988,stop_year=1992,clm_input_path=clm_data_file,clm_surf_path=clm_surface_file, out_path = output_path)
+                start_year=1988,stop_year=1992,clm_input_path=clm_data_file,clm_mortality_path = clm_mortality_file, &
+                clm_surf_path=clm_surface_file, out_path = output_path)
     deallocate (C_matrix_1970,N_matrix_1970,N_inorg_matrix_1970,C_matrix_1987,N_matrix_1987,N_inorg_matrix_1987)
     deallocate (C_matrix_final,N_matrix_final,N_inorg_matrix_final)
   endif
