@@ -1493,23 +1493,31 @@ contains
     !local:
     real(r8)           :: leaf_root_inputC
     real(r8)           :: leaf_root_inputN
-
+    real(r8)           :: metabolic_litter_totC
+    real(r8)           :: metabolic_litter_totN
+    real(r8)           :: structural_litter_totC
+    real(r8)           :: structural_litter_totN
 
     leaf_root_inputC = FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !gC/m3h !NOTE: These do not include CWD
-    leaf_root_inputN = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
+    leaf_root_inputN = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h
 
+    metabolic_litter_totC = (met_fraction*(leaf_root_inputC + split_mortalityC(layer_nr)) + met_mortalityC(layer_nr))
+    metabolic_litter_totN = (met_fraction*(leaf_root_inputN + split_mortalityN(layer_nr)) + met_mortalityN(layer_nr))
+    
+    structural_litter_totC = ((1-met_fraction)*(leaf_root_inputC + split_mortalityC(layer_nr))+  C_CWD(layer_nr))
+    structural_litter_totN = ((1-met_fraction)*(leaf_root_inputN + split_mortalityN(layer_nr))+  N_CWD(layer_nr))
 
-    C_inLITm = (met_fraction*(leaf_root_inputC + split_mortalityC(layer_nr)) + met_mortalityC(layer_nr)) *(1-f_met_to_som) !C1
-    N_inLITm = (met_fraction*(leaf_root_inputN + split_mortalityN(layer_nr)) + met_mortalityN(layer_nr)) *(1-f_met_to_som) !N1
+    C_inLITm = metabolic_litter_totC *(1-f_met_to_som) !C1
+    N_inLITm = metabolic_litter_totN *(1-f_met_to_som) !N1
     
-    C_inLITs = ((1-met_fraction)*(leaf_root_inputC + split_mortalityC(layer_nr))+  C_CWD(layer_nr))*(1-f_struct_to_som) !C2
-    N_inLITs = ((1-met_fraction)*(leaf_root_inputN + split_mortalityN(layer_nr)) +  N_CWD(layer_nr))*(1-f_struct_to_som) !N2
+    C_inLITs = structural_litter_totC*(1-f_struct_to_som) !C2
+    N_inLITs = structural_litter_totN*(1-f_struct_to_som) !N2
     
-    C_inSOMp = met_fraction*leaf_root_inputC*f_met_to_som !C3
-    C_inSOMc = ((1-met_fraction)*leaf_root_inputC + C_CWD(layer_nr))*f_struct_to_som !C4
+    C_inSOMp = metabolic_litter_totC *f_met_to_som !C3
+    N_inSOMp = metabolic_litter_totN *f_met_to_som !N3
     
-    N_inSOMp = met_fraction*leaf_root_inputN*f_met_to_som !N3
-    N_inSOMc = ((1-met_fraction)*leaf_root_inputN + N_CWD(layer_nr))*f_struct_to_som !N4
+    C_inSOMc = structural_litter_totC*f_struct_to_som !C4
+    N_inSOMc = structural_litter_totN*f_struct_to_som !N4
     
   end subroutine input_rates
 
