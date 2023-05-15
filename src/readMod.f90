@@ -11,7 +11,7 @@ module readMod
 
   private
   public :: read_time,read_maxC,read_WATSAT_and_profiles,read_clay,read_PFTs,read_clm_model_input, &
-            calc_PFT,read_namelist
+            calc_PFT,read_namelist,read_mort_profiles, read_clm_mortality
 
   contains
       
@@ -51,6 +51,29 @@ module readMod
 
       max_Cpay = maxval(NPP_myc)      
     end function read_maxC
+
+    subroutine read_mort_profiles(clm_file,CROOT_PROF,STEM_PROF) !Needed bc. these vars is only given in the first outputfile of the simulation.
+
+      !INPUT
+      character (len = *),intent(in):: clm_file       
+      !OUTPUT
+      real(r8), intent(out),dimension(nlevels)          :: CROOT_PROF
+      real(r8), intent(out),dimension(nlevels)          :: STEM_PROF
+   
+      !LOCAL
+      integer            :: ncid, varid
+
+      call check(nf90_open(trim(clm_file), nf90_nowrite, ncid))
+
+
+      call check(nf90_inq_varid(ncid, 'CROOT_PROF', varid))
+      call check(nf90_get_var(ncid, varid, CROOT_PROF,count=(/1,nlevels/))) 
+      call check(nf90_inq_varid(ncid, 'STEM_PROF', varid))
+      call check(nf90_get_var(ncid, varid, STEM_PROF,count=(/1,nlevels/))) 
+      
+      call check(nf90_close(ncid))
+
+    end subroutine read_mort_profiles
 
     subroutine read_WATSAT_and_profiles(clm_history_file,WATSAT,NDEP_PROF,FROOT_PROF,LEAF_PROF) !Needed bc. these vars is only given in the first outputfile of the simulation.
       !TODO: Makes more sense to have one subroutine for profiles and one for WATSAT?
@@ -133,6 +156,100 @@ module readMod
       call check(nf90_get_var(ncid, pftid, PFT_dist, count=(/1,1,15/)))
       call check(nf90_close(ncid))
     end subroutine read_PFTs
+
+    subroutine read_clm_mortality(ncid,time_entry,froot_prof, croot_prof, leaf_prof, stem_prof, met_mortalityC,met_mortalityN, split_mortalityC, split_mortalityN)
+
+      !INPUT
+      integer,intent(in)                        :: ncid
+      integer,intent(in)                        :: time_entry
+      real(r8),intent(in), dimension(nlevels)   :: froot_prof
+      real(r8),intent(in), dimension(nlevels)   :: croot_prof
+      real(r8),intent(in), dimension(nlevels)   :: leaf_prof
+      real(r8),intent(in), dimension(nlevels)   :: stem_prof
+
+      !OUTPUT
+      real(r8), dimension(nlevels) :: met_mortalityC
+      real(r8), dimension(nlevels) :: split_mortalityC
+      real(r8), dimension(nlevels) :: met_mortalityN
+      real(r8), dimension(nlevels) :: split_mortalityN
+
+      !LOCAL: 
+      real(r8) :: met_leaf_prof_mortC
+      real(r8) :: met_froot_prof_mortC
+      real(r8) :: met_croot_prof_mortC
+      real(r8) :: met_stem_prof_mortC
+      real(r8) :: split_leaf_prof_mortC
+      real(r8) :: split_froot_prof_mortC
+      real(r8) :: met_leaf_prof_mortN
+      real(r8) :: met_froot_prof_mortN
+      real(r8) :: met_croot_prof_mortN
+      real(r8) :: met_stem_prof_mortN
+      real(r8) :: split_leaf_prof_mortN
+      real(r8) :: split_froot_prof_mortN
+      integer :: varid
+
+
+      !C mortality fluxes to metabolic: 
+      call check(nf90_inq_varid(ncid, 'met_leaf_prof_mortC', varid))
+      call check(nf90_get_var(ncid, varid, met_leaf_prof_mortC,start=(/1, time_entry/)))
+      met_leaf_prof_mortC = met_leaf_prof_mortC*sec_pr_hr  ![gC/m^2/h]
+      
+      call check(nf90_inq_varid(ncid, 'met_froot_prof_mortC', varid))
+      call check(nf90_get_var(ncid, varid, met_froot_prof_mortC,start=(/1, time_entry/)))
+      met_froot_prof_mortC = met_froot_prof_mortC*sec_pr_hr  ![gC/m^2/h]
+
+      call check(nf90_inq_varid(ncid, 'met_croot_prof_mortC', varid))
+      call check(nf90_get_var(ncid, varid, met_croot_prof_mortC,start=(/1, time_entry/)))
+      met_croot_prof_mortC = met_croot_prof_mortC*sec_pr_hr  ![gC/m^2/h]
+
+      call check(nf90_inq_varid(ncid, 'met_stem_prof_mortC', varid))
+      call check(nf90_get_var(ncid, varid, met_stem_prof_mortC,start=(/1, time_entry/)))
+      met_stem_prof_mortC = met_stem_prof_mortC*sec_pr_hr  ![gC/m^2/h]
+
+
+      
+      !N mortality fluxes to metabolic: 
+      call check(nf90_inq_varid(ncid, 'met_leaf_prof_mortN', varid))
+      call check(nf90_get_var(ncid, varid, met_leaf_prof_mortN,start=(/1, time_entry/)))
+      met_leaf_prof_mortN = met_leaf_prof_mortN*sec_pr_hr  ![gN/m^2/h]
+      
+      call check(nf90_inq_varid(ncid, 'met_froot_prof_mortN', varid))
+      call check(nf90_get_var(ncid, varid, met_froot_prof_mortN,start=(/1, time_entry/)))
+      met_froot_prof_mortN = met_froot_prof_mortN*sec_pr_hr  ![gN/m^2/h]
+
+      call check(nf90_inq_varid(ncid, 'met_croot_prof_mortN', varid))
+      call check(nf90_get_var(ncid, varid, met_croot_prof_mortN,start=(/1, time_entry/)))
+      met_croot_prof_mortN = met_croot_prof_mortN*sec_pr_hr  ![gN/m^2/h]
+
+      call check(nf90_inq_varid(ncid, 'met_stem_prof_mortN', varid))
+      call check(nf90_get_var(ncid, varid, met_stem_prof_mortN,start=(/1, time_entry/)))
+      met_stem_prof_mortN = met_stem_prof_mortN*sec_pr_hr  ![gN/m^2/h]
+      
+      met_mortalityC = met_leaf_prof_mortC*leaf_prof+met_froot_prof_mortC*froot_prof+met_croot_prof_mortC*croot_prof+met_stem_prof_mortC*stem_prof ![gC/m^3/h]
+      met_mortalityN = met_leaf_prof_mortN*leaf_prof+met_froot_prof_mortN*froot_prof+met_croot_prof_mortN*croot_prof+met_stem_prof_mortN*stem_prof ![gN/m^3/h]
+
+      
+      !Split mortality fluxes:
+      call check(nf90_inq_varid(ncid, 'split_leaf_prof_mortC', varid))
+      call check(nf90_get_var(ncid, varid, split_leaf_prof_mortC,start=(/1, time_entry/)))
+      split_leaf_prof_mortC = split_leaf_prof_mortC*sec_pr_hr  ![gC/m^2/h]
+      
+      call check(nf90_inq_varid(ncid, 'split_froot_prof_mortC', varid))
+      call check(nf90_get_var(ncid, varid, split_froot_prof_mortC,start=(/1, time_entry/)))
+      split_froot_prof_mortC = split_froot_prof_mortC*sec_pr_hr  ![gC/m^2/h]
+      
+      !N mortality fluxes to splitabolic: 
+      call check(nf90_inq_varid(ncid, 'split_leaf_prof_mortN', varid))
+      call check(nf90_get_var(ncid, varid, split_leaf_prof_mortN,start=(/1, time_entry/)))
+      split_leaf_prof_mortN = split_leaf_prof_mortN*sec_pr_hr![gN/m^2/h]
+      
+      call check(nf90_inq_varid(ncid, 'split_froot_prof_mortN', varid))
+      call check(nf90_get_var(ncid, varid, split_froot_prof_mortN,start=(/1, time_entry/)))
+      split_froot_prof_mortN = split_froot_prof_mortN*sec_pr_hr  ![gN/m^2/h]
+
+      split_mortalityC = split_leaf_prof_mortC*leaf_prof+split_froot_prof_mortC*froot_prof ![gC/m^3/h]
+      split_mortalityN = split_leaf_prof_mortN*leaf_prof+split_froot_prof_mortN*froot_prof ![gN/m^3/h]
+    end subroutine read_clm_mortality
                 
     subroutine read_clm_model_input(ncid,time_entry,CLM_version, &
                                     LEAFN_TO_LITTER,FROOTN_TO_LITTER, NPP_MYC,NDEP_TO_SMINN, &

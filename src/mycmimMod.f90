@@ -17,7 +17,8 @@ module mycmimMod
   use paramMod        !TODO: use only relevant stuff?
   use initMod,        only: nlevels,calc_init_NH4
   use readMod,        only: read_maxC, read_time,read_clm_model_input,read_clay,&
-                            read_WATSAT_and_profiles,read_PFTs,calc_PFT
+                            read_WATSAT_and_profiles,read_PFTs,calc_PFT,read_mort_profiles, &
+                            read_clm_mortality
   use writeMod,       only: create_netcdf,create_yearly_mean_netcdf,fill_netcdf, &
                         fill_yearly_netcdf, fluxes_netcdf,store_parameters,check,fill_MMK
   use testMod,        only: respired_mass, test_mass_conservation_C,test_mass_conservation_N, &
@@ -60,6 +61,8 @@ module mycmimMod
     real(r8),dimension(:),allocatable             :: ndep_prof
     real(r8),dimension(:),allocatable             :: leaf_prof
     real(r8),dimension(:),allocatable             :: froot_prof
+    real(r8),dimension(:),allocatable             :: stem_prof
+    real(r8),dimension(:),allocatable             :: croot_prof
       
 contains
   
@@ -95,6 +98,7 @@ contains
                     pool_C_start,pool_N_start,inorg_N_start, &
                     pool_C_final,pool_N_final,inorg_N_final,  &
                     start_year,stop_year,clm_input_path, &
+                    clm_mortality_path, &
                     clm_surf_path,out_path) !Main subroutine. Calculates changes in each pool at each timestep (dC/dt & dN/dt)
     !IN:
     integer,intent(in)                        :: nsteps                               ! number of time steps to iterate over
@@ -106,6 +110,7 @@ contains
     integer, intent(in)                       :: start_year                           ! Forcing start year
     integer, intent(in)                       :: stop_year                            ! Forcing end year, i.e. forcing loops over interval start_year-stop_year
     character (len=*) ,intent(in)             :: clm_input_path                       ! file path for input
+    character (len=*) ,intent(in)             :: clm_mortality_path                       ! file path for input
     character (len=*) ,intent(in)             :: clm_surf_path                        ! file path for surface data
     character (len=*) ,intent(in)             :: out_path                             ! file path for output file
 
@@ -163,6 +168,8 @@ contains
     integer :: ncid
     integer :: writencid
     integer :: spinupncid
+    integer :: mort_ncid
+    integer :: mort_spinupncid
     
     logical :: result_file_exist
     !Pool and respiration related variables:
@@ -220,6 +227,10 @@ contains
     real(r8)                       :: N_root_litter
     real(r8)                       :: C_CWD_litter(nlevels)
     real(r8)                       :: N_CWD_litter(nlevels)
+    real(r8)                       :: met_mortC(nlevels)
+    real(r8)                       :: met_mortN(nlevels)
+    real(r8)                       :: split_mortC(nlevels)
+    real(r8)                       :: split_mortN(nlevels)
 
     !For reading soil temperature and moisture from CLM output file
     real(r8), dimension(nlevels)    :: TSOIL
@@ -321,32 +332,42 @@ contains
       day_counter   = 0
       write_counter       = 0
       ycounter      = 0
+
+      allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels), norm_froot_prof(nlevels), croot_prof(nlevels),stem_prof(nlevels))
+
+      call read_WATSAT_and_profiles(adjustr(clm_input_path)//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof) !NOTE: This subroutine needs to read a file that contains WATSAT etc. 
+
+      call read_mort_profiles(adjustr(clm_mortality_path)//"1901.nc",croot_prof,stem_prof)
+
  
       !read data from CLM file
       if ( start_year == 1850 ) then
         Spinup_run = .True.
         spinup_counter =1
         call check(nf90_open(trim(adjustr(clm_input_path)//'for_spinup.1850-1869.nc'), nf90_nowrite, spinupncid))  
+        call check(nf90_open(trim(adjustr(clm_mortality_path)//'for_spinup.1850-1869.nc'),nf90_nowrite,mort_spinupncid))
         call read_time(spinupncid,input_steps) !Check if inputdata is daily or monthly ("steps" is output)         
-        call read_clm_model_input(spinupncid,Spinup_counter,CLM_version, &
+        call read_clm_model_input(spinupncid,spinup_counter,CLM_version, &
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
         C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
-        W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)        
+        W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)    
+        call read_clm_mortality(mort_spinupncid,spinup_counter,froot_prof,croot_prof,leaf_prof,stem_prof,met_mortC,met_mortN,split_mortC,split_mortN)     
       else
         Spinup_run = .False. 
         call check(nf90_open(trim(adjustr(clm_input_path)//'all.'//year_char//'.nc'), nf90_nowrite, ncid)) 
+        call check(nf90_open(trim(adjustr(clm_mortality_path)//year_char//'.nc'),nf90_nowrite,mort_ncid))
         call read_time(ncid,input_steps) !Check if inputdata is daily or monthly ("steps" is output) 
         call read_clm_model_input(ncid,1, CLM_version,&
         N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
         C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
         W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)
-      end if
-      
-      allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels), norm_froot_prof(nlevels))
 
-      call read_WATSAT_and_profiles(adjustr(clm_input_path)//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof) !NOTE: This subroutine needs to read a file that contains WATSAT etc. 
-                                                                                                                      !1901 have that in my cases, but you might need to read a different file.
+        call read_clm_mortality(mort_ncid,1,froot_prof,croot_prof,leaf_prof,stem_prof,met_mortC,met_mortN,split_mortC,split_mortN)     
+
+      end if
+
       call moisture_func(SOILLIQ,WATSAT,SOILICE,r_moist)                   
+
       call read_clay(adjustr(clm_surf_path),fCLAY)
       call calc_PFT(adjustr(clm_input_path)//'all.'//"1901.nc",lflitcn_avg)
       
@@ -414,7 +435,8 @@ contains
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
             W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)  
-            call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
+            call read_clm_mortality(mort_ncid,current_month,froot_prof,croot_prof,leaf_prof,stem_prof,met_mortC,met_mortN,split_mortC,split_mortN) 
+            call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)  
             max_myc_alloc = read_maxC(ncid,input_steps)
             fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
           end if     
@@ -425,6 +447,7 @@ contains
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
             W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)  
+            call read_clm_mortality(mort_spinupncid,spinup_counter,froot_prof,croot_prof,leaf_prof,stem_prof,met_mortC,met_mortN,split_mortC,split_mortN)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)   
             max_myc_alloc = read_maxC(spinupncid,input_steps)           
             fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
@@ -445,6 +468,7 @@ contains
             N_leaf_litter,N_root_litter,C_MYCinput,N_DEPinput, &
             C_leaf_litter,C_root_litter,date,TSOIL,SOILLIQ,SOILICE, &
             W_SCALAR,T_SCALAR,qdrain,qrunoff,h2osoi_liq,C_CWD_litter,N_CWD_litter)
+            call read_clm_mortality(mort_ncid,current_day,froot_prof,croot_prof,leaf_prof,stem_prof,met_mortC,met_mortN,split_mortC,split_mortN)
             call moisture_func(SOILLIQ,WATSAT, SOILICE,r_moist)        
             max_myc_alloc = read_maxC(ncid,input_steps)                
             fMET = calc_met_fraction(C_leaf_litter,C_root_litter,C_CWD_litter,lflitcn_avg)
@@ -493,15 +517,15 @@ contains
                                       C_PlantLITm,C_PlantLITs, &
                                       N_PlantLITm,N_PlantLITs, &
                                       C_PlantSOMp,C_PlantSOMc, &
-                                      N_PlantSOMp,N_PlantSOMc)
+                                      N_PlantSOMp,N_PlantSOMc, &
+                                      met_mortC, met_mortN, &
+                                      split_mortC, split_mortN)
 
           !Calculate inorganic N rates: 
-          Leaching    = calc_Leaching_Runoff(qdrain,qrunoff,h2osoi_liq,inorg_N_matrix(j,3),j) !N32 !TODO: Call this Leaching_runoff or something, as it also contains RUNOFF
-          Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N33
+          Leaching    = calc_Leaching_Runoff(qdrain,qrunoff,h2osoi_liq,inorg_N_matrix(j,3),j) !N31 !TODO: Call this Leaching_runoff or something, as it also contains RUNOFF
+          Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N32
 
- 
-
-          nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton from current timestep !N35
+          nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton from current timestep !N34
        
           !Calculate fluxes between pools in level j at timestep:
           call calculate_fluxes(j,TSOIL(j),H2OSOI, pool_matrixC, pool_matrixN,inorg_N_matrix,Deposition, Leaching, nitrif_rate,soil_depth,desorp) 
@@ -800,7 +824,7 @@ contains
       call print_summary(save_N, save_C,c1a,c1b,c2,c3a,c3b,c4a,c4b,pool_C_final,pool_N_final,inorg_N_final)
 
       !deallocation
-      deallocate(ndep_prof,leaf_prof,froot_prof,norm_froot_prof,r_moist, NH4_sorp_eq_vr)
+      deallocate(ndep_prof,leaf_prof,froot_prof,norm_froot_prof,croot_prof,stem_prof,r_moist, NH4_sorp_eq_vr)
       deallocate(CUE_bacteria_vr,CUE_fungi_vr, CUE_ecm_vr,CUE_am_vr,f_enzprod)    
 
       !For timing
@@ -1262,8 +1286,8 @@ contains
     if ( N_INSAPb >= 0. .and. N_INSAPf >= 0. ) then !immobilization
       if ( N_IN < (N_INSAPb + N_INSAPf)*dt) then !Not enough inorganic N to meet demand
         
-        f_b = C_SAPb/(C_SAPb + C_SAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
-        !f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
+
+        f_b = N_INSAPb/(N_INSAPb + N_INSAPf) ! Bac. and fungi want the same inorganic N. This fraction determines how much N is available to each pool.
         if ( U_sb ==0._r8 ) then !To avoid division by zero 
           N_INSAPb =0._r8
         else
@@ -1376,6 +1400,7 @@ contains
 
     !1) Calculate NH4_sorp_eq 
     KL_prime = KL*mg_pr_g*m3_pr_L/soil_water_frac 
+    
     NH4_sorp_eq=(1+KL_prime*NH4_tot+NH4_sorp_max*KL_prime)/(2*KL_prime) - sqrt((1+KL_prime*NH4_tot+NH4_sorp_max*KL_prime)**2-4*KL_prime**2*NH4_sorp_max*NH4_tot)/(2*KL_prime)
     
     !2) Calculate NH4_sorp after adjusting towards equilibrium for 1 timestep
@@ -1432,12 +1457,15 @@ contains
     end do !depth
   end subroutine vertical_diffusion
 
-  subroutine input_rates(layer_nr, met_fraction,LEAFC_TO_LIT,FROOTC_TO_LIT,LEAFN_TO_LIT,FROOTN_TO_LIT,&
+  subroutine input_rates(layer_nr, met_fraction,LEAFC_TO_LIT,FROOTC_TO_LIT, &
+                        LEAFN_TO_LIT,FROOTN_TO_LIT,&
                         N_CWD,C_CWD, &
                         C_inLITm,C_inLITs,&
                         N_inLITm,N_inLITs, &
                         C_inSOMp,C_inSOMc, &
-                        N_inSOMp,N_inSOMc)
+                        N_inSOMp,N_inSOMc, &
+                        met_mortalityC, met_mortalityN, &
+                        split_mortalityC, split_mortalityN)
                         
     !in:
     integer,  intent(in) :: layer_nr
@@ -1448,6 +1476,10 @@ contains
     real(r8), intent(in) :: FROOTN_TO_LIT!From CLM    
     real(r8), intent(in) :: N_CWD(:) !FROM CLM
     real(r8), intent(in) :: C_CWD(:) !FROM CLM
+    real(r8), intent(in) :: met_mortalityC(:)
+    real(r8), intent(in) :: met_mortalityN(:)
+    real(r8), intent(in) :: split_mortalityC(:)
+    real(r8), intent(in) :: split_mortalityN(:)
     
     !out:
     real(r8), intent(out) :: C_inLITm
@@ -1462,21 +1494,31 @@ contains
     !local:
     real(r8)           :: leaf_root_inputC
     real(r8)           :: leaf_root_inputN
+    real(r8)           :: metabolic_litter_totC
+    real(r8)           :: metabolic_litter_totN
+    real(r8)           :: structural_litter_totC
+    real(r8)           :: structural_litter_totN
 
     leaf_root_inputC = FROOTC_TO_LIT*froot_prof(layer_nr) + LEAFC_TO_LIT*leaf_prof(layer_nr) !gC/m3h !NOTE: These do not include CWD
-    leaf_root_inputN = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h 
+    leaf_root_inputN = FROOTN_TO_LIT*froot_prof(layer_nr) + LEAFN_TO_LIT*leaf_prof(layer_nr)!gN/m3h
+
+    metabolic_litter_totC = (met_fraction*(leaf_root_inputC + split_mortalityC(layer_nr)) + met_mortalityC(layer_nr))
+    metabolic_litter_totN = (met_fraction*(leaf_root_inputN + split_mortalityN(layer_nr)) + met_mortalityN(layer_nr))
     
-    C_inLITm = met_fraction*leaf_root_inputC*(1-f_met_to_som) !C1
-    N_inLITm = met_fraction*leaf_root_inputN*(1-f_met_to_som) !N1
+    structural_litter_totC = ((1-met_fraction)*(leaf_root_inputC + split_mortalityC(layer_nr))+  C_CWD(layer_nr))
+    structural_litter_totN = ((1-met_fraction)*(leaf_root_inputN + split_mortalityN(layer_nr))+  N_CWD(layer_nr))
+
+    C_inLITm = metabolic_litter_totC *(1-f_met_to_som) !C1
+    N_inLITm = metabolic_litter_totN *(1-f_met_to_som) !N1
     
-    C_inLITs = ((1-met_fraction)*leaf_root_inputC + C_CWD(layer_nr))*(1-f_struct_to_som) !C2
-    N_inLITs = ((1-met_fraction)*leaf_root_inputN + N_CWD(layer_nr))*(1-f_struct_to_som) !N2
+    C_inLITs = structural_litter_totC*(1-f_struct_to_som) !C2
+    N_inLITs = structural_litter_totN*(1-f_struct_to_som) !N2
     
-    C_inSOMp = met_fraction*leaf_root_inputC*f_met_to_som !C3
-    C_inSOMc = ((1-met_fraction)*leaf_root_inputC + C_CWD(layer_nr))*f_struct_to_som !C4
+    C_inSOMp = metabolic_litter_totC *f_met_to_som !C3
+    N_inSOMp = metabolic_litter_totN *f_met_to_som !N3
     
-    N_inSOMp = met_fraction*leaf_root_inputN*f_met_to_som !N3
-    N_inSOMc = ((1-met_fraction)*leaf_root_inputN + N_CWD(layer_nr))*f_struct_to_som !N4
+    C_inSOMc = structural_litter_totC*f_struct_to_som !C4
+    N_inSOMc = structural_litter_totN*f_struct_to_som !N4
     
   end subroutine input_rates
 
