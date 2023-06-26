@@ -89,7 +89,7 @@ contains
     
     yearly_mean_HR = sum_HR/hr_in_year
     
-    call fill_yearly_netcdf(output_path,run_name, year, yearly_meanC,yearly_meanN,yearly_meanNinorg,yearly_mean_HR)
+    call fill_yearly_netcdf(output_path,run_name, year, yearly_meanC,yearly_meanN,yearly_meanNinorg,yearly_mean_HR,delta_z(1:nlevels))
   end subroutine annual_mean
 
   subroutine decomp(nsteps,   &
@@ -784,7 +784,7 @@ contains
             write(12, *) inorg_N_final
             close(12)
           end if
-          call store_parameters(writencid,soil_depth,desorp)    
+          call store_parameters(writencid,soil_depth,desorp,delta_z(1:nlevels))    
         end if
         
         !Mass conservation test for timestep:
