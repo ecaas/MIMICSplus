@@ -292,14 +292,15 @@ module writeMod
       end do ! levels
     end subroutine fill_netcdf
 
-    subroutine store_parameters(ncid, soil_depth,desorp)
+    subroutine store_parameters(ncid, soil_depth,desorp,dz)
       !IN:
       integer,intent(in):: ncid
       real(r8),intent(in):: soil_depth
       real(r8),intent(in):: desorp
+      real(r8),dimension(:) :: dz
     
       !Local:
-      integer :: clayID, desorpID, k_sapsomID, depthID, fphysID, fchemID, favailID
+      integer :: clayID, desorpID, k_sapsomID, depthID, fphysID, fchemID, favailID,dzID
 
       call check(nf90_def_var(ncid, "f_clay", NF90_FLOAT, clayID))
       call check(nf90_put_att(ncid,clayID,"unit","unitless"))
@@ -315,7 +316,8 @@ module writeMod
       call check(nf90_put_att(ncid,fchemID,"unit","unitless"))
       call check(nf90_def_var(ncid, "depth", NF90_FLOAT,depthID))
       call check(nf90_put_att(ncid,depthID,"unit","m"))
-      
+      call check(nf90_def_var(ncid, "layer_thickness", NF90_FLOAT,(/lev_dimid/),dzID))
+      call check(nf90_put_att(ncid,dzID,"unit","m"))
 
       call check(nf90_enddef(ncid))
 
@@ -326,6 +328,7 @@ module writeMod
       call check(nf90_put_var(ncid, favailID, fAVAIL))
       call check(nf90_put_var(ncid, depthID, soil_depth))
       call check(nf90_put_var(ncid, k_sapsomID, k_sapsom))
+      call check(nf90_put_var(ncid,dzID,dz))
     end subroutine store_parameters
 
     subroutine get_timestep(time, write_hour, timestep)
@@ -489,15 +492,24 @@ module writeMod
 
       do v = 1, size(variables)
         call check(nf90_def_var(ncid, trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_put_att(ncid,varid,"unit","gCm^-3"))
         call check(nf90_def_var(ncid, "N_"//trim(variables(v)), NF90_FLOAT, (/ t_dimid, lev_dimid /), varid))
+        call check(nf90_put_att(ncid,varid,"unit","gNm^-3"))
       end do
-
+      
       call check(nf90_def_var(ncid, "N_NH4_sol", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_put_att(ncid,varid,"unit","gNm^-3"))
       call check(nf90_def_var(ncid, "N_NH4_sorp", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_put_att(ncid,varid,"unit","gNm^-3"))
       call check(nf90_def_var(ncid, "N_NO3", NF90_FLOAT, (/t_dimid, lev_dimid /), varid))
+      call check(nf90_put_att(ncid,varid,"unit","gNm^-3"))
       call check(nf90_def_var(ncid, "HR_flux", NF90_FLOAT, (/t_dimid /), varid))
+      call check(nf90_put_att(ncid,varid,"unit","gCm^-3h-1"))
       
       call check(nf90_def_var(ncid, "year_since_start", NF90_FLOAT, (/t_dimid /), varid))
+
+      call check(nf90_def_var(ncid, "layer_thickness", NF90_FLOAT,(/lev_dimid/),varid))
+      call check(nf90_put_att(ncid,varid,"unit","m"))
       call check(nf90_enddef(ncid))
 
       call check( nf90_close(ncid) )
@@ -536,16 +548,16 @@ module writeMod
       call check( nf90_close(ncid) )
     end subroutine create_monthly_mean_netcdf
 
-    subroutine fill_yearly_netcdf(output_path,run_name, year, Cpool_yearly, Npool_yearly, Ninorg_pool_yearly,HR_flux_yearly)
+    subroutine fill_yearly_netcdf(output_path,run_name, year, Cpool_yearly, Npool_yearly, Ninorg_pool_yearly,HR_flux_yearly,dz)
       !INPUT
       character (len = *),intent(in):: run_name
       character (len = *),intent(in) :: output_path
-
       integer,intent(in)            :: year
       real(r8),intent(in)           :: HR_flux_yearly  
       real(r8), intent(in)          :: Cpool_yearly(nlevels,pool_types)  ! For storing C pool sizes [gC/m3]
       real(r8),intent(in)           :: Npool_yearly(nlevels,pool_types_N)  
       real(r8),intent(in)           :: Ninorg_pool_yearly(nlevels,inorg_N_pools)  
+      real(r8),dimension(:),intent(in):: dz
       
       !LOCAL
       integer :: i,j,varid,ncid
@@ -554,6 +566,10 @@ module writeMod
       call check(nf90_open(output_path//trim(run_name)//"_yearly_mean.nc", nf90_write, ncid))
       call check(nf90_inq_varid(ncid, "year_since_start", varid))
       call check(nf90_put_var(ncid, varid, year , start = (/ year /)))
+
+      call check(nf90_inq_varid(ncid, "layer_thickness", varid))
+      call check(nf90_put_var(ncid,varid,dz))
+
 
       call check(nf90_inq_varid(ncid, "HR_flux", varid))
       call check(nf90_put_var(ncid, varid, HR_flux_yearly, start = (/year/)))
