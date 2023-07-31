@@ -332,7 +332,6 @@ contains
       day_counter   = 0
       write_counter       = 0
       ycounter      = 0
-
       allocate(ndep_prof(nlevels),leaf_prof(nlevels),froot_prof(nlevels), norm_froot_prof(nlevels), croot_prof(nlevels),stem_prof(nlevels))
 
       call read_WATSAT_and_profiles(adjustr(clm_input_path)//'all.'//"1901.nc",WATSAT,ndep_prof,froot_prof,leaf_prof) !NOTE: This subroutine needs to read a file that contains WATSAT etc. 
@@ -365,10 +364,9 @@ contains
         call read_clm_mortality(mort_ncid,1,froot_prof,croot_prof,leaf_prof,stem_prof,met_mortC,met_mortN,split_mortC,split_mortN)     
 
       end if
-
       call moisture_func(SOILLIQ,WATSAT,SOILICE,r_moist)                   
-
       call read_clay(adjustr(clm_surf_path),fCLAY)
+
       call calc_PFT(adjustr(clm_input_path)//'all.'//"1901.nc",lflitcn_avg)
       
       if ( .not. use_ROI ) then !use static PFT determined fractionation between EcM and AM C input

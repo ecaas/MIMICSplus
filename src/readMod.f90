@@ -306,7 +306,6 @@ module readMod
         call check(nf90_get_var(ncid, varid, N_CWD3, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))
 
       case("new")
-        print*, CLM_version, "inside new"
         ! C in Coarse Woody Debris
         call check(nf90_inq_varid(ncid, 'CWDC_TO_CEL_LITC_vr', varid))
         call check(nf90_get_var(ncid, varid, C_CWD2, start=(/1,1,time_entry/),count=(/1,nlevels,1/)))

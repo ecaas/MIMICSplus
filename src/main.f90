@@ -64,7 +64,6 @@ program main
   spinup_char=trim(spinup_char)
   read(spinup_char,*) spinup_years 
   read(spinup_only_char,*) spinup_only
-  
   !Get number of active soil layers from CLM file:
   call read_nlayers(trim(adjustr(clm_data_file)//'all.1901.nc'))
 
