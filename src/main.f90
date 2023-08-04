@@ -134,10 +134,10 @@ program main
 
     ! | Use output of last timestep of spinup to initialize step 2
     ! ! V
-    !!3: MONTHLY inputdata:
+    !!3: output every 10th year, on the 200th day of the year:
     call decomp(nsteps=71*24*365, &
                 run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1970"), &
-                write_hour=1*24*365*10+1+100*24,&
+                write_hour=1*24*365*10+200*24,&
                 pool_C_start=C_matrix_Spunup,pool_N_start=N_matrix_Spunup,inorg_N_start=N_inorg_matrix_Spunup,&
                 pool_C_final=C_matrix_1970,pool_N_final=N_matrix_1970,inorg_N_final=N_inorg_matrix_1970,&
                 start_year=1900,stop_year=1970,clm_input_path=clm_data_file, &
@@ -146,17 +146,17 @@ program main
     !|
     !| Use output of last timestep to initialize step 4
     !V
-    !4: DAILY inputdata, output every year:
+    !4: output every year:
     call decomp(nsteps=17*24*365, &
                 run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1987"), &
-                write_hour=1*24,&
+                write_hour=1*24*365,&
                 pool_C_start=C_matrix_1970,pool_N_start=N_matrix_1970,inorg_N_start=N_inorg_matrix_1970,&
                 pool_C_final=C_matrix_1987,pool_N_final=N_matrix_1987,inorg_N_final=N_inorg_matrix_1987,&
                 start_year=1971,stop_year=1987,clm_input_path=clm_data_file, &
                 clm_mortality_path = clm_mortality_file, & 
                 clm_surf_path=clm_surface_file, out_path = output_path)
   
-    !5: RUN WITH DAILY UPDATES of inputdata,output every day:
+    !5:  output every day:
     call decomp(nsteps=5*24*365, &
                 run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1992"), &
                 write_hour=1*24,&
