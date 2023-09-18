@@ -1,5 +1,5 @@
 program main
-  use shr_kind_mod, only : r8 => shr_kind_r8
+  use shr_kind_mod, only: r8 => shr_kind_r8
   use mycmimMod,    only: decomp
   use initMod,      only: read_nlayers,nlevels, initialize
   use paramMod,     only: full_clock_rate,full_clock_stop,full_clock_start, &
@@ -21,8 +21,8 @@ program main
   
   real(r8), dimension (:,:), allocatable   :: C_matrix_1970    
   real(r8), dimension (:,:), allocatable   :: N_matrix_1970 
-  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_1970   
-    
+  real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_1970 
+  
   real(r8), dimension (:,:), allocatable   :: C_matrix_1987    
   real(r8), dimension (:,:), allocatable   :: N_matrix_1987    
   real(r8), dimension (:,:), allocatable   :: N_inorg_matrix_1987   
@@ -130,18 +130,17 @@ program main
       end if 
     end if
 
-
     ! | Use output of last timestep of spinup to initialize step 2
     ! ! V
     !!3: MONTHLY inputdata:
     call decomp(nsteps=71*24*365, &
-                run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1970"), &
-                write_hour=1*24*365*10+1+100*24,&
-                pool_C_start=C_matrix_Spunup,pool_N_start=N_matrix_Spunup,inorg_N_start=N_inorg_matrix_Spunup,&
-                pool_C_final=C_matrix_1970,pool_N_final=N_matrix_1970,inorg_N_final=N_inorg_matrix_1970,&
-                start_year=1900,stop_year=1970,clm_input_path=clm_data_file, &
-                clm_mortality_path = clm_mortality_file, &
-                clm_surf_path=clm_surface_file, out_path = output_path)
+    run_name=trim(trim(site)//"_"//trim(description)//"_"//"to1970"), &
+    write_hour=1*24*365*10+1+100*24,&
+    pool_C_start=C_matrix_Spunup,pool_N_start=N_matrix_Spunup,inorg_N_start=N_inorg_matrix_Spunup,&
+    pool_C_final=C_matrix_1970,pool_N_final=N_matrix_1970,inorg_N_final=N_inorg_matrix_1970,&
+    start_year=1900,stop_year=1970,clm_input_path=clm_data_file, &
+    clm_mortality_path = clm_mortality_file, &
+    clm_surf_path=clm_surface_file, out_path = output_path)
     !|
     !| Use output of last timestep to initialize step 4
     !V

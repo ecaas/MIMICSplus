@@ -4,8 +4,9 @@
 description='equal_input'
 namelist_file='options.nml'
 spinup_years=1000
-only_spinup='True'
+only_spinup='False' # set to Ture performs only spin p, set to false, creates spinup and historical run
 CLM_version='new' #"old" or "new", "old" uses old variable names.
+make
 mkdir Spinup_values
 mkdir ./results/${description}
 mkdir ./results/${description}/nml_options
@@ -22,9 +23,7 @@ do
   clm_mortality_file='./test/'${site}'_mortality/mort_'${site}'_'
   clm_surface_file='./test/surfdata_'${site}'_simyr2000.nc'
   #clm_surface_file=/home/elisacw/soil_decomp/test/surfdata_langtjern_simyr2000.nc
-
   ./run_script_dev $site $description $clm_data_file $clm_mortality_file $clm_surface_file $namelist_file "./results/"${description}"/" $spinup_years $only_spinup $CLM_version #> log.txt
 done
 mv Spinup_values/* ./results/${description}/Spinup_values/
 rm -r Spinup_values
-

@@ -13,7 +13,7 @@
 
 
 module mycmimMod
-  use shr_kind_mod,   only : r8 => shr_kind_r8
+  use shr_kind_mod,   only: r8 => shr_kind_r8
   use paramMod        !TODO: use only relevant stuff?
   use initMod,        only: nlevels,calc_init_NH4
   use readMod,        only: read_maxC, read_time,read_clm_model_input,read_clay,&
