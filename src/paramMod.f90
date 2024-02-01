@@ -40,7 +40,7 @@ implicit none
   !From Baskaran et al 2016
   real(r8), parameter                           :: Km_myc    = 0.08              ![gNm-2] Half saturation constant of mycorrhizal uptake of inorganic N (called S_m in article) 
   real(r8), parameter                           :: V_max_myc = 1.8/hr_pr_yr      ![g g-1 hr-1] Max mycorrhizal uptake of inorganic N (called K_mn in article) 
-  real(r8), parameter                           :: K_MO      = 0.003_r8/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
+  real(r8), parameter                           :: K_MO      = 0.03_r8/hr_pr_yr ![m2gC-1hr-1] Mycorrhizal decay rate constant for oxidizable store     NOTE: vary from 0.0003 to 0.003 in article
 
   !Fraction of flux from EcM to different SOM pools NOTE: assumed
   real(r8),dimension(no_of_som_pools),parameter :: fEcMSOM   = (/0.4,0.2,0.4/)       ![-] somp,somc,soma. 

@@ -525,6 +525,10 @@ contains
           Leaching    = calc_Leaching_Runoff(qdrain,qrunoff,h2osoi_liq,inorg_N_matrix(j,3),j) !N31 !TODO: Call this Leaching_runoff or something, as it also contains RUNOFF
           Deposition  = set_N_dep(CLMdep = N_DEPinput*ndep_prof(j)) !NOTE: either const_dep = some_value or CLMdep = N_DEPinput*ndep_prof(j) !N32
 
+          ! if (year == 1972) then !IF test for NDEP experiments
+          !     Deposition = Deposition + (15./hr_pr_yr)*ndep_prof(j)
+          ! end if
+
           nitrif_rate = calc_nitrification((inorg_N_matrix(j,1)+Deposition*dt),W_SCALAR(j),T_SCALAR(j),TSOIL(j)) !NOTE: Uses NH4 + Deposiiton from current timestep !N34
        
           !Calculate fluxes between pools in level j at timestep:
@@ -1205,8 +1209,9 @@ contains
       call mining_rates_Sulman(C_EcM,C_SOMc,N_SOMc,r_moist(depth),Temp_Kelvin,r_myc, minedSOMc,N_SOMcEcM)
       call mining_rates_Sulman(C_EcM,C_SOMp,N_SOMp,r_moist(depth),Temp_Kelvin, r_myc, minedSOMp,N_SOMpEcM)
     else
-      call mining_rates_Baskaran(C_EcM,C_SOMp,N_SOMp,r_myc,soil_depth,minedSOMp,N_SOMpEcM) !N25
-      call mining_rates_Baskaran(C_EcM,C_SOMc,N_SOMc,r_myc,soil_depth,minedSOMc,N_SOMcEcM) !N26              
+      !NOTE: Modified, uses layer thickness instead of total soil depth
+      call mining_rates_Baskaran(C_EcM,C_SOMp,N_SOMp,r_myc,delta_z(depth),minedSOMp,N_SOMpEcM) !N25
+      call mining_rates_Baskaran(C_EcM,C_SOMc,N_SOMc,r_myc,delta_z(depth),minedSOMc,N_SOMcEcM) !N26              
     end if
     
     C_EcMdecompSOMp = minedSOMp   ![gC/m3h] !C25 !NOTE Can drop minedSOMx and define C_EcMdecompSOMx directly
@@ -1255,8 +1260,9 @@ contains
     call update_inorganic_N(NO3_tmp,NH4_sol_tmp,N_IN,nh4_sol_frac)
      
     !(3) Inorganic N taken up by mycorrhiza 
-    N_INEcM  = calc_myc_uptake(N_IN,C_EcM,soil_depth) !N27
-    N_INAM   = calc_myc_uptake(N_IN,C_AM,soil_depth) !N28
+    !NOTE: Modified, uses layer thickness instead of total soil depth
+    N_INEcM  = calc_myc_uptake(N_IN,C_EcM,delta_z(depth)) !N27
+    N_INAM   = calc_myc_uptake(N_IN,C_AM,delta_z(depth)) !N28
     
     !Update inorganic pools to account for uptake by mycorrhizal fungi
     NH4_sol_tmp = NH4_sol_tmp - nh4_sol_frac*(N_INEcM+N_INAM)*dt
