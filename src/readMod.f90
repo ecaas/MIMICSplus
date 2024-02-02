@@ -47,7 +47,8 @@ module readMod
       call check(nf90_inq_varid(ncid, 'NPP_NNONMYC', varid))
       call check(nf90_get_var(ncid, varid, NPP_nonmyc(:),start = (/1,1/),count = (/1,time_steps/)))
       
-      NPP_myc = (NPP_tot-NPP_nonmyc)*sec_pr_hr
+      !NOTE: Modified, assuming all of  NPP_NACTIVE go through the mycorrhizal pathway. See https://github.com/ESCOMP/CTSM/issues/2120#issuecomment-1711938292 
+      NPP_myc = (NPP_tot)*sec_pr_hr
 
       max_Cpay = maxval(NPP_myc)      
     end function read_maxC
@@ -348,8 +349,9 @@ module readMod
       call check(nf90_get_var(ncid, varid, NPP_NNONMYC,start=(/1, time_entry/)))
       NPP_NNONMYC = NPP_NNONMYC*sec_pr_hr ![gC/m^2/h]
       
-      !Part of total NPP_NACTIVE going to mycorrhizal associations
-      NPP_MYC = NPP_NACTIVE - NPP_NNONMYC
+      !Part of total NPP_NACTIVE going to mycorrhizal associations 
+      !NOTE: Revised, all NPP_NACTIVE are assumed to go to mycorrhizal associations. see https://github.com/ESCOMP/CTSM/issues/2120#issuecomment-1711938292 
+      NPP_MYC = NPP_NACTIVE
       
       !N deposition:
       call check(nf90_inq_varid(ncid, 'NDEP_TO_SMINN', varid))
